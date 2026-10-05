@@ -32,7 +32,7 @@ from pathlib import Path
 
 from aiohttp import WSMsgType, web
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 LD = Path.home() / ".linkdeck"
 TOKEN = os.environ.get("LINKDECK_TOKEN", "")
 AGENT_ID = os.environ.get("LINKDECK_ID", "")
@@ -52,6 +52,7 @@ AUDIO_CMD = os.environ.get("LINKDECK_AUDIO_CMD", "")   # untuk pengujian / siste
 
 clients: set = set()
 last_clip = None
+recent_set: dict = {}   # teks yang baru diisikan dari PC -> waktu; mencegah gema balik ke PC
 
 
 def log(*a):
@@ -272,7 +273,13 @@ async def handle(ws, d: dict) -> None:
         text = d.get("text", "")
         if text and text != last_clip:
             last_clip = text
+            recent_set[text] = time.time()
             await asyncio.to_thread(clip_set, text)
+            # tunggu sampai X benar-benar memegang isi baru, supaya pemantau tidak membaca isi lama
+            for _ in range(20):
+                if await asyncio.to_thread(clip_get) == text:
+                    break
+                await asyncio.sleep(0.05)
     elif t == "file":
         INBOX.mkdir(parents=True, exist_ok=True)
         dest = unique(INBOX / safe_name(d.get("name", "berkas")))
@@ -503,8 +510,12 @@ async def clip_loop() -> None:
             continue
         text = await asyncio.to_thread(clip_get)
         if text and text != last_clip:
+            if time.time() - recent_set.get(text, 0) < 6:   # isi lama yang memantul: abaikan
+                continue
             last_clip = text
             await send_all({"type": "clip", "text": text})
+        for k in [k for k, v in recent_set.items() if time.time() - v > 60]:
+            del recent_set[k]
 
 
 def mem_used_pct():

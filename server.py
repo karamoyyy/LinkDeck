@@ -118,7 +118,7 @@ POLL = {"usb": {"lat": 3, "bat": 15, "notif": 6}, "wifi": {"lat": 3, "bat": 30, 
         "bt": {"lat": 15, "bat": 120, "notif": 25}}
 NOTIF_CMD = r"dumpsys notification --noredact | grep -E '^  [^ ]|NotificationRecord\(|android\.(title|text|bigText)='"
 DEVICE_GRACE = 10   # detik: perangkat yang hilang sesaat tetap ditampilkan (cegah UI berkedip)
-DEFAULT_SETTINGS = {"autoconnect": True, "sync": True, "notif": True}
+DEFAULT_SETTINGS = {"autoconnect": True, "sync": True, "notif": True, "clip_android": True}
 
 
 def load_json(p: Path, default):
@@ -174,6 +174,8 @@ class State:
         # alamat adb jaringan yang disiapkan lewat kabel: {"ip:5555": "bt"|"wifi"}
         self.adb_targets: dict = load_json(user_data_dir() / "adb-targets.json", {})
         self.dev_gone: dict[str, float] = {}
+        self.android_clips: dict = {}
+        self.clip_recent: dict[str, float] = {}
         self.polled: dict[str, float] = {}
 
 
@@ -293,6 +295,8 @@ async def detect_tools() -> dict:
     t["virtual_display"] = t["flex"] = False
     if t["scrcpy"]:
         _, out, err = await run("scrcpy", "--version", timeout=8)
+        full = re.search(r"scrcpy v?(\d+(?:\.\d+)+)", out + err)
+        t["scrcpy_version_full"] = full.group(1) if full else None
         m = re.search(r"scrcpy (\d+)\.(\d+)", out + err)
         if m:
             major = int(m.group(1))
@@ -350,11 +354,28 @@ async def set_pc_clip(text: str) -> None:
             await log("Clipboard PC tidak bisa ditulis." + hint, "warn")
 
 
-async def add_clip(text: str, src: str) -> None:
+ECHO_WINDOW = 6.0   # detik: isi lama yang muncul lagi dalam jendela ini dianggap gema, bukan salinan baru
+
+
+def mark_current(text: str) -> None:
+    S.last_clip = text
+    now = time.time()
+    S.clip_recent[text] = now
+    for k in [k for k, t in S.clip_recent.items() if now - t > 60]:
+        del S.clip_recent[k]
+
+
+def is_stale_echo(text: str) -> bool:
+    """True bila teks ini baru saja jadi isi clipboard lalu diganti — perangkat lain memantulkannya balik."""
+    t = S.clip_recent.get(text)
+    return t is not None and text != S.last_clip and time.time() - t < ECHO_WINDOW
+
+
+async def add_clip(text: str, src: str, label: str | None = None) -> None:
     text = text[:20000]
     if S.clips and S.clips[0]["text"] == text:
         return
-    item = {"id": secrets.token_hex(4), "text": text, "src": src, "t": time.time()}
+    item = {"id": secrets.token_hex(4), "text": text, "src": src, "label": label, "t": time.time()}
     S.clips.insert(0, item)
     del S.clips[40:]
     await broadcast({"type": "clip", "item": item})
@@ -373,10 +394,197 @@ async def clip_watcher() -> None:
             text = await asyncio.to_thread(pyperclip.paste)
         except Exception:
             continue
-        if text and text != S.last_clip:
-            S.last_clip = text
+        if text and text != S.last_clip and not is_stale_echo(text):
+            mark_current(text)
             await add_clip(text, "pc")
             await send_agent({"type": "clip", "text": text})
+            await android_set_clip(text)
+
+
+# ================================================================ clipboard Android (tanpa jendela)
+
+ANDROID_CLIP_JAR = "/data/local/tmp/linkdeck-clip.jar"
+CLIP_MAX = 200_000
+
+
+def scrcpy_server_path() -> Path | None:
+    cands = [os.environ.get("SCRCPY_SERVER_PATH", ""), str(BIN / "scrcpy-server")]
+    exe = shutil.which("scrcpy")
+    if exe:
+        d = Path(exe).resolve().parent
+        cands += [str(d / "scrcpy-server"), str(d.parent / "share" / "scrcpy" / "scrcpy-server")]
+    cands += ["/usr/share/scrcpy/scrcpy-server", "/usr/local/share/scrcpy/scrcpy-server",
+              "/opt/homebrew/share/scrcpy/scrcpy-server"]
+    return next((Path(c) for c in cands if c and Path(c).is_file()), None)
+
+
+class AndroidClip:
+    """
+    Menjalankan scrcpy-server di HP hanya dengan kanal kontrol (tanpa video, audio, atau jendela).
+    Server itu punya izin shell untuk membaca clipboard Android dan mengirim setiap salinan baru;
+    sebaliknya LinkDeck bisa mengisi clipboard HP. Protokol: scrcpy 4.x control channel.
+    """
+
+    def __init__(self, serial: str) -> None:
+        self.serial = serial
+        self.ok = False
+        self.pushed = False
+        self.writer: asyncio.StreamWriter | None = None
+        self.proc: asyncio.subprocess.Process | None = None
+        self.port: int | None = None
+        self.error: str | None = None
+        self.task = asyncio.create_task(self.run())
+
+    async def run(self) -> None:
+        delay = 2.0
+        while True:
+            try:
+                await self.session()
+                delay = 2.0
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                self.error = str(e) or e.__class__.__name__
+            finally:
+                await self.close()
+            await broadcast_clip_status()
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, 30)
+
+    async def session(self) -> None:
+        jar, version = scrcpy_server_path(), S.tools.get("scrcpy_version_full")
+        if not jar or not version:
+            raise RuntimeError("scrcpy-server tidak ditemukan")
+        if not self.pushed:
+            c, _, e = await run("adb", "-s", self.serial, "push", str(jar), ANDROID_CLIP_JAR, timeout=60)
+            if c:
+                raise RuntimeError(f"gagal mengirim server: {e.strip()[:120]}")
+            self.pushed = True
+        scid = f"{secrets.randbelow(0x7FFFFFFF):08x}"
+        c, out, e = await run("adb", "-s", self.serial, "forward", "tcp:0", f"localabstract:scrcpy_{scid}", timeout=10)
+        if c or not out.strip().isdigit():
+            raise RuntimeError(f"adb forward gagal: {(out + e).strip()[:120]}")
+        self.port = int(out.strip())
+        cmd = (f"CLASSPATH={ANDROID_CLIP_JAR} app_process / com.genymobile.scrcpy.Server {version} "
+               f"scid={scid} log_level=warn video=false audio=false control=true tunnel_forward=true "
+               "send_device_meta=false clipboard_autosync=true power_on=false cleanup=false")
+        self.proc = await asyncio.create_subprocess_exec("adb", "-s", self.serial, "shell", cmd,
+                                                         stdout=PIPE, stderr=STDOUT, creationflags=NOWIN)
+        reader = None
+        for _ in range(50):                       # server butuh sebentar untuk siap
+            if self.proc.returncode is not None:
+                tail = (await self.proc.stdout.read()).decode(errors="replace").strip()
+                raise RuntimeError(f"server berhenti: {tail[-160:]}")
+            try:
+                r, w = await asyncio.open_connection("127.0.0.1", self.port)
+                await asyncio.wait_for(r.readexactly(1), 2)   # byte penanda koneksi
+                reader, self.writer = r, w
+                break
+            except (OSError, asyncio.IncompleteReadError, asyncio.TimeoutError):
+                await asyncio.sleep(0.25)
+        if reader is None:
+            raise RuntimeError("server clipboard tidak menjawab")
+        self.ok, self.error = True, None
+        await broadcast_clip_status()
+        while True:
+            t = (await reader.readexactly(1))[0]
+            if t == 0:                                        # clipboard dari HP
+                n = int.from_bytes(await reader.readexactly(4), "big")
+                text = (await reader.readexactly(n)).decode("utf-8", errors="replace")
+                await on_android_clip(self.serial, text)
+            elif t == 1:                                      # ack setel clipboard
+                await reader.readexactly(8)
+            elif t == 2:                                      # keluaran UHID (tidak dipakai)
+                head = await reader.readexactly(4)
+                await reader.readexactly(int.from_bytes(head[2:4], "big"))
+            else:
+                raise RuntimeError(f"pesan tidak dikenal: {t}")
+
+    async def set_clip(self, text: str) -> bool:
+        if not (self.ok and self.writer):
+            return False
+        data = text.encode("utf-8")[:CLIP_MAX]
+        # TYPE_SET_CLIPBOARD(9) | sequence u64 (0 = tanpa ack) | paste u8 | panjang u32 | teks
+        msg = bytes([9]) + (0).to_bytes(8, "big") + b"\x00" + len(data).to_bytes(4, "big") + data
+        try:
+            self.writer.write(msg)
+            await self.writer.drain()
+            return True
+        except Exception:
+            return False
+
+    async def close(self) -> None:
+        self.ok = False
+        if self.writer:
+            self.writer.close()
+            self.writer = None
+        if self.proc and self.proc.returncode is None:
+            self.proc.kill()
+        self.proc = None
+        if self.port:
+            await run("adb", "-s", self.serial, "forward", "--remove", f"tcp:{self.port}", timeout=5)
+            self.port = None
+
+    async def stop(self) -> None:
+        self.task.cancel()
+        await self.close()
+
+
+def device_label(serial: str) -> str:
+    dev = next((d for d in S.devices if d["serial"] == serial), None)
+    return dev["model"] if dev else serial
+
+
+async def on_android_clip(serial: str, text: str) -> None:
+    if not text or text == S.last_clip or is_stale_echo(text):
+        return
+    mark_current(text)
+    await set_pc_clip(text)
+    await add_clip(text, "android", device_label(serial))
+    await send_agent({"type": "clip", "text": text})
+    await android_set_clip(text, exclude=serial)
+
+
+async def android_set_clip(text: str, exclude: str | None = None) -> int:
+    n = 0
+    for serial, b in list(S.android_clips.items()):
+        if serial != exclude and await b.set_clip(text):
+            n += 1
+    return n
+
+
+def clip_status() -> dict:
+    return {"pc": pyperclip is not None, "debian": S.agent_ws is not None,
+            "enabled": S.settings.get("clip_android", True),
+            "android": [{"serial": s, "model": device_label(s), "ok": b.ok, "error": b.error}
+                        for s, b in S.android_clips.items()]}
+
+
+async def broadcast_clip_status() -> None:
+    await broadcast({"type": "clipstatus", "status": clip_status()})
+
+
+async def android_clip_loop() -> None:
+    """Pertahankan satu jembatan clipboard untuk setiap HP Android yang tersambung."""
+    while True:
+        await asyncio.sleep(3)
+        try:
+            want = set()
+            if S.settings.get("clip_android", True) and S.tools.get("adb") and scrcpy_server_path() \
+                    and S.tools.get("scrcpy_version_full"):
+                want = {d["serial"] for d in S.devices if d["state"] == "device"}
+            changed = False
+            for serial in list(S.android_clips):
+                if serial not in want:
+                    await S.android_clips.pop(serial).stop()
+                    changed = True
+            for serial in want - set(S.android_clips):
+                S.android_clips[serial] = AndroidClip(serial)
+                changed = True
+            if changed:
+                await broadcast_clip_status()
+        except Exception as e:
+            print("android_clip_loop:", e, flush=True)
 
 
 # ================================================================ agen Debian (TLS)
@@ -441,10 +649,11 @@ async def on_agent_msg(d: dict) -> None:
             fut.set_result(d)
     elif t == "clip":
         text = d.get("text", "")
-        if text and text != S.last_clip:
-            S.last_clip = text
+        if text and text != S.last_clip and not is_stale_echo(text):
+            mark_current(text)
             await set_pc_clip(text)
             await add_clip(text, "debian")
+            await android_set_clip(text)
     elif t == "file":
         name = safe_name(d.get("name", "berkas"))
         try:
@@ -488,6 +697,7 @@ async def agent_loop() -> None:
                                            max_msg_size=MAX_AGENT_FILE * 2, timeout=6) as ws:
                     S.agent_ws = ws
                     await broadcast({"type": "debian", "debian": public_debian()})
+                    await broadcast_clip_status()
                     async for msg in ws:
                         if msg.type == WSMsgType.TEXT:
                             try:
@@ -505,6 +715,7 @@ async def agent_loop() -> None:
             if S.kvm:
                 await asyncio.to_thread(S.kvm.release, None)
             await broadcast({"type": "debian", "debian": public_debian()})
+            await broadcast_clip_status()
         await asyncio.sleep(3)
 
 
@@ -872,7 +1083,8 @@ async def h_state(req: web.Request) -> web.Response:
               version=VERSION, agent_pkg=find_agent_deb() is not None, settings=S.settings,
               pairings=public_pairings(), notifs=S.notifs[:30],
               discovered=[{k: v for k, v in e.items() if k != "fp"} for e in S.discovered.values()],
-              sync=S.sync_info, kvm={"on": S.kvm_on, "captured": bool(S.kvm and S.kvm.captured)})
+              sync=S.sync_info, kvm={"on": S.kvm_on, "captured": bool(S.kvm and S.kvm.captured)},
+              clip_status=clip_status())
 
 
 async def h_tools(req: web.Request) -> web.Response:
@@ -1373,16 +1585,18 @@ async def h_clipboard(req: web.Request) -> web.Response:
     if not text:
         return fail("Teks kosong.")
     if d.get("src") == "debian-viewer":
-        if text != S.last_clip:
-            S.last_clip = text
+        if text != S.last_clip and not is_stale_echo(text):
+            mark_current(text)
             await set_pc_clip(text)
             await add_clip(text, "debian")
+            await android_set_clip(text)
         return ok()
-    S.last_clip = text
+    mark_current(text)
     await set_pc_clip(text)
     sent = await send_agent({"type": "clip", "text": text})
+    n_android = await android_set_clip(text)
     await add_clip(text, "pc")
-    return ok(debian=sent)
+    return ok(debian=sent, android=n_android)
 
 
 async def h_files(req: web.Request) -> web.Response:
@@ -1555,12 +1769,14 @@ async def on_startup(app: web.Application) -> None:
     S.loop = asyncio.get_running_loop()
     await detect_tools()
     S.tasks = [asyncio.create_task(t()) for t in (clip_watcher, stats_loop, assets_task, discovery_loop,
-                                                  sync_loop, notif_loop, adb_reconnect_loop)]
+                                                  sync_loop, notif_loop, adb_reconnect_loop, android_clip_loop)]
     if OPEN_BROWSER and "--no-browser" not in sys.argv:
         asyncio.get_running_loop().call_later(0.8, webbrowser.open, f"http://{HOST}:{PORT}/")
 
 
 async def on_shutdown(app: web.Application) -> None:
+    for b in list(S.android_clips.values()):
+        await b.stop()
     for sid, sess in list(S.sessions.items()):
         S.stopping.add(sid)
         sess["proc"].terminate()

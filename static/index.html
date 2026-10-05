@@ -342,6 +342,65 @@ details.more > *:not(summary){margin-top:10px}
 .rightcol .watch{padding:16px 6px}
 .rightcol .stat b{font-size:clamp(24px,2.4vw,32px)}
 @media (max-width:640px){.tool span{display:none}.tool{padding:8px 10px}.menu{top:110px}}
+
+/* ---------- v1.2.1: tidak ada yang terpotong ---------- */
+/* Sebelum tersambung, kartu "Hubungkan" ikut alur sehingga panel memanjang sesuai isinya.
+   Setelah desktop tampil, tinggi kembali dikunci 16:9 (anti membesar/mengecil). */
+.screen:not(.live):not(.term){min-height:auto;display:grid}
+.screen:not(.live):not(.term) .connect{position:relative;inset:auto;padding:28px 20px}
+.connect{align-content:center}
+.card{width:min(460px,100%);min-width:0;background:rgba(36,26,36,.72);border-color:rgba(255,255,255,.2)}
+.card > *{min-width:0}
+.card .two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.gfield{min-width:0}
+.gfield input,.gfield select{width:100%;min-width:0;background:rgba(0,0,0,.28);border-color:rgba(255,255,255,.22)}
+.gfield input:focus{border-color:var(--lilac);outline:none;box-shadow:0 0 0 3px rgba(236,198,245,.25)}
+.gfield input::placeholder{color:rgba(255,247,239,.5)}
+.seg{min-width:0}
+.seg button{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.checkrow{color:rgba(255,247,239,.85)}
+.found button{background:rgba(0,0,0,.22)}
+/* bar atas selalu satu baris */
+.top{flex-wrap:nowrap;gap:12px}
+.top h1{flex:none}
+.top .lead{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .pill{flex:none}
+.lane{flex:none}
+@media (max-width:1500px){.top .lead{display:none}.top h1{margin-right:auto}}
+@media (max-width:1100px){.lane span{padding:7px 10px;font-size:12px}}
+@media (max-width:900px){.top{flex-wrap:wrap}.lane{order:3;width:100%}}
+/* kartu Android lebih ringkas di laptop kecil */
+@media (max-width:1440px){.big strong{font-size:clamp(30px,3vw,44px)}}
+.toggle{line-height:1.25}
+
+.inner .actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.inner .actions #btnMirror{grid-column:1 / -1;order:-1;margin:0;padding:12px 18px;font-size:15px}
+.inner .actions .pill.white{justify-content:center}
+
+.compose textarea{height:auto;min-height:48px;line-height:1.4;padding:13px 14px}
+.compose{align-items:stretch}
+.clip,.notifs{min-height:260px}
+.applaunch input,.linkrow input{text-overflow:ellipsis}
+
+.seg.mini{flex:none}
+.seg.mini button{overflow:visible;text-overflow:clip}
+#pinWrap[hidden] + .gfield{grid-column:1 / -1}
+@media (max-width:1500px){
+  #btnFull span,#btnDebOff span{display:none}
+  #btnFull,#btnDebOff{padding:7px 10px}
+  .deb-tools{gap:5px}
+  .tool{padding:7px 11px}
+}
+
+.src.android{background:#c9f0d6;color:#14532d}
+.cliplinks{display:flex;flex-wrap:wrap;gap:6px}
+.clink{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;font-size:12.5px;background:var(--ink-2);color:#a9acc0;border:1px solid var(--ink-line);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clink i{width:7px;height:7px;border-radius:50%;background:#5c6078;flex:none}
+.clink.on{color:#f2f3f8}
+.clink.on i{background:var(--ok);box-shadow:0 0 0 3px rgba(127,224,166,.18)}
+
+.toggle.light input:checked{background:var(--lilac-deep)}
+.compose .pill{align-self:center}
 </style>
 </head>
 <body>
@@ -463,7 +522,7 @@ details.more > *:not(summary){margin-top:10px}
             <div class="split2">
               <label class="toggle"><input type="checkbox" id="optAudio" checked>Audio ke PC</label>
               <label class="toggle" data-hide="camera"><input type="checkbox" id="optKeep" checked>HP tetap aktif</label>
-              <label class="toggle" data-only="virtual" id="flexWrap" title="Ukuran layar virtual mengikuti jendela. Dimatikan otomatis di Bluetooth."><input type="checkbox" id="optFlex">Ukuran jendela bebas</label>
+              <label class="toggle" data-only="virtual" id="flexWrap" title="Ukuran layar virtual mengikuti jendela. Dimatikan otomatis di Bluetooth."><input type="checkbox" id="optFlex">Ukuran bebas</label>
               <label class="toggle" data-only="mirror"><input type="checkbox" id="optOff">Matikan layar HP</label>
             </div>
             <details class="more">
@@ -487,7 +546,7 @@ details.more > *:not(summary){margin-top:10px}
             <div class="lbl" style="font-size:12.5px;color:var(--muted);margin-bottom:6px">Aplikasi HP di jendela sendiri</div>
             <div class="applaunch">
               <label class="sr" for="appIn">Nama aplikasi</label>
-              <input id="appIn" list="appList" placeholder="Ketik nama aplikasi, mis. WhatsApp" autocomplete="off">
+              <input id="appIn" list="appList" placeholder="mis. WhatsApp" autocomplete="off">
               <datalist id="appList"></datalist>
               <button class="pill ink sm" id="btnApp">Buka</button>
             </div>
@@ -581,11 +640,13 @@ details.more > *:not(summary){margin-top:10px}
 
     <section class="lower">
       <div class="clip" id="clipboard">
-        <h2>Clipboard bersama</h2>
-        <p class="muted">Salin di PC, tempel di Debian, dan sebaliknya.</p>
+        <div class="row"><h2>Clipboard bersama</h2>
+          <label class="toggle light" style="margin-left:auto;color:#c8cad8" title="Pantau clipboard HP Android meski tidak ada jendela Android yang terbuka"><input type="checkbox" id="setClipAndroid" checked>Android</label></div>
+        <p class="muted">Salin di mana saja (PC, HP Android, atau Debian), tempel di perangkat lain.</p>
+        <div class="cliplinks" id="clipLinks" aria-live="polite"></div>
         <div class="compose">
           <label class="sr" for="clipIn">Teks untuk dikirim</label>
-          <textarea id="clipIn" placeholder="Tulis atau tempel teks, lalu kirim ke semua perangkat"></textarea>
+          <textarea id="clipIn" placeholder="Tulis atau tempel teks di sini"></textarea>
           <button class="pill lilac" id="btnClip">Kirim</button>
         </div>
         <ul class="cliplist" id="clipList" aria-live="polite"></ul>
@@ -610,7 +671,7 @@ details.more > *:not(summary){margin-top:10px}
           <input type="file" id="fileIn" multiple class="sr">
         </label>
         <div class="linkrow">
-          <input id="linkIn" placeholder="https://… buka di perangkat tujuan" inputmode="url" aria-label="Tautan">
+          <input id="linkIn" placeholder="https://…" inputmode="url" aria-label="Tautan">
           <button class="pill ink" id="btnLink">Buka tautan</button>
         </div>
         <div class="syncbox">
@@ -1224,13 +1285,14 @@ function onKvm(m){
 /* ---------- clipboard ---------- */
 function renderClips(){
   const ul = $('#clipList'); ul.innerHTML='';
-  if(!st.clips.length){ ul.innerHTML = '<li class="empty" style="display:block;border:0">Belum ada salinan. Coba Ctrl+C di PC atau Debian.</li>'; return; }
+  if(!st.clips.length){ ul.innerHTML = '<li class="empty" style="display:block;border:0">Belum ada salinan. Coba salin teks di PC, HP, atau Debian.</li>'; return; }
   for(const c of st.clips){
     const li = document.createElement('li');
-    li.innerHTML = `<span class="src ${c.src}">${c.src==='debian'?'Debian':'PC'}</span><div class="cliptext"><span></span><small>${ago(c.t)}</small></div><button class="pill lilac">Salin lagi</button>`;
+    const name = {debian:'Debian', android:'HP', pc:'PC'}[c.src] || 'PC';
+    li.innerHTML = `<span class="src ${esc(c.src)}" title="${esc(c.label||name)}">${name}</span><div class="cliptext"><span></span><small>${c.label ? esc(c.label)+' · ' : ''}${ago(c.t)}</small></div><button class="pill lilac">Salin lagi</button>`;
     li.querySelector('.cliptext span').textContent = c.text.replace(/\s+/g,' ');
     li.querySelector('.cliptext').title = c.text.slice(0,600);
-    li.querySelector('button').onclick = e => act(e.currentTarget, async()=>{ await api('/api/clipboard',{text:c.text}); toast('Disalin ke PC dan Debian.'); });
+    li.querySelector('button').onclick = e => act(e.currentTarget, async()=>{ const r = await api('/api/clipboard',{text:c.text}); toast(sentTo(r)); });
     ul.append(li);
   }
 }
@@ -1242,8 +1304,27 @@ function onClip(item){
 $('#btnClip').onclick = e => act(e.currentTarget, async () => {
   const text = $('#clipIn').value; if(!text.trim()) return;
   const r = await api('/api/clipboard',{text});
-  $('#clipIn').value=''; toast(r.debian ? 'Terkirim ke PC dan Debian.' : 'Tersalin di PC. Debian belum tersambung.');
+  $('#clipIn').value=''; toast(sentTo(r));
 });
+function sentTo(r){
+  const to = ['PC'];
+  if(r.android) to.push(r.android > 1 ? `${r.android} HP Android` : 'HP Android');
+  if(r.debian) to.push('Debian');
+  return `Tersalin di ${to.join(', ').replace(/, ([^,]*)$/, ' dan $1')}.`;
+}
+function renderClipStatus(cs){
+  if(!cs) return;
+  st.clipStatus = cs;
+  $('#setClipAndroid').checked = cs.enabled;
+  const chip = (on, label, title) => `<span class="clink ${on?'on':''}" title="${esc(title||'')}"><i></i>${esc(label)}</span>`;
+  let html = chip(cs.pc, 'PC', cs.pc ? 'Clipboard PC terpantau' : 'pyperclip/xclip belum ada');
+  if(!cs.enabled) html += chip(false, 'Android mati', 'Nyalakan sakelar Android untuk memantau clipboard HP');
+  else if(!cs.android.length) html += chip(false, 'Android', 'Belum ada HP Android tersambung');
+  else for(const a of cs.android) html += chip(a.ok, a.model, a.ok ? 'Clipboard HP terpantau' : (a.error ? 'Menyambung ulang: '+a.error : 'Menyambung…'));
+  html += chip(cs.debian, 'Debian', cs.debian ? 'Clipboard Debian terpantau' : 'Debian belum tersambung');
+  $('#clipLinks').innerHTML = html;
+}
+$('#setClipAndroid').onchange = e => act(null, () => setSetting('clip_android', e.target.checked));
 
 /* ---------- notifikasi ---------- */
 function renderNotifs(){
@@ -1276,7 +1357,7 @@ $('#fileTarget').onclick = e => {
   const b=e.target.closest('[data-target]'); if(!b) return;
   st.fileTarget = b.dataset.target; pressOne('#fileTarget', b);
   $('#dropWhere').textContent = st.fileTarget==='android' ? 'Masuk ke Download/LinkDeck di HP' : 'Masuk ke ~/Downloads/LinkDeck di Debian (maks 48 MB)';
-  $('#linkIn').placeholder = `https://… buka di ${st.fileTarget==='android'?'Android':'Debian'}`;
+
 };
 async function sendFiles(list){
   if(!list.length) return;
@@ -1383,7 +1464,7 @@ async function loadState(){
   $('#btnAgentPush').hidden = !r.agent_pkg;
   $('#setAuto').checked = r.settings.autoconnect; $('#setSync').checked = r.settings.sync; $('#setNotif').checked = r.settings.notif;
   renderTools(); setMode(st.mode); renderSessions(); renderClips(); renderDebian(); renderFound(); renderPairings(); renderNotifs();
-  renderSync({...r.sync, dir:r.sync_dir}); onKvm(r.kvm);
+  renderSync({...r.sync, dir:r.sync_dir}); onKvm(r.kvm); renderClipStatus(r.clip_status);
 }
 function connectEvents(){
   const ws = new WebSocket(WS('/ws/events'));
@@ -1393,6 +1474,7 @@ function connectEvents(){
       case 'devices': st.devices = m.devices; renderDevices(); renderNotifs(); break;
       case 'sessions': st.sessions = m.sessions; renderSessions(); break;
       case 'clip': onClip(m.item); break;
+      case 'clipstatus': renderClipStatus(m.status); break;
       case 'stats': onStats(m); break;
       case 'debian': st.debian = m.debian; if(st.rfb) applyQuality(st.rfb); renderDebian(); break;
       case 'resolution': toast(m.ok ? `Resolusi desktop Debian: ${m.size}` : `Resolusi gagal diubah: ${m.msg||''}`, m.ok?'info':'warn'); break;

@@ -1,5 +1,18 @@
 # Riwayat perubahan
 
+## 1.3.0
+- **Clipboard Android selalu tersinkron**, tanpa perlu membuka jendela Android. LinkDeck menjalankan jembatan clipboard ringan di HP (scrcpy-server hanya kanal kontrol: tanpa video, audio, atau jendela). Salin di HP → langsung ada di PC dan Debian; salin di PC atau Debian → langsung ada di HP.
+- Kartu Clipboard menampilkan status tiap perangkat (PC, setiap HP Android, Debian), lencana sumber **HP** beserta nama HP, dan sakelar **Android** untuk menyalakan/mematikan pemantauan clipboard HP.
+- Perbaikan: gema clipboard — isi lama yang memantul balik dari Debian tidak lagi menimpa salinan terbaru.
+- Sakelar bergaya terang kini terlihat jelas saat aktif.
+
+## 1.2.1
+- Perbaikan: kartu "Hubungkan desktop Debian" terpotong (tombol Hubungkan tidak terlihat) di layar laptop 1366×768 dan 1280×720. Panel kini memanjang sesuai isinya sebelum tersambung, lalu terkunci 16:9 setelah desktop tampil.
+- Perbaikan: kolom isian di kartu sambung meluber keluar kartu.
+- Perbaikan: label "Desktop/Terminal" terpotong; toolbar Debian kini muat dari lebar 1280 px ke atas.
+- Bar atas selalu satu baris; tombol "Mulai tampilkan" lebar penuh; kolom sandi melebar saat PIN tidak diperlukan.
+- Kontras kartu sambung dan kolom isian ditingkatkan; teks contoh (placeholder) dipersingkat agar tidak terpotong.
+
 ## 1.2.0
 **Perbaikan bug**
 - Layar desktop Debian tidak lagi membesar/mengecil sendiri: tinggi panel dikunci ke lebarnya (16:9), tidak ikut berubah saat isi kartu Android berubah.
