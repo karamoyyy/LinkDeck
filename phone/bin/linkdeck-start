@@ -52,5 +52,5 @@ echo "  Debian siap untuk LinkDeck (otomatis terlihat di PC pada jaringan yang s
 echo "  Mode        : $MODE (DISPLAY $DISPLAY, $GEOM)"
 echo "  PIN agen    : $LINKDECK_TOKEN"
 echo "  Sidik jari  : $FP   (cocokkan dengan yang tampil di LinkDeck)"
-echo "  IP Wi-Fi    : $IP   | Bluetooth: 192.168.44.1"
+echo "  IP Wi-Fi    : $IP   (harus satu jaringan dengan laptop; Bluetooth: lihat Default Gateway di ipconfig laptop)"
 echo "  Log         : $LD/*.log"

@@ -27,7 +27,7 @@ def main() -> Path:
         "Architecture": "all",
         "Maintainer": "LinkDeck <linkdeck@localhost>",
         "Installed-Size": "auto",
-        "Depends": "python3, python3-aiohttp, python3-xlib, xclip, openssl, tigervnc-standalone-server, "
+        "Depends": "python3, python3-aiohttp, python3-xlib, xclip, openssl, x11-xserver-utils, tigervnc-standalone-server, "
                    "tigervnc-scraping-server, tigervnc-tools, dbus-x11, xdg-utils, procps",
         "Recommends": "xfce4, pulseaudio-utils",
         "Description": "Agen LinkDeck: tampilkan desktop Debian di PC, monitor, atau TV\n"

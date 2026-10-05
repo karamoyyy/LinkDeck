@@ -293,8 +293,55 @@ body.kiosk #kioskExit{display:inline-flex;position:fixed;top:14px;right:14px;z-i
 .pairrow{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r-md);background:rgba(255,255,255,.08)}
 .pairrow .pill{margin-left:auto}
 .lower{grid-template-columns:1.1fr 1fr 1fr}
+.wire{display:grid;gap:10px;padding:16px;border-radius:var(--r-lg);background:rgba(255,255,255,.1);border:1px solid var(--glass-line)}
+.wire h3{margin:0;font-size:16px;font-weight:600}
+.wire p{margin:0;font-size:13.5px;color:var(--on-glass-dim)}
+.wire .pill{justify-self:start}
 @media (max-width:1280px){.lower{grid-template-columns:1fr 1fr}.lower .notifs{grid-column:1 / -1}}
 @media (max-width:900px){.lower{grid-template-columns:1fr}}
+
+/* ---------- v1.2: stabil & kontras ---------- */
+.scene::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(18,12,22,.28),rgba(18,12,22,.42))}
+.pill{font-weight:600}
+.pill.lilac{color:#5a1878}
+.pill.primary{background:var(--lilac-deep);color:#fff;box-shadow:0 6px 18px rgba(124,46,160,.28)}
+.pill.primary:hover{background:#9c48bf}
+.pill[disabled]{opacity:.4;filter:grayscale(.6);box-shadow:none}
+.stage{align-items:start}
+.deb{min-height:0}
+.deb-bar{display:grid;gap:10px;padding:14px 16px 12px 20px;flex-wrap:nowrap}
+.deb-title{display:flex;align-items:center;gap:12px;min-width:0}
+.deb-title h2{white-space:nowrap}
+.deb-title .status{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.deb-title .status span{overflow:hidden;text-overflow:ellipsis}
+.deb-tools{margin:0;flex-wrap:nowrap;overflow-x:auto;overflow-y:visible;scrollbar-width:none;gap:6px}
+.deb-tools::-webkit-scrollbar{display:none}
+.tool{display:inline-flex;align-items:center;gap:7px;flex:none;border:1px solid var(--glass-line);background:rgba(255,255,255,.08);color:var(--on-glass);border-radius:999px;padding:7px 13px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.tool .ico{width:16px;height:16px}
+.tool:hover{background:rgba(255,255,255,.16)}
+.tool[aria-pressed="true"],.tool[aria-expanded="true"]{background:var(--lilac);color:#5a1878;border-color:transparent}
+.tool.danger:hover{background:rgba(255,138,122,.22)}
+.menuwrap{position:static}
+.menu{position:absolute;right:16px;top:100px;z-index:15;width:min(320px,calc(100% - 32px));padding:16px;display:grid;gap:12px;border-radius:var(--r-lg);background:rgba(40,28,38,.86)}
+.menu select{background:rgba(255,255,255,.12);border:1px solid var(--glass-line);border-radius:12px;padding:9px 12px;color:var(--on-glass)}
+.menu select option{color:#111}
+.deb{position:relative}
+/* tinggi layar Debian dikunci ke lebar panel: tidak ikut melar saat isi kartu Android berubah */
+.screen{flex:none;min-height:0;aspect-ratio:16/9;height:auto}
+.screen.live,.screen.term{background:#0d0b12}
+details.more{border-top:1px solid #dcd8e3;padding-top:10px}
+details.more summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--lilac-ink);list-style:none;display:flex;align-items:center;gap:6px}
+details.more summary::-webkit-details-marker{display:none}
+details.more summary::before{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .2s}
+details.more[open] summary::before{transform:rotate(45deg)}
+details.more > *:not(summary){margin-top:10px}
+.notifs,.watch{background:rgba(34,24,32,.38)}
+.notifs .hint,.nlist span,.nlist small{color:rgba(255,247,239,.78)}
+.top .lead{color:rgba(255,247,239,.82)}
+.rightcol{display:grid;gap:18px;min-width:0;align-content:start}
+.rightcol .watch{padding:16px 6px}
+.rightcol .stat b{font-size:clamp(24px,2.4vw,32px)}
+@media (max-width:640px){.tool span{display:none}.tool{padding:8px 10px}.menu{top:110px}}
 </style>
 </head>
 <body>
@@ -415,18 +462,24 @@ body.kiosk #kioskExit{display:inline-flex;position:fixed;top:14px;right:14px;z-i
             </div>
             <div class="split2">
               <label class="toggle"><input type="checkbox" id="optAudio" checked>Audio ke PC</label>
-              <label class="toggle"><input type="checkbox" id="optRecord">Rekam ke MP4</label>
               <label class="toggle" data-hide="camera"><input type="checkbox" id="optKeep" checked>HP tetap aktif</label>
-              <label class="toggle" data-only="virtual" id="flexWrap"><input type="checkbox" id="optFlex" checked>Ukuran jendela bebas</label>
-              <label class="toggle" data-hide="camera"><input type="checkbox" id="optPad">Gamepad PC ke HP</label>
+              <label class="toggle" data-only="virtual" id="flexWrap" title="Ukuran layar virtual mengikuti jendela. Dimatikan otomatis di Bluetooth."><input type="checkbox" id="optFlex">Ukuran jendela bebas</label>
               <label class="toggle" data-only="mirror"><input type="checkbox" id="optOff">Matikan layar HP</label>
             </div>
-            <label class="field">Tampilkan di
-              <select id="optScreen"><option value="">Jendela biasa</option></select>
-            </label>
+            <details class="more">
+              <summary>Pengaturan lain</summary>
+              <div class="split2">
+                <label class="toggle"><input type="checkbox" id="optRecord">Rekam ke MP4</label>
+                <label class="toggle" data-hide="camera"><input type="checkbox" id="optPad">Gamepad PC ke HP</label>
+              </div>
+              <label class="field">Tampilkan di
+                <select id="optScreen"><option value="">Jendela biasa</option></select>
+              </label>
+            </details>
             <div class="actions">
+              <button class="pill white sm" id="btnGoWireless" hidden title="HP tetap tersambung setelah kabel dicabut">Lanjut tanpa kabel</button>
               <button class="pill white sm" id="btnShot"><svg class="ico" style="width:17px;height:17px"><use href="#i-camera"/></svg>Tangkap layar</button>
-              <button class="pill lilac" id="btnMirror">Mulai tampilkan</button>
+              <button class="pill primary" id="btnMirror">Mulai tampilkan</button>
             </div>
           </div>
 
@@ -443,25 +496,47 @@ body.kiosk #kioskExit{display:inline-flex;position:fixed;top:14px;right:14px;z-i
         </div>
       </div>
 
-      <!-- DEBIAN -->
+      <!-- DEBIAN + pantauan -->
+      <div class="rightcol">
       <div class="deb glass">
         <div class="deb-bar">
-          <h2>Debian 13 XFCE</h2>
-          <span class="status" id="debStatus"><i></i><span>Belum terhubung</span></span>
-          <span class="lock" id="debLock" hidden><svg class="ico"><use href="#i-lock"/></svg>Terenkripsi</span>
+          <div class="deb-title">
+            <h2>Debian 13 XFCE</h2>
+            <span class="status" id="debStatus"><i></i><span>Belum terhubung</span></span>
+            <span class="lock" id="debLock" hidden><svg class="ico"><use href="#i-lock"/></svg>Terenkripsi</span>
+          </div>
           <div class="deb-tools" id="debTools" hidden>
             <div class="seg mini" id="viewSeg" role="group" aria-label="Tampilan">
               <button type="button" data-view="desk" aria-pressed="true">Desktop</button>
               <button type="button" data-view="term">Terminal</button>
             </div>
-            <button class="pill ghost sm" id="btnSound" aria-pressed="false"><svg class="ico" style="width:16px;height:16px"><use href="#i-sound"/></svg>Suara</button>
-            <button class="pill ghost sm" id="btnKvm" aria-pressed="false" title="Geser kursor ke tepi layar PC untuk mengontrol Debian"><svg class="ico" style="width:16px;height:16px"><use href="#i-mouse"/></svg>Satu mouse</button>
-            <select id="kvmEdge" aria-label="Tepi layar"><option value="right">Debian di kanan</option><option value="left">Debian di kiri</option></select>
-            <label class="toggle light" title="Ubah resolusi desktop Debian mengikuti ukuran panel"><input type="checkbox" id="fitSession">Ikuti ukuran</label>
-            <select id="debScreen" aria-label="Layar tujuan"><option value="">Layar ini</option></select>
-            <button class="pill ghost sm" id="btnFull"><svg class="ico" style="width:16px;height:16px"><use href="#i-full"/></svg>Layar penuh</button>
-            <button class="pill ghost sm" id="btnTiger" hidden>TigerVNC</button>
-            <button class="pill ghost sm" id="btnDebOff">Putuskan</button>
+            <button class="tool" id="btnSound" aria-pressed="false" title="Suara Debian ke PC"><svg class="ico"><use href="#i-sound"/></svg><span>Suara</span></button>
+            <button class="tool" id="btnKvm" aria-pressed="false" title="Geser kursor ke tepi layar PC untuk mengontrol Debian"><svg class="ico"><use href="#i-mouse"/></svg><span>Satu mouse</span></button>
+            <button class="tool" id="btnFull" title="Layar penuh"><svg class="ico"><use href="#i-full"/></svg><span>Layar penuh</span></button>
+            <div class="menuwrap">
+              <button class="tool" id="btnMore" aria-expanded="false" aria-controls="moreMenu" title="Pengaturan tampilan"><svg class="ico"><use href="#i-gear"/></svg><span>Lainnya</span></button>
+              <div class="menu glass" id="moreMenu" hidden>
+                <label class="gfield">Resolusi desktop Debian
+                  <select id="debRes">
+                    <option value="">Biarkan seperti sekarang</option>
+                    <option value="fit">Ikuti ukuran panel ini</option>
+                    <option value="1920x1080">1920×1080 (Full HD)</option>
+                    <option value="1600x900">1600×900</option>
+                    <option value="1366x768">1366×768</option>
+                    <option value="1280x720">1280×720 (hemat, cocok Bluetooth)</option>
+                    <option value="1024x600">1024×600 (paling hemat)</option>
+                  </select>
+                </label>
+                <label class="gfield">Layar tujuan untuk layar penuh
+                  <select id="debScreen"><option value="">Layar ini</option></select>
+                </label>
+                <label class="gfield">Posisi Debian untuk "Satu mouse"
+                  <select id="kvmEdge"><option value="right">Di kanan layar PC</option><option value="left">Di kiri layar PC</option></select>
+                </label>
+                <button class="pill ghost sm" id="btnTiger" hidden>Buka di TigerVNC</button>
+              </div>
+            </div>
+            <button class="tool danger" id="btnDebOff" title="Putuskan Debian"><svg class="ico"><use href="#i-x"/></svg><span>Putuskan</span></button>
           </div>
         </div>
         <div class="screen" id="screen">
@@ -489,11 +564,18 @@ body.kiosk #kioskExit{display:inline-flex;position:fixed;top:14px;right:14px;z-i
               </div>
               <label class="checkrow"><input type="checkbox" id="debRemember" checked>Ingat perangkat ini dan sambung otomatis</label>
               <span class="fp" id="debFp"></span>
-              <button class="pill lilac" type="submit" id="btnDeb">Hubungkan</button>
+              <button class="pill primary" type="submit" id="btnDeb">Hubungkan</button>
               <button class="linkbtn" type="button" id="btnAgentPush" hidden>Agen belum terpasang di HP? Kirim paketnya lewat adb</button>
             </form>
           </div>
         </div>
+      </div>
+      <section class="watch glass" id="pantauan" aria-label="Pantauan">
+      <div class="stat"><span class="k"><i style="background:var(--lilac)"></i>Baterai HP</span><b id="sBat">–</b><svg id="gBat" aria-hidden="true"></svg></div>
+      <div class="stat"><span class="k"><i style="background:var(--sky)"></i>Respons adb</span><b id="sLat">–</b><svg id="gLat" aria-hidden="true"></svg></div>
+      <div class="stat"><span class="k"><i style="background:var(--warn)"></i>Aliran Debian</span><b id="sVnc">–</b><svg id="gVnc" aria-hidden="true"></svg></div>
+      <div class="stat"><span class="k"><i style="background:var(--ok)"></i>Beban CPU Debian</span><b id="sLoad">–</b><svg id="gLoad" aria-hidden="true"></svg></div>
+    </section>
       </div>
     </section>
 
@@ -541,12 +623,7 @@ body.kiosk #kioskExit{display:inline-flex;position:fixed;top:14px;right:14px;z-i
       </div>
     </section>
 
-    <section class="watch glass" id="pantauan" aria-label="Pantauan">
-      <div class="stat"><span class="k"><i style="background:var(--lilac)"></i>Baterai HP</span><b id="sBat">–</b><svg id="gBat" aria-hidden="true"></svg></div>
-      <div class="stat"><span class="k"><i style="background:var(--sky)"></i>Respons adb</span><b id="sLat">–</b><svg id="gLat" aria-hidden="true"></svg></div>
-      <div class="stat"><span class="k"><i style="background:var(--warn)"></i>Aliran Debian</span><b id="sVnc">–</b><svg id="gVnc" aria-hidden="true"></svg></div>
-      <div class="stat"><span class="k"><i style="background:var(--ok)"></i>Beban CPU Debian</span><b id="sLoad">–</b><svg id="gLoad" aria-hidden="true"></svg></div>
-    </section>
+
   </main>
 </div>
 
@@ -597,6 +674,12 @@ body.kiosk #kioskExit{display:inline-flex;position:fixed;top:14px;right:14px;z-i
       </ol>
     </div>
     <div data-pane="wifi" hidden>
+      <div class="wire">
+        <h3>Cara cepat: colok kabel sekali</h3>
+        <p>HP dan laptop di Wi-Fi yang sama, kabel tercolok. Klik tombol ini, lalu kabel boleh dicabut.</p>
+        <button class="pill lilac" type="button" data-wireless="wifi">Siapkan Android lewat Wi-Fi</button>
+      </div>
+      <p class="hint" style="color:var(--on-glass-dim);margin:14px 0 8px">Atau tanpa kabel sama sekali (Android 11+):</p>
       <ol class="steps">
         <li><span>HP dan laptop di Wi-Fi yang sama. Buka <b>Opsi pengembang → Debugging nirkabel</b>.</span></li>
         <li><span>Ketuk <b>Sambungkan perangkat dengan kode</b>, isi alamat dan kodenya di bawah.</span></li>
@@ -617,11 +700,16 @@ body.kiosk #kioskExit{display:inline-flex;position:fixed;top:14px;right:14px;z-i
     <div data-pane="bt" hidden>
       <ol class="steps">
         <li><span>Pasangkan HP dan laptop lewat Bluetooth seperti biasa.</span></li>
-        <li><span>Di HP: <b>Hotspot & tethering → Tethering Bluetooth</b> nyalakan.</span></li>
-        <li><span>Di laptop gabung ke jaringan HP. Windows: klik kanan HP di Bluetooth → <b>Join a Personal Area Network</b>. Linux: Blueman → <b>Network Access Point</b>.</span></li>
-        <li><span>Debian HP muncul otomatis. Untuk Android, isi <b>192.168.44.1</b> di tab Wi-Fi.</span></li>
+        <li><span>Di HP nyalakan <b>Tethering Bluetooth</b> (Hotspot &amp; tethering).</span></li>
+        <li><span>Di laptop tekan <b>Win + R</b>, ketik <b>control printers</b>, klik kanan HP → <b>Connect using → Access point</b>.</span></li>
+        <li><span>Debian di HP langsung muncul di panel Debian.</span></li>
       </ol>
-      <p class="hint" style="color:var(--on-glass-dim)">Bluetooth hanya sekitar 1–2 Mbps: cocok untuk clipboard, berkas kecil, terminal, dan desktop ringan.</p>
+      <div class="wire" style="margin-top:14px">
+        <h3>Android lewat Bluetooth</h3>
+        <p>Colok kabel sekali, klik tombol ini, lalu kabel boleh dicabut. Ulangi hanya kalau HP di-restart.</p>
+        <button class="pill lilac" type="button" data-wireless="bt">Siapkan Android lewat Bluetooth</button>
+      </div>
+      <p class="hint" style="color:var(--on-glass-dim);margin-top:12px">Bluetooth hanya sekitar 1–2 Mbps: cocok untuk clipboard, berkas kecil, terminal, dan desktop ringan.</p>
     </div>
     <div>
       <h3 style="margin:0 0 10px;font-weight:600;font-size:16px">Perangkat terhubung</h3>
@@ -754,9 +842,10 @@ function renderDevices(){
   const running = cur && st.sessions.some(s=>s.serial===cur.serial && s.mode===st.mode && st.mode!=='virtual');
   const btn = $('#btnMirror');
   btn.textContent = running ? 'Hentikan' : st.mode==='virtual' && st.sessions.some(s=>s.serial===cur?.serial && s.mode==='virtual') ? 'Tambah layar' : 'Mulai tampilkan';
-  btn.classList.toggle('lilac', !running); btn.classList.toggle('ink', !!running);
+  btn.classList.toggle('primary', !running); btn.classList.toggle('ink', !!running);
   btn.disabled = !cur || !st.tools.scrcpy;
   $('#btnShot').disabled = !cur; $('#btnApp').disabled = !cur || !st.tools.scrcpy;
+  $('#btnGoWireless').hidden = cur?.transport !== 'usb';
   ['usb','wifi','bt'].forEach(k=>{
     const on = ready.some(d=>d.transport===k) || (st.debian && st.debian.transport===k);
     $('#lane'+{usb:'Usb',wifi:'Wifi',bt:'Bt'}[k]).classList.toggle('on', !!on);
@@ -810,6 +899,7 @@ function setPreset(p, touched=true){
   $$('#presetChips .chip').forEach(c=>c.setAttribute('aria-pressed', c.dataset.preset===p));
   $('#rateBig').textContent = RATES[p][0]; $('#fpsBig').textContent = `${RATES[p][1]} fps`;
   if(p==='bt') $('#optAudio').checked = false;
+  $('#optFlex').disabled = p==='bt'; if(p==='bt') $('#optFlex').checked = false;
 }
 $('#presetChips').onclick = e => { const b=e.target.closest('[data-preset]'); if(b) setPreset(b.dataset.preset); };
 
@@ -836,6 +926,20 @@ $('#btnMirror').onclick = e => act(e.currentTarget, async () => {
   await startSession();
   toast({virtual:'Layar baru dibuka di PC. Layar HP tetap seperti semula.', mirror:'Layar HP ditampilkan di PC.', camera:'Kamera HP tampil di PC.'}[st.mode]);
 });
+async function goWireless(prefer, btn){
+  const label = btn.textContent;
+  btn.textContent = 'Menyiapkan… jangan cabut kabel';
+  try{
+    await act(btn, async () => {
+      const r = await api('/api/adb/tcpip', {serial:st.serial, prefer});
+      st.serial = r.serial; setPreset(r.transport);
+      toast(`Selesai. Android tersambung lewat ${LANE[r.transport]}. Kabel boleh dicabut.`);
+      await loadState();
+    });
+  } finally { btn.textContent = label; }
+}
+$$('[data-wireless]').forEach(b => b.onclick = () => goWireless(b.dataset.wireless, b));
+$('#btnGoWireless').onclick = () => { openDrawer('pair'); $('#pairSeg [data-tab="bt"]').click(); };
 $('#btnShot').onclick = e => act(e.currentTarget, async () => {
   const r = await api('/api/screenshot',{serial:st.serial});
   toast(`Disimpan di ${r.path}`, 'info', r.data);
@@ -958,8 +1062,15 @@ async function openViewer(password){
   const {default: RFB} = await import('/novnc/core/rfb.js');
   st.rfb?.disconnect();
   const rfb = new RFB($('#vnc'), WS('/ws/vnc'), {credentials:{password}});
-  rfb.scaleViewport = true; rfb.resizeSession = $('#fitSession').checked; rfb.background = 'transparent';
-  rfb.addEventListener('connect', () => { $('#screen').classList.add('live'); renderDebian(); toast('Desktop Debian tampil. Layar di HP tidak ikut berubah.'); });
+  rfb.scaleViewport = true; rfb.resizeSession = fitMode(); rfb.background = 'transparent';
+  applyQuality(rfb);
+  rfb.addEventListener('connect', () => {
+    $('#screen').classList.add('live'); renderDebian();
+    const scr = st.debian?.screen;
+    if(st.debian?.transport==='bt' && scr && scr[0] > 1366)
+      toast('Lewat Bluetooth, desktop terasa lebih lancar di resolusi kecil. Pilih 1280×720 di menu Lainnya.','warn');
+    else toast('Desktop Debian tampil. Layar di HP tidak ikut berubah.');
+  });
   rfb.addEventListener('disconnect', e => {
     $('#screen').classList.remove('live');
     if(st.rfb===rfb){ st.rfb=null; if(!e.detail.clean && st.debian) toast('Tampilan desktop Debian terputus.','warn'); }
@@ -977,10 +1088,30 @@ function renderDebian(){
   s.lastChild.textContent = !d ? 'Belum terhubung' : `${esc(d.name)} lewat ${LANE[d.transport]}${d.agent ? '' : ', menyambung…'}`;
   if(!d){ setView('desk'); stopAudio(); }
   $('#btnKvm').setAttribute('aria-pressed', !!st.kvm.on);
-  $('#btnKvm').classList.toggle('lilac', !!st.kvm.on); $('#btnKvm').classList.toggle('ghost', !st.kvm.on);
   renderDevices();
 }
-$('#fitSession').onchange = e => { if(st.rfb) st.rfb.resizeSession = e.target.checked; };
+/* kualitas & resolusi */
+function applyQuality(rfb){
+  const [q, c] = st.debian?.vnc_quality || [6, 2];
+  try{ rfb.qualityLevel = q; rfb.compressionLevel = c; }catch{}
+}
+const fitMode = () => { try{ return localStorage.getItem('ld.fit') === '1'; }catch{ return false; } };
+$('#debRes').value = fitMode() ? 'fit' : '';
+$('#debRes').onchange = e => act(null, async () => {
+  const v = e.target.value;
+  try{ localStorage.setItem('ld.fit', v==='fit' ? '1' : '0'); }catch{}
+  if(st.rfb) st.rfb.resizeSession = v==='fit';
+  if(v && v!=='fit') await api('/api/debian/resolution', {size:v});
+});
+$('#btnMore').onclick = e => {
+  e.stopPropagation();
+  const m = $('#moreMenu'), open = m.hidden;
+  m.hidden = !open; $('#btnMore').setAttribute('aria-expanded', open);
+  if(open) loadScreens(false);
+};
+document.addEventListener('click', e => {
+  if(!$('#moreMenu').hidden && !e.target.closest('#moreMenu')){ $('#moreMenu').hidden = true; $('#btnMore').setAttribute('aria-expanded', false); }
+});
 $('#btnDebOff').onclick = e => act(e.currentTarget, async () => {
   const r = st.rfb; st.rfb = null; r?.disconnect();
   await api('/api/debian/disconnect',{});
@@ -1036,34 +1167,45 @@ function setView(v){
 $('#viewSeg').onclick = e => { const b=e.target.closest('[data-view]'); if(b) setView(b.dataset.view); };
 
 /* ---------- suara Debian ---------- */
+const ULAW = (() => {          // tabel G.711 mu-law -> float
+  const t = new Float32Array(256);
+  for(let i=0;i<256;i++){ const u = ~i & 0xff, sign = u & 0x80, exp = (u >> 4) & 7, man = u & 0x0f;
+    let v = ((man << 3) + 0x84) << exp; v -= 0x84; t[i] = (sign ? -v : v) / 32768; }
+  return t;
+})();
 function stopAudio(){
   if(!st.audio) return;
   st.audio.ws.close(); st.audio.ctx.close(); st.audio = null;
-  $('#btnSound').setAttribute('aria-pressed', false); $('#btnSound').classList.replace('lilac','ghost');
+  $('#btnSound').setAttribute('aria-pressed', false);
 }
 function startAudio(){
-  const low = st.debian?.transport==='bt';
-  const ctx = new AudioContext(); const ws = new WebSocket(WS('/ws/audio' + (low ? '?q=low' : '')));
+  const q = st.debian?.transport==='bt' ? 'low' : 'high';
+  const ctx = new AudioContext(); const ws = new WebSocket(WS('/ws/audio?q=' + q));
   ws.binaryType = 'arraybuffer';
-  const a = st.audio = {ctx, ws, rate:48000, ch:2, next:0};
+  // penyangga lebih besar untuk Bluetooth supaya suara tidak putus-putus
+  const lead = q==='low' ? 0.25 : 0.08, maxAhead = q==='low' ? 1.2 : 0.6;
+  const a = st.audio = {ctx, ws, rate:48000, ch:2, enc:'s16le', next:0};
   ws.onmessage = ev => {
     if(typeof ev.data === 'string'){
       const m = JSON.parse(ev.data);
-      if(m.type==='format'){ a.rate=m.rate; a.ch=m.channels; }
+      if(m.type==='format'){ a.rate=m.rate; a.ch=m.channels; a.enc=m.encoding||'s16le'; }
       if(m.type==='error'){ toast(m.msg,'warn'); stopAudio(); }
       return;
     }
-    const pcm = new Int16Array(ev.data), frames = pcm.length / a.ch;
+    let samples;
+    if(a.enc==='ulaw'){ const u = new Uint8Array(ev.data); samples = new Float32Array(u.length); for(let i=0;i<u.length;i++) samples[i] = ULAW[u[i]]; }
+    else { const pcm = new Int16Array(ev.data); samples = new Float32Array(pcm.length); for(let i=0;i<pcm.length;i++) samples[i] = pcm[i]/32768; }
+    const frames = Math.floor(samples.length / a.ch);
     if(!frames) return;
     const buf = ctx.createBuffer(a.ch, frames, a.rate);
-    for(let c=0;c<a.ch;c++){ const out = buf.getChannelData(c); for(let i=0;i<frames;i++) out[i] = pcm[i*a.ch+c]/32768; }
+    for(let c=0;c<a.ch;c++){ const out = buf.getChannelData(c); for(let i=0;i<frames;i++) out[i] = samples[i*a.ch+c]; }
     const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
     const now = ctx.currentTime;
-    if(a.next < now + 0.03 || a.next > now + 0.6) a.next = now + 0.08;   // jaga jeda tetap kecil
+    if(a.next < now + 0.02 || a.next > now + maxAhead) a.next = now + lead;
     src.start(a.next); a.next += buf.duration;
   };
   ws.onclose = () => { if(st.audio===a) stopAudio(); };
-  $('#btnSound').setAttribute('aria-pressed', true); $('#btnSound').classList.replace('ghost','lilac');
+  $('#btnSound').setAttribute('aria-pressed', true);
 }
 $('#btnSound').onclick = () => st.audio ? stopAudio() : startAudio();
 
@@ -1186,7 +1328,7 @@ $('#btnTv').onclick = e => act(e.currentTarget, async () => {
   const pos = scr ? {window_x:scr.left+40, window_y:scr.top+40} : {};
   if(tvWhat==='debian'){
     if(!st.rfb) throw new Error('Hubungkan dan tampilkan desktop Debian dulu.');
-    $('#fitSession').checked = true; st.rfb.resizeSession = true; setView('desk');
+    st.rfb.resizeSession = true; setView('desk');
     if(!st.audio) startAudio();
     $('#drawer-tv').classList.remove('open');
     return fullscreenDebian(scr);
@@ -1252,7 +1394,8 @@ function connectEvents(){
       case 'sessions': st.sessions = m.sessions; renderSessions(); break;
       case 'clip': onClip(m.item); break;
       case 'stats': onStats(m); break;
-      case 'debian': st.debian = m.debian; renderDebian(); break;
+      case 'debian': st.debian = m.debian; if(st.rfb) applyQuality(st.rfb); renderDebian(); break;
+      case 'resolution': toast(m.ok ? `Resolusi desktop Debian: ${m.size}` : `Resolusi gagal diubah: ${m.msg||''}`, m.ok?'info':'warn'); break;
       case 'autoconnected': st.debian = m.debian; renderDebian(); if(!st.rfb) afterDebianConnected('').catch(()=>{}); break;
       case 'discovered': st.discovered = m.items; renderFound(); break;
       case 'pairings': st.pairings = m.pairings; renderPairings(); break;

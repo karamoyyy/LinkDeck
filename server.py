@@ -105,11 +105,19 @@ AGENT_PORT = 8765
 BEACON_PORT = 47823
 ANDROID_DROP = "/sdcard/Download/LinkDeck"
 
+# Preset per jalur. --video-buffer meredam patah-patah akibat jitter jaringan (sedikit menambah jeda).
 PRESETS = {
     "usb": ["--video-bit-rate=16M", "--max-fps=60"],
-    "wifi": ["--video-bit-rate=6M", "--max-size=1600", "--max-fps=60"],
-    "bt": ["--video-bit-rate=1M", "--max-size=800", "--max-fps=15", "--no-audio"],
+    "wifi": ["--video-bit-rate=6M", "--max-size=1600", "--max-fps=60", "--video-buffer=40"],
+    "bt": ["--video-bit-rate=800K", "--max-size=720", "--max-fps=15", "--video-buffer=150", "--no-audio"],
 }
+# Kualitas VNC (noVNC) per jalur: (kualitas JPEG 0-9, kompresi 0-9)
+VNC_QUALITY = {"usb": (8, 1), "wifi": (6, 2), "bt": (2, 9)}
+# Seberapa sering adb ditanya (detik) per jalur: Bluetooth jauh lebih jarang agar tidak memakan bandwidth
+POLL = {"usb": {"lat": 3, "bat": 15, "notif": 6}, "wifi": {"lat": 3, "bat": 30, "notif": 8},
+        "bt": {"lat": 15, "bat": 120, "notif": 25}}
+NOTIF_CMD = r"dumpsys notification --noredact | grep -E '^  [^ ]|NotificationRecord\(|android\.(title|text|bigText)='"
+DEVICE_GRACE = 10   # detik: perangkat yang hilang sesaat tetap ditampilkan (cegah UI berkedip)
 DEFAULT_SETTINGS = {"autoconnect": True, "sync": True, "notif": True}
 
 
@@ -163,6 +171,10 @@ class State:
         self.sync_state: dict = load_json(user_data_dir() / "sync-state.json", {})
         self.sync_info = {"last": None, "count": 0, "error": None}
         self.loop: asyncio.AbstractEventLoop | None = None
+        # alamat adb jaringan yang disiapkan lewat kabel: {"ip:5555": "bt"|"wifi"}
+        self.adb_targets: dict = load_json(user_data_dir() / "adb-targets.json", {})
+        self.dev_gone: dict[str, float] = {}
+        self.polled: dict[str, float] = {}
 
 
 S = State()
@@ -231,6 +243,8 @@ def unique_path(p: Path) -> Path:
 
 
 def classify(serial: str) -> str:
+    if serial in S.adb_targets:
+        return S.adb_targets[serial]
     m = re.match(r"^(\d+\.\d+\.\d+\.\d+):\d+$", serial)
     if m:
         return "bt" if m.group(1).startswith("192.168.44.") else "wifi"
@@ -251,6 +265,8 @@ def public_debian() -> dict | None:
     d["fp_short"] = short_fp(S.debian.get("fp", ""))
     d["has_password"] = bool(S.pairings.get(S.debian.get("id", ""), {}).get("password"))
     d["kvm"] = S.kvm_on
+    d["vnc_quality"] = VNC_QUALITY.get(S.debian.get("transport"), VNC_QUALITY["wifi"])
+    d["screen"] = S.debian_info.get("screen")
     return d
 
 
@@ -306,6 +322,15 @@ async def refresh_devices() -> None:
         serial = parts[0]
         devs.append({"serial": serial, "state": parts[1], "model": info.get("model", serial).replace("_", " "),
                      "transport": classify(serial), "mirroring": serial in busy})
+    now, present = time.time(), {d["serial"] for d in devs}
+    for old in S.devices:
+        if old["serial"] in present:
+            continue
+        first = S.dev_gone.setdefault(old["serial"], now)
+        if now - first < DEVICE_GRACE:          # putus sesaat (umum di Bluetooth): tahan dulu
+            devs.append(old)
+    for serial in present:
+        S.dev_gone.pop(serial, None)
     if devs != S.devices:
         S.devices = devs
         await broadcast({"type": "devices", "devices": devs})
@@ -446,6 +471,11 @@ async def on_agent_msg(d: dict) -> None:
     elif t == "kvm_release":
         if S.kvm:
             await asyncio.to_thread(S.kvm.release, d.get("fy"))
+    elif t == "resolution":
+        if d.get("screen"):
+            S.debian_info["screen"] = d["screen"]
+        await broadcast({"type": "resolution", "ok": d.get("ok"), "size": d.get("size"),
+                         "msg": d.get("msg"), "screen": d.get("screen")})
     elif t == "error":
         await log(d.get("msg", "Kesalahan di agen Debian"), "warn")
 
@@ -728,14 +758,17 @@ async def sync_loop() -> None:
 
 async def notif_loop() -> None:
     while True:
-        await asyncio.sleep(5)
+        await asyncio.sleep(2)
         if not S.settings.get("notif"):
             continue
         for dev in list(S.devices):
             if dev["state"] != "device":
                 continue
             serial = dev["serial"]
-            c, out, _ = await run("adb", "-s", serial, "shell", "dumpsys", "notification", "--noredact", timeout=10)
+            if not due("notif:" + serial, POLL.get(dev["transport"], POLL["wifi"])["notif"]):
+                continue
+            # disaring di HP supaya yang terkirim hanya beberapa KB (penting untuk Bluetooth)
+            c, out, _ = await run("adb", "-s", serial, "shell", NOTIF_CMD, timeout=15)
             if c:
                 continue
             items = notif.parse(out)
@@ -761,9 +794,33 @@ async def notif_loop() -> None:
 
 # ================================================================ satu mouse & keyboard
 
+_kvm_acc = {"dx": 0, "dy": 0, "pending": False}
+
+
+def _kvm_flush() -> None:
+    dx, dy = _kvm_acc["dx"], _kvm_acc["dy"]
+    _kvm_acc.update(dx=0, dy=0, pending=False)
+    if dx or dy:
+        asyncio.ensure_future(send_agent({"type": "in", "k": "move", "dx": dx, "dy": dy}))
+
+
+def _kvm_queue(obj: dict) -> None:
+    if obj.get("k") == "move":
+        # gabungkan gerakan mouse: maks ~60 paket/detik (Wi-Fi/kabel) atau ~30 (Bluetooth)
+        _kvm_acc["dx"] += obj["dx"]
+        _kvm_acc["dy"] += obj["dy"]
+        if not _kvm_acc["pending"]:
+            _kvm_acc["pending"] = True
+            gap = 0.033 if (S.debian or {}).get("transport") == "bt" else 0.016
+            S.loop.call_later(gap, _kvm_flush)
+        return
+    _kvm_flush()                      # klik/tombol: kirim gerakan tertunda dulu agar urutannya benar
+    asyncio.ensure_future(send_agent(obj))
+
+
 def kvm_send(obj: dict) -> None:
     if S.loop:
-        S.loop.call_soon_threadsafe(lambda: asyncio.ensure_future(send_agent(obj)))
+        S.loop.call_soon_threadsafe(_kvm_queue, obj)
 
 
 def kvm_state(captured: bool) -> None:
@@ -880,8 +937,109 @@ async def h_disconnect(req: web.Request) -> web.Response:
     if classify(serial) == "usb":
         return fail("Perangkat USB diputus dengan mencabut kabel.")
     await run("adb", "disconnect", serial, timeout=10)
+    if S.adb_targets.pop(serial, None):
+        save_json(user_data_dir() / "adb-targets.json", S.adb_targets)
     await refresh_devices()
     return ok()
+
+
+SKIP_IFACES = ("lo", "rmnet", "r_rmnet", "v4-rmnet", "ccmni", "dummy", "tun", "ip6tnl", "sit", "ifb", "seth")
+
+
+def parse_ifaces(text: str) -> list[tuple[str, str]]:
+    """Ambil (antarmuka, IPv4) dari keluaran `ip -o -4 addr` atau `ifconfig` Android."""
+    out = []
+    for m in re.finditer(r"^\d+:\s+(\S+?)\s+inet\s+(\d+\.\d+\.\d+\.\d+)/\d+", text, re.M):
+        out.append((m.group(1), m.group(2)))
+    if not out:   # format ifconfig
+        cur = None
+        for line in text.splitlines():
+            if line and not line[0].isspace():
+                cur = line.split()[0]
+            m = re.search(r"inet addr:(\d+\.\d+\.\d+\.\d+)", line)
+            if cur and m:
+                out.append((cur, m.group(1)))
+    return [(i, a) for i, a in out if not i.startswith(SKIP_IFACES) and not a.startswith("127.")]
+
+
+def iface_kind(name: str) -> str:
+    return "bt" if name.startswith(("bt-pan", "bnep", "bt")) else "wifi"
+
+
+def local_ip_for(ip: str) -> str:
+    """IP laptop yang dipakai untuk menuju `ip` (tanpa mengirim paket)."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as u:
+            u.connect((ip, 9))
+            return u.getsockname()[0]
+    except OSError:
+        return ""
+
+
+def same_net(a: str, b: str) -> bool:
+    return a.rsplit(".", 1)[0] == b.rsplit(".", 1)[0]
+
+
+async def h_tcpip(req: web.Request) -> web.Response:
+    """Satu tombol: lewat kabel, pindahkan adb ke jaringan (Bluetooth/Wi-Fi) lalu sambungkan."""
+    d = await req.json()
+    prefer = d.get("prefer", "bt")
+    usb = [x for x in S.devices if x["state"] == "device" and x["transport"] == "usb"]
+    serial = d.get("serial") if any(x["serial"] == d.get("serial") for x in usb) else (usb[0]["serial"] if usb else "")
+    if not serial:
+        return fail("Colok HP ke laptop pakai kabel dulu (sekali saja), lalu klik tombol ini lagi.")
+    _, out, _ = await run("adb", "-s", serial, "shell", "ip", "-o", "-4", "addr", "show", timeout=10)
+    ifaces = parse_ifaces(out)
+    if not ifaces:
+        _, out, _ = await run("adb", "-s", serial, "shell", "ifconfig", timeout=10)
+        ifaces = parse_ifaces(out)
+    if not ifaces:
+        msg = ("Tethering Bluetooth di HP belum menyala." if prefer == "bt"
+               else "HP belum tersambung ke Wi-Fi.")
+        return fail(f"HP belum punya jaringan yang bisa dijangkau laptop. {msg}")
+    # bisa dijangkau langsung = laptop punya alamat di jaringan yang sama dengan antarmuka HP itu
+    direct = {ip for _, ip in ifaces if same_net(local_ip_for(ip), ip)}
+    ifaces.sort(key=lambda t: (iface_kind(t[0]) != prefer, t[1] not in direct))
+    reachable = [t for t in ifaces if t[1] in direct]
+
+    c, out, err = await run("adb", "-s", serial, "tcpip", "5555", timeout=15)
+    if c:
+        return fail(f"HP menolak mode jaringan: {(out + err).strip()[:200]}")
+    await asyncio.sleep(2.5)
+
+    tried = []
+    for name, ip in (reachable or ifaces):
+        addr = f"{ip}:5555"
+        tried.append(addr)
+        for _ in range(3 if reachable else 1):
+            _, out, err = await run("adb", "connect", addr, timeout=8)
+            if "connected to" in (out + err):
+                kind = iface_kind(name)
+                S.adb_targets[addr] = kind
+                save_json(user_data_dir() / "adb-targets.json", S.adb_targets)
+                await refresh_devices()
+                await log(f"Android siap lewat {'Bluetooth' if kind == 'bt' else 'Wi-Fi'} di {addr}. Kabel boleh dicabut.")
+                return ok(serial=addr, transport=kind)
+            await asyncio.sleep(1.5)
+    if not reachable:
+        hint = ("Laptop belum tergabung ke jaringan Bluetooth HP. Tekan Win+R, ketik control printers, "
+                "klik kanan HP → Connect using → Access point, lalu klik tombol ini lagi."
+                if prefer == "bt" else
+                "Laptop dan HP belum di Wi-Fi yang sama. Sambungkan keduanya ke Wi-Fi yang sama, lalu coba lagi.")
+        return fail(hint)
+    return fail(f"HP sudah siap di {', '.join(tried)}, tapi laptop belum bisa menyambung. Coba lagi beberapa detik lagi.")
+
+
+async def adb_reconnect_loop() -> None:
+    """Sambungkan ulang otomatis ke HP yang pernah disiapkan lewat tombol (sampai HP di-restart)."""
+    while True:
+        await asyncio.sleep(10)
+        if not S.tools.get("adb") or not S.adb_targets:
+            continue
+        present = {d["serial"] for d in S.devices}
+        for addr in list(S.adb_targets):
+            if addr not in present:
+                await run("adb", "connect", addr, timeout=5)
 
 
 async def h_apps(req: web.Request) -> web.Response:
@@ -952,7 +1110,7 @@ def build_scrcpy_args(d: dict, label: str) -> list[str]:
             h = max(240, min(4320, int(d.get("height", 1080))))
             dpi = max(80, min(640, int(d.get("dpi", 160))))
             args.append(f"--new-display={w}x{h}/{dpi}")
-            if d.get("flex") and S.tools.get("flex"):
+            if d.get("flex") and S.tools.get("flex") and preset != "bt":
                 args.append("--flex-display")
             app = (d.get("app") or "").strip()
             if app:
@@ -1137,8 +1295,8 @@ async def ws_term(req):
 
 
 async def ws_audio(req):
-    q = "&q=low" if req.query.get("q") == "low" else ""
-    return await relay_ws(req, "/audio", q)
+    q = req.query.get("q", "high")
+    return await relay_ws(req, "/audio", f"&q={q if q in ('low', 'mid', 'high') else 'high'}")
 
 
 async def ext_vnc_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
@@ -1178,6 +1336,15 @@ async def h_debian_external(req: web.Request) -> web.Response:
         if mon > 0:
             args += ["-FullScreenMode=Selected", f"-FullScreenSelectedMonitors={mon}"]
     await asyncio.create_subprocess_exec(*args, creationflags=NOWIN)
+    return ok()
+
+
+async def h_resolution(req: web.Request) -> web.Response:
+    size = str((await req.json()).get("size", ""))
+    if not re.match(r"^\d{3,4}x\d{3,4}$", size):
+        return fail("Format resolusi tidak valid.")
+    if not await send_agent({"type": "resolution", "size": size}):
+        return fail("Agen Debian belum tersambung.")
     return ok()
 
 
@@ -1291,6 +1458,14 @@ async def ws_events(req: web.Request) -> web.StreamResponse:
 
 # ================================================================ tugas latar
 
+def due(key: str, every: float) -> bool:
+    now = time.time()
+    if now - S.polled.get(key, 0) >= every:
+        S.polled[key] = now
+        return True
+    return False
+
+
 async def stats_loop() -> None:
     tick = 0
     while True:
@@ -1301,11 +1476,13 @@ async def stats_loop() -> None:
                 if dev["state"] != "device":
                     continue
                 s = S.stats.setdefault(dev["serial"], {"lat": [], "bat": [], "temp": None})
-                t0 = time.perf_counter()
-                c, _, _ = await run("adb", "-s", dev["serial"], "shell", "echo", "1", timeout=5)
-                if c == 0:
-                    s["lat"] = (s["lat"] + [round((time.perf_counter() - t0) * 1000)])[-30:]
-                if tick % 5 == 0:
+                poll = POLL.get(dev["transport"], POLL["wifi"])
+                if due("lat:" + dev["serial"], poll["lat"]):
+                    t0 = time.perf_counter()
+                    c, _, _ = await run("adb", "-s", dev["serial"], "shell", "echo", "1", timeout=8)
+                    if c == 0:
+                        s["lat"] = (s["lat"] + [round((time.perf_counter() - t0) * 1000)])[-30:]
+                if due("bat:" + dev["serial"], poll["bat"]):
                     _, out, _ = await run("adb", "-s", dev["serial"], "shell", "dumpsys", "battery", timeout=6)
                     lv, tp = re.search(r"level:\s*(\d+)", out), re.search(r"temperature:\s*(\d+)", out)
                     if lv:
@@ -1378,7 +1555,7 @@ async def on_startup(app: web.Application) -> None:
     S.loop = asyncio.get_running_loop()
     await detect_tools()
     S.tasks = [asyncio.create_task(t()) for t in (clip_watcher, stats_loop, assets_task, discovery_loop,
-                                                  sync_loop, notif_loop)]
+                                                  sync_loop, notif_loop, adb_reconnect_loop)]
     if OPEN_BROWSER and "--no-browser" not in sys.argv:
         asyncio.get_running_loop().call_later(0.8, webbrowser.open, f"http://{HOST}:{PORT}/")
 
@@ -1423,6 +1600,7 @@ def build_app() -> web.Application:
     r.add_post("/api/adb/pair", h_pair)
     r.add_post("/api/adb/connect", h_connect)
     r.add_post("/api/adb/disconnect", h_disconnect)
+    r.add_post("/api/adb/tcpip", h_tcpip)
     r.add_post("/api/apps", h_apps)
     r.add_post("/api/mirror/start", h_mirror_start)
     r.add_post("/api/mirror/stop", h_mirror_stop)
@@ -1434,6 +1612,7 @@ def build_app() -> web.Application:
     r.add_post("/api/pairing/password", h_pairing_password)
     r.add_post("/api/pairing/forget", h_pairing_forget)
     r.add_post("/api/sync/now", h_sync_now)
+    r.add_post("/api/debian/resolution", h_resolution)
     r.add_post("/api/sync/open", h_open_sync)
     r.add_post("/api/kvm", h_kvm)
     r.add_post("/api/clipboard", h_clipboard)

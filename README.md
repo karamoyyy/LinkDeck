@@ -65,7 +65,12 @@ linkdeck-cert --baru           # ganti sertifikat (lupakan perangkat di LinkDeck
 linkdeck-stop
 ```
 
-**Bluetooth**: nyalakan *Tethering Bluetooth* di HP dan gabung ke jaringannya dari laptop. Debian terdeteksi otomatis; untuk Android isi `192.168.44.1`. Kecepatannya sekitar 1–2 Mbps: cocok untuk clipboard, terminal, berkas kecil, dan desktop ringan.
+**Bluetooth**:
+1. Di HP nyalakan *Tethering Bluetooth*.
+2. Di laptop Windows tekan `Win + R`, ketik `control printers`, klik kanan HP → *Connect using → Access point*.
+3. Debian terdeteksi otomatis. Untuk Android: colok kabel sekali, buka *Sambungkan perangkat → Bluetooth*, klik **Siapkan Android lewat Bluetooth**, lalu cabut kabel.
+
+Kecepatannya sekitar 1–2 Mbps: cocok untuk clipboard, terminal, berkas kecil, dan desktop ringan. Supaya lebih lancar, pilih resolusi **1280×720** di menu *Lainnya* pada panel Debian, dan gunakan wallpaper polos di XFCE.
 
 **Suara Debian** memakai PulseAudio (`parec`). Kalau Debian-mu memakai PulseAudio milik Termux, pastikan `PULSE_SERVER` sudah diatur sebelum `linkdeck-start`.
 

@@ -32,7 +32,7 @@ from pathlib import Path
 
 from aiohttp import WSMsgType, web
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 LD = Path.home() / ".linkdeck"
 TOKEN = os.environ.get("LINKDECK_TOKEN", "")
 AGENT_ID = os.environ.get("LINKDECK_ID", "")
@@ -204,6 +204,26 @@ def get_injector():
     return injector
 
 
+def screen_size():
+    try:
+        return list(get_injector().size())
+    except Exception:
+        return None
+
+
+def set_resolution(size: str) -> tuple[bool, str]:
+    """Ubah ukuran desktop Debian (Xtigervnc mendukung RandR)."""
+    import re
+    if not re.match(r"^\d{3,4}x\d{3,4}$", size):
+        return False, "Format resolusi harus LEBARxTINGGI"
+    if not shutil.which("xrandr"):
+        return False, "xrandr belum terpasang di Debian (paket x11-xserver-utils)"
+    r = subprocess.run(["xrandr", "-s", size], env=ENV, capture_output=True, text=True, timeout=10)
+    if r.returncode != 0:
+        r = subprocess.run(["xrandr", "--fb", size], env=ENV, capture_output=True, text=True, timeout=10)
+    return r.returncode == 0, (r.stderr or "").strip()[:200]
+
+
 # ------------------------------------------------------------------ kontrol utama /ws
 
 async def send_all(obj: dict) -> None:
@@ -243,6 +263,11 @@ async def handle(ws, d: dict) -> None:
             inj.key(d["sym"], bool(d["down"]))
         elif k == "reset":
             inj.release_all()
+    elif t == "resolution":
+        size = str(d.get("size", ""))
+        ok, msg = await asyncio.to_thread(set_resolution, size)
+        await ws.send_str(json.dumps({"type": "resolution", "ok": ok, "size": size, "msg": msg,
+                                      "screen": screen_size()}))
     elif t == "clip":
         text = d.get("text", "")
         if text and text != last_clip:
@@ -411,12 +436,14 @@ async def term_handler(req: web.Request):
 
 # ------------------------------------------------------------------ audio
 
-def audio_command(rate: int, ch: int) -> list[str] | None:
+def audio_command(rate: int, ch: int, fmt: str = "s16le") -> list[str] | None:
     if AUDIO_CMD:
-        return shlex.split(AUDIO_CMD.format(rate=rate, ch=ch))
+        return shlex.split(AUDIO_CMD.format(rate=rate, ch=ch, fmt=fmt))
     if shutil.which("parec"):   # PulseAudio / pipewire-pulse (termasuk PULSE_SERVER ke Termux)
-        return ["parec", "--raw", "--format=s16le", f"--rate={rate}", f"--channels={ch}",
-                "--latency-msec=40", "-d", "@DEFAULT_MONITOR@"]
+        return ["parec", "--raw", f"--format={fmt}", f"--rate={rate}", f"--channels={ch}",
+                "--latency-msec=60", "-d", "@DEFAULT_MONITOR@"]
+    if fmt != "s16le":
+        return None
     if shutil.which("pw-record"):
         return ["pw-record", "--target", "0", "--format", "s16", "--rate", str(rate),
                 "--channels", str(ch), "-"]
@@ -426,22 +453,27 @@ def audio_command(rate: int, ch: int) -> list[str] | None:
 async def audio_handler(req: web.Request):
     if not authorized(req):
         return web.Response(status=403)
-    rate = 24000 if req.query.get("q") == "low" else 48000
-    ch = 1 if req.query.get("q") == "low" else 2
+    q = req.query.get("q", "high")
+    # high: 48 kHz stereo PCM (~1,5 Mbps) | mid: 24 kHz mono PCM (~384 kbps) | low: 16 kHz mono mu-law (~128 kbps)
+    rate, ch, fmt = {"low": (16000, 1, "ulaw"), "mid": (24000, 1, "s16le")}.get(q, (48000, 2, "s16le"))
     ws = web.WebSocketResponse(heartbeat=20)
     await ws.prepare(req)
-    cmd = audio_command(rate, ch)
+    cmd = audio_command(rate, ch, fmt)
+    if cmd is None and fmt != "s16le":
+        rate, ch, fmt = 16000, 1, "s16le"
+        cmd = audio_command(rate, ch, fmt)
     if not cmd:
         await ws.send_str(json.dumps({"type": "error", "msg": "Tidak ada parec/pw-record di Debian. "
                                       "Pasang pulseaudio-utils dan pastikan PulseAudio jalan."}))
         await ws.close()
         return ws
     proc = await asyncio.create_subprocess_exec(*cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=ENV)
-    await ws.send_str(json.dumps({"type": "format", "rate": rate, "channels": ch}))
+    await ws.send_str(json.dumps({"type": "format", "rate": rate, "channels": ch, "encoding": fmt}))
 
     async def pump():
         try:
-            while data := await proc.stdout.read(rate * ch * 2 // 25):   # ~40 ms
+            chunk = rate * ch * (1 if fmt == "ulaw" else 2) // 20             # ~50 ms
+            while data := await proc.stdout.read(chunk):
                 await ws.send_bytes(data)
             err = (await proc.stderr.read()).decode(errors="replace").strip()
             if err:
