@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Buat atau ubah PIN, resolusi, sandi VNC, dan sertifikat enkripsi untuk pengguna ini.
+set -e
+LD="$HOME/.linkdeck"; mkdir -p "$LD" "$HOME/Downloads/LinkDeck" "$HOME/LinkDeck-Kirim" "$HOME/LinkDeck-Sinkron"
+GEOM_DEF=1920x1080
+[ -f "$LD/config" ] && . "$LD/config" && GEOM_DEF="${LINKDECK_GEOMETRY:-$GEOM_DEF}"
+PIN="${LINKDECK_TOKEN:-$(python3 -c "import secrets;print(f'{secrets.randbelow(10**6):06d}')")}"
+ID="${LINKDECK_ID:-$(python3 -c "import secrets;print(secrets.token_hex(8))")}"
+read -rp "Resolusi desktop untuk monitor/TV [$GEOM_DEF]: " GEOM
+GEOM=${GEOM:-$GEOM_DEF}
+case "$GEOM" in *x*) ;; *) echo "Format harus LEBARxTINGGI, contoh 1920x1080"; exit 1;; esac
+printf 'LINKDECK_TOKEN=%s\nLINKDECK_ID=%s\nLINKDECK_GEOMETRY=%s\n' "$PIN" "$ID" "$GEOM" > "$LD/config"
+while true; do
+  read -rsp "Sandi VNC (6–8 karakter): " PW; echo
+  [ ${#PW} -ge 6 ] && break
+  echo "Minimal 6 karakter."
+done
+VNCPASSWD=$(command -v tigervncpasswd || command -v vncpasswd)
+echo "$PW" | "$VNCPASSWD" -f > "$LD/vncpasswd"
+linkdeck-cert >/dev/null
+chmod 600 "$LD/vncpasswd" "$LD/config"
+echo "Tersimpan. PIN agen: $PIN"

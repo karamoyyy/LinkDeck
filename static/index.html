@@ -1,0 +1,1285 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LinkDeck</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='3' y='6' width='19' height='14' rx='4' fill='%23ecc6f5'/><rect x='17' y='11' width='11' height='17' rx='3.5' fill='%23bfe6f8' stroke='%231d2030' stroke-width='2'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --lilac:#ecc6f5; --lilac-2:#dfa9ef; --lilac-ink:#6f2690; --lilac-deep:#b35fd3;
+  --ink:#1d2030; --ink-2:#2b2f42; --ink-line:#3a3f55;
+  --sky:#bfe6f8; --sky-2:#a6dbf3; --sky-ink:#11465e;
+  --paper:#f8f6fa; --mist:#eeebf2; --chip:#e6e3ec;
+  --text:#1b1c24; --muted:#6d6a7a;
+  --glass:rgba(255,246,236,.13); --glass-2:rgba(255,246,236,.22);
+  --glass-line:rgba(255,255,255,.26); --on-glass:#fff7ef; --on-glass-dim:rgba(255,247,239,.7);
+  --ok:#7fe0a6; --warn:#ffc46b; --bad:#ff8a7a;
+  --r-xl:30px; --r-lg:22px; --r-md:16px;
+  --font:"Outfit",ui-rounded,"SF Pro Rounded","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;min-height:100%}
+body{font-family:var(--font);color:var(--on-glass);background:#2a1f25;font-size:15px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2.5px solid var(--lilac);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* latar senja buram, seperti foto di balik kaca */
+.scene{position:fixed;inset:0;z-index:-2;background:
+  radial-gradient(58% 52% at 16% 18%,#f2b866 0%,transparent 62%),
+  radial-gradient(42% 46% at 88% 12%,#c58ad9 0%,transparent 64%),
+  radial-gradient(50% 58% at 74% 96%,#ee6a2f 0%,transparent 62%),
+  radial-gradient(70% 70% at 4% 100%,#4a2e58 0%,transparent 70%),
+  linear-gradient(162deg,#6b4636 0%,#3a2830 52%,#1c1a27 100%)}
+.scene::after{content:"";position:absolute;inset:0;opacity:.09;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+.glass{background:var(--glass);border:1px solid var(--glass-line);border-radius:var(--r-xl);
+  -webkit-backdrop-filter:blur(26px) saturate(1.35);backdrop-filter:blur(26px) saturate(1.35);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
+
+.app{display:grid;grid-template-columns:72px minmax(0,1fr);gap:18px;padding:18px;min-height:100vh}
+
+/* rel ikon */
+.rail{position:sticky;top:18px;height:calc(100vh - 36px);display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 0}
+.mark{width:40px;height:40px;margin-bottom:14px}
+.rail a,.rail button{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;border:0;background:transparent;
+  color:var(--on-glass-dim);cursor:pointer;text-decoration:none;transition:background .2s,color .2s}
+.rail a:hover,.rail button:hover{background:var(--glass-2);color:var(--on-glass)}
+.rail .push{margin-top:auto}
+.ico{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+.main{display:grid;gap:18px;align-content:start;min-width:0}
+
+/* bar atas */
+.top{display:flex;align-items:center;gap:14px;padding:12px 14px 12px 22px;flex-wrap:wrap}
+.top h1{margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em}
+.top .lead{color:var(--on-glass-dim);font-size:14px;margin-right:auto}
+.lane{display:flex;gap:6px}
+.lane span{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;border:1px solid var(--glass-line);
+  font-size:13px;color:var(--on-glass-dim)}
+.lane span.on{background:var(--glass-2);color:var(--on-glass)}
+.lane .dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.35)}
+.lane span.on .dot{background:var(--ok);box-shadow:0 0 0 3px rgba(127,224,166,.22)}
+.pill{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:999px;padding:10px 18px;
+  font-weight:500;cursor:pointer;white-space:nowrap;transition:transform .12s,background .2s,opacity .2s}
+.pill:active{transform:scale(.97)}
+.pill[disabled]{opacity:.45;cursor:not-allowed}
+.pill.lilac{background:var(--lilac);color:var(--lilac-ink)}
+.pill.lilac:hover{background:var(--lilac-2)}
+.pill.ink{background:var(--ink);color:#fff}
+.pill.white{background:#fff;color:var(--ink)}
+.pill.ghost{background:transparent;border:1px solid var(--glass-line);color:var(--on-glass)}
+.pill.ghost:hover{background:var(--glass-2)}
+.pill.sm{padding:7px 13px;font-size:13px}
+
+.notice{display:none;padding:12px 18px;border-radius:var(--r-md);background:rgba(255,196,107,.16);border:1px solid rgba(255,196,107,.45);font-size:14px}
+.notice.show{display:block}
+.notice code{background:rgba(0,0,0,.25);padding:1px 6px;border-radius:6px}
+
+/* panggung terbelah: Android (flat) | Debian (kaca) */
+.stage{display:grid;grid-template-columns:minmax(340px,.82fr) minmax(0,1.55fr);gap:18px}
+
+.droid{background:var(--lilac);border-radius:var(--r-xl);padding:20px;color:var(--text);display:flex;flex-direction:column;gap:14px}
+.droid-head{display:flex;align-items:center;gap:10px}
+.droid-head h2{margin:0;font-size:19px;font-weight:600;color:var(--lilac-ink)}
+.devices{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.dev{border:0;border-radius:999px;padding:6px 12px;background:rgba(255,255,255,.55);color:var(--lilac-ink);font-size:13px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.dev[aria-pressed="true"]{background:var(--ink);color:#fff}
+.dev small{opacity:.7}
+.empty-dev{font-size:13px;color:var(--lilac-ink);opacity:.8}
+
+.sheet{background:var(--paper);border-radius:var(--r-lg);padding:18px;display:flex;flex-direction:column;gap:12px}
+.row{display:flex;align-items:center;gap:10px}
+.sheet h3{margin:0;font-size:16px;font-weight:600}
+.badge{margin-left:auto;background:var(--mist);border-radius:999px;padding:5px 12px;font-size:12px;color:var(--muted);display:flex;gap:10px}
+.badge b{color:var(--text);font-weight:600}
+
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:0;border-radius:999px;padding:7px 14px;background:var(--chip);color:var(--text);font-size:13px;font-weight:500;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--lilac);color:var(--lilac-ink)}
+.chip:hover{filter:brightness(.97)}
+
+.big{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--lilac);padding-bottom:6px}
+.big strong{font-size:clamp(34px,3.4vw,48px);white-space:nowrap;font-weight:600;letter-spacing:-.03em;line-height:1}
+.big span{margin-left:auto;font-weight:600;font-size:14px;white-space:nowrap}
+.sub{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13.5px}
+.swap{margin-left:auto;border:0;background:none;color:var(--muted);cursor:pointer;padding:4px;border-radius:8px;display:flex}
+.swap:hover{color:var(--text)}
+
+.inner{background:var(--mist);border-radius:var(--r-md);padding:14px;display:grid;gap:12px;min-width:0}
+.rateRow{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.inner .lbl{font-size:12.5px;color:var(--muted)}
+.mid{display:flex;align-items:baseline;gap:8px}
+.mid strong{font-size:30px;font-weight:600;letter-spacing:-.02em}
+.mid em{font-style:normal;font-weight:500}
+.split2{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}
+.toggle{display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer;user-select:none}
+.toggle input{appearance:none;width:34px;height:20px;border-radius:999px;background:#d4d0dc;position:relative;cursor:pointer;flex:none;transition:background .2s;margin:0}
+.toggle input::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .2s}
+.toggle input:checked{background:var(--lilac-deep)}
+.toggle input:checked::after{transform:translateX(14px)}
+.field{min-width:0;display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted)}
+.field input,.field select{border:1px solid #dcd8e3;background:#fff;border-radius:12px;padding:9px 12px;color:var(--text);font-size:14px;min-width:0}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.actions .pill.lilac{margin-left:auto}
+.hint{font-size:12.5px;color:var(--muted);margin:0}
+
+/* Debian */
+.deb{display:flex;flex-direction:column;min-height:560px;padding:0;overflow:hidden}
+.deb-bar{display:flex;align-items:center;gap:10px;padding:14px 16px 14px 22px;flex-wrap:wrap;border-bottom:1px solid var(--glass-line)}
+.deb-bar h2{margin:0;font-size:19px;font-weight:600}
+.status{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--on-glass-dim)}
+.status i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.4)}
+.status.live i{background:var(--ok);box-shadow:0 0 0 3px rgba(127,224,166,.25)}
+.deb-tools{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.deb-tools[hidden]{display:none}
+.deb-tools select{background:var(--glass-2);border:1px solid var(--glass-line);border-radius:999px;padding:7px 12px;font-size:13px}
+.deb-tools select option{color:#111}
+.toggle.light input{background:rgba(255,255,255,.28)}
+.screen{position:relative;flex:1;min-height:440px;background:rgba(10,8,16,.32)}
+#vnc{position:absolute;inset:0;opacity:0;transition:opacity .5s}
+.screen.live #vnc{opacity:1}
+.screen:fullscreen{background:#000}
+.connect{position:absolute;inset:0;display:grid;place-items:center;padding:20px;transition:opacity .4s,filter .4s}
+.screen.live .connect{opacity:0;pointer-events:none;filter:blur(8px)}
+.card{width:min(420px,100%);padding:22px;display:grid;gap:14px;border-radius:var(--r-lg)}
+.card h3{margin:0;font-size:20px;font-weight:600}
+.card p{margin:0;color:var(--on-glass-dim);font-size:14px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:rgba(0,0,0,.22);border-radius:999px;padding:4px;gap:4px}
+.seg button{border:0;background:transparent;border-radius:999px;padding:9px 6px;cursor:pointer;color:var(--on-glass-dim);font-size:13.5px;font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.gfield{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--on-glass-dim)}
+.gfield input{background:rgba(255,255,255,.14);border:1px solid var(--glass-line);border-radius:12px;padding:10px 13px;color:var(--on-glass);font-size:14.5px}
+.gfield input::placeholder{color:rgba(255,247,239,.45)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* bawah */
+.lower{display:grid;grid-template-columns:1.15fr 1fr;gap:18px}
+.clip{background:var(--ink);border-radius:var(--r-xl);padding:22px;display:flex;flex-direction:column;gap:14px;min-height:330px}
+.clip h2,.files h2{margin:0;font-size:24px;font-weight:600;letter-spacing:-.01em;line-height:1.15}
+.clip .muted{color:#a9acc0;font-size:14px;margin:0}
+.compose{display:flex;gap:8px}
+.compose textarea{flex:1;resize:none;height:46px;background:var(--ink-2);border:1px solid var(--ink-line);border-radius:14px;padding:12px 14px;color:#fff;font-size:14px}
+.cliplist{list-style:none;margin:0;padding:0;display:grid;gap:2px;max-height:300px;overflow:auto;border-top:1px solid var(--ink-line)}
+.cliplist li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 2px;border-bottom:1px solid var(--ink-line)}
+.src{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--lilac);color:var(--lilac-ink)}
+.src.debian{background:var(--sky);color:var(--sky-ink)}
+.cliptext{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cliptext small{display:block;color:#8e91a6;font-size:12px}
+.cliplist .pill{padding:6px 12px;font-size:12.5px}
+.empty{color:#8e91a6;font-size:14px;padding:16px 2px}
+
+.files{background:var(--sky);color:var(--sky-ink);border-radius:var(--r-xl);padding:22px;display:flex;flex-direction:column;gap:14px}
+.drop{border:2px dashed rgba(17,70,94,.35);border-radius:var(--r-lg);padding:22px;display:flex;align-items:center;gap:16px;cursor:pointer;transition:background .2s,border-color .2s}
+.drop.over{background:rgba(255,255,255,.45);border-color:var(--sky-ink)}
+.drop .ico{width:34px;height:34px;stroke-width:1.5}
+.drop strong{display:block;font-size:16px}
+.drop span{font-size:13px;opacity:.8}
+.files .chip{background:rgba(255,255,255,.5);color:var(--sky-ink)}
+.files .chip[aria-pressed="true"]{background:var(--sky-ink);color:#fff}
+.linkrow{display:flex;gap:8px;flex-wrap:wrap}
+.linkrow input{flex:1;min-width:180px;border:1px solid rgba(17,70,94,.25);background:rgba(255,255,255,.7);border-radius:999px;padding:10px 16px;color:var(--sky-ink)}
+.files .note{font-size:13px;margin:0;opacity:.85}
+.files code{background:rgba(255,255,255,.55);padding:1px 6px;border-radius:6px}
+
+/* pantauan: strip kaca dengan sparkline */
+.watch{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:18px 8px}
+.stat{padding:4px 18px;display:grid;gap:4px;border-right:1px solid var(--glass-line)}
+.stat:last-child{border-right:0}
+.stat b{font-size:clamp(28px,3vw,38px);font-weight:500;letter-spacing:-.02em;line-height:1.05}
+.stat b small{font-size:.45em;font-weight:500;margin-left:3px;color:var(--on-glass-dim)}
+.stat .k{font-size:13px;color:var(--on-glass-dim);display:flex;align-items:center;gap:7px}
+.stat .k i{width:8px;height:8px;border-radius:3px}
+.stat svg{width:100%;height:30px;color:var(--lilac)}
+.stat:nth-child(2) svg{color:var(--sky)}
+.stat:nth-child(3) svg{color:var(--warn)}
+.stat:nth-child(4) svg{color:var(--ok)}
+
+/* laci sambungkan */
+.drawer{position:fixed;inset:0;display:none;z-index:20}
+.drawer.open{display:block}
+.drawer .veil{position:absolute;inset:0;background:rgba(10,6,14,.45)}
+.drawer .panel{position:absolute;top:14px;right:14px;bottom:14px;width:min(460px,calc(100% - 28px));overflow:auto;padding:24px;display:grid;gap:18px;align-content:start;
+  background:rgba(48,34,42,.62);animation:slide .32s cubic-bezier(.2,.8,.2,1)}
+@keyframes slide{from{transform:translateX(24px);opacity:0}}
+.panel h2{margin:0;font-size:24px;font-weight:600}
+.panel .close{position:absolute;top:18px;right:18px}
+.steps{margin:0;padding:0;list-style:none;display:grid;gap:10px;counter-reset:s}
+.steps li{display:grid;grid-template-columns:28px 1fr;gap:10px;font-size:14px;color:var(--on-glass-dim);counter-increment:s}
+.steps li::before{content:counter(s);width:24px;height:24px;border-radius:50%;background:var(--glass-2);display:grid;place-items:center;font-size:12.5px;color:var(--on-glass);font-weight:600}
+.steps b{color:var(--on-glass);font-weight:500}
+.panel form{display:grid;gap:10px}
+.panel form .pill{justify-self:start}
+.devrows{display:grid;gap:8px}
+.devrow{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r-md);background:rgba(255,255,255,.08)}
+.devrow small{color:var(--on-glass-dim)}
+.devrow .pill{margin-left:auto}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:14px;color:var(--on-glass-dim)}
+.keys kbd{font-family:var(--font);background:var(--glass-2);border:1px solid var(--glass-line);border-radius:7px;padding:2px 8px;color:var(--on-glass);font-size:12.5px;white-space:nowrap}
+
+/* toast */
+.toasts{position:fixed;right:18px;bottom:18px;display:grid;gap:8px;z-index:30;width:min(380px,calc(100% - 36px))}
+.toast{overflow-wrap:anywhere;padding:12px 16px;border-radius:var(--r-md);background:rgba(29,32,48,.88);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid var(--ink-line);font-size:14px;color:#fff;display:flex;gap:10px;align-items:flex-start;animation:pop .25s ease-out}
+.toast i{width:8px;height:8px;border-radius:50%;margin-top:7px;flex:none;background:var(--ok)}
+.toast.warn i{background:var(--warn)} .toast.error i{background:var(--bad)}
+.toast img{display:block;max-width:100%;border-radius:10px;margin-top:8px}
+@keyframes pop{from{transform:translateY(8px);opacity:0}}
+
+.linkbtn{background:none;border:0;color:var(--on-glass-dim);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-size:13px;justify-self:start;padding:0}
+.linkbtn:hover{color:var(--on-glass)}
+#kioskExit{display:none}
+body.kiosk .deb{-webkit-backdrop-filter:none;backdrop-filter:none}
+body.kiosk #screen{position:fixed;inset:0;z-index:40;background:#000}
+body.kiosk #kioskExit{display:inline-flex;position:fixed;top:14px;right:14px;z-index:41;background:rgba(29,32,48,.7)}
+.ver{color:var(--on-glass-dim);font-size:13px;margin:0}
+@media (max-width:1380px){.droid .two{grid-template-columns:1fr}}
+@media (max-width:1180px){.stage{grid-template-columns:1fr}.deb{min-height:480px}.droid .two{grid-template-columns:1fr 1fr}}
+@media (max-width:900px){.lower{grid-template-columns:1fr}.watch{grid-template-columns:repeat(2,1fr);row-gap:18px}.stat:nth-child(2){border-right:0}}
+@media (max-width:640px){.app{grid-template-columns:1fr;padding:10px}.rail{display:none}.split2,.two,.droid .two{grid-template-columns:1fr}.top .lead{display:none}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ---------- v1.1 ---------- */
+.seg.light{background:rgba(111,38,144,.1)}
+.seg.light button{color:var(--lilac-ink)}
+.seg.light button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.seg.mini{display:inline-grid;grid-template-columns:auto auto;padding:3px}
+.seg.mini button{padding:6px 14px;font-size:13px}
+.seg.mini button[aria-pressed="true"]{background:var(--lilac);color:var(--lilac-ink)}
+.range{display:flex;align-items:center;gap:10px;font-size:13.5px}
+.range input{flex:1;accent-color:var(--lilac-deep)}
+.sessions{display:flex;flex-wrap:wrap;gap:6px}
+.sess{display:inline-flex;align-items:center;gap:6px;padding:5px 6px 5px 12px;border-radius:999px;background:var(--ink);color:#fff;font-size:12.5px}
+.sess button{border:0;background:rgba(255,255,255,.16);color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;display:grid;place-items:center;padding:0}
+.sess button .ico{width:13px;height:13px}
+.applaunch{display:flex;gap:8px}
+.applaunch input{flex:1;min-width:0;border:1px solid #dcd8e3;background:#fff;border-radius:999px;padding:9px 14px;color:var(--text)}
+.found{display:grid;gap:8px}
+.found button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid var(--glass-line);background:rgba(255,255,255,.1);border-radius:14px;padding:11px 14px;cursor:pointer;color:var(--on-glass)}
+.found button:hover{background:rgba(255,255,255,.18)}
+.found button[aria-pressed="true"]{background:var(--lilac);color:var(--lilac-ink);border-color:transparent}
+.found small{display:block;opacity:.75;font-size:12px}
+.found .tag{margin-left:auto;font-size:11.5px;padding:3px 9px;border-radius:999px;background:rgba(0,0,0,.2)}
+.checkrow{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--on-glass-dim)}
+.checkrow input{accent-color:var(--lilac-deep)}
+.fp{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--on-glass-dim)}
+.lock{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ok)}
+.lock .ico{width:14px;height:14px}
+#term{position:absolute;inset:0;padding:10px 12px;background:#14121b;display:none}
+.screen.term #term{display:block}
+.screen.term #vnc,.screen.term .connect{display:none}
+.xterm .xterm-viewport{background:transparent!important}
+.kvmchip{display:none;align-items:center;gap:8px;padding:7px 13px;border-radius:999px;background:var(--warn);color:#2a1d05;font-size:13px;font-weight:500}
+.kvmchip.show{display:inline-flex}
+.notifs{background:var(--glass);border:1px solid var(--glass-line);-webkit-backdrop-filter:blur(26px) saturate(1.35);backdrop-filter:blur(26px) saturate(1.35);border-radius:var(--r-xl);padding:22px;display:flex;flex-direction:column;gap:12px;min-height:330px}
+.notifs h2{margin:0;font-size:24px;font-weight:600}
+.nlist{list-style:none;margin:0;padding:0;display:grid;gap:8px;max-height:330px;overflow:auto}
+.nlist li button{width:100%;text-align:left;border:0;cursor:pointer;display:grid;grid-template-columns:36px minmax(0,1fr);gap:10px;align-items:center;padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.1);color:var(--on-glass)}
+.nlist li button:hover{background:rgba(255,255,255,.18)}
+.nav{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-weight:600;color:var(--ink);background:var(--sky)}
+.nlist b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nlist span{display:block;font-size:13px;color:var(--on-glass-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nlist small{font-size:11.5px;color:var(--on-glass-dim)}
+.syncbox{display:grid;gap:8px;background:rgba(255,255,255,.45);border-radius:var(--r-md);padding:12px 14px;font-size:13px}
+.syncbox .actions .pill{margin:0}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;color:var(--on-glass)}
+.setrow small{display:block;color:var(--on-glass-dim);font-size:12.5px}
+.pairrow{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r-md);background:rgba(255,255,255,.08)}
+.pairrow .pill{margin-left:auto}
+.lower{grid-template-columns:1.1fr 1fr 1fr}
+@media (max-width:1280px){.lower{grid-template-columns:1fr 1fr}.lower .notifs{grid-column:1 / -1}}
+@media (max-width:900px){.lower{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="scene" aria-hidden="true"></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-screen" viewBox="0 0 24 24"><rect x="2.5" y="4" width="13" height="10" rx="2.2"/><rect x="14" y="8" width="7.5" height="12.5" rx="2"/><path d="M6 18h6"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><rect x="5" y="4.5" width="14" height="16.5" rx="2.5"/><path d="M9 4.5V3.8A1.3 1.3 0 0 1 10.3 2.5h3.4A1.3 1.3 0 0 1 15 3.8v.7M9 11h6M9 15h4"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6H18a2 2 0 0 1 2 2v9.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z"/><path d="M4 9V6.5A2.5 2.5 0 0 1 6.5 4H15M15.5 13h4.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 17l5-5 4 3 8-8"/><path d="M15 7h5v5"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5M6.5 8h11v3.5a5.5 5.5 0 0 1-11 0zM12 17v4"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.6M12 17h.01"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M7 4v15M7 4 4 7M7 4l3 3M17 20V5M17 20l-3-3M17 20l3-3"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.8l1.5-2h4.4l1.5 2h1.8A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.3"/></symbol>
+  <symbol id="i-full" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7"/></symbol>
+  <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+  <symbol id="i-mouse" viewBox="0 0 24 24"><rect x="6.5" y="3" width="11" height="18" rx="5.5"/><path d="M12 7v3.5"/></symbol>
+  <symbol id="i-tv" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="12.5" rx="2.5"/><path d="M8 21h8M9 2.5l3 2.5 3-2.5"/></symbol>
+  <symbol id="i-term" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M7 9l3 3-3 3M12.5 15H17"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M21.2 12h-2.4M5.2 12H2.8M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7M18.5 18.5l-1.7-1.7M7.2 7.2 5.5 5.5"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-sync" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5M20 4v4.5h-4.5M20 12a8 8 0 0 1-13.7 5.6L4 15.5M4 20v-4.5h4.5"/></symbol>
+</svg>
+
+<div class="app">
+  <nav class="rail glass" aria-label="Navigasi">
+    <svg class="mark" viewBox="0 0 40 40" aria-hidden="true"><rect x="3" y="8" width="24" height="17" rx="5" fill="#ecc6f5"/><rect x="21" y="14" width="14" height="22" rx="4.5" fill="#bfe6f8" stroke="#1d2030" stroke-width="2.4"/></svg>
+    <a href="#panggung" title="Layar"><svg class="ico"><use href="#i-screen"/></svg><span class="sr">Layar</span></a>
+    <a href="#clipboard" title="Clipboard"><svg class="ico"><use href="#i-clip"/></svg><span class="sr">Clipboard</span></a>
+    <a href="#notifikasi" title="Notifikasi HP"><svg class="ico"><use href="#i-bell"/></svg><span class="sr">Notifikasi</span></a>
+    <a href="#berkas" title="Berkas & sinkron"><svg class="ico"><use href="#i-file"/></svg><span class="sr">Berkas</span></a>
+    <a href="#pantauan" title="Pantauan"><svg class="ico"><use href="#i-chart"/></svg><span class="sr">Pantauan</span></a>
+    <button class="push" data-open="tv" title="Mode TV"><svg class="ico"><use href="#i-tv"/></svg><span class="sr">Mode TV</span></button>
+    <button data-open="pair" title="Sambungkan perangkat"><svg class="ico"><use href="#i-plug"/></svg><span class="sr">Sambungkan perangkat</span></button>
+    <button data-open="help" title="Pengaturan & bantuan"><svg class="ico"><use href="#i-gear"/></svg><span class="sr">Pengaturan</span></button>
+  </nav>
+
+  <main class="main">
+    <header class="top glass">
+      <h1>LinkDeck</h1>
+      <span class="lead">HP dan PC jalan bareng, layar masing-masing tetap utuh</span>
+      <span class="kvmchip" id="kvmChip" role="status"><svg class="ico" style="width:16px;height:16px"><use href="#i-mouse"/></svg>Mouse di Debian. Ctrl+Alt+Home untuk kembali</span>
+      <div class="lane" aria-label="Jalur aktif">
+        <span id="laneUsb"><i class="dot"></i>Kabel</span>
+        <span id="laneWifi"><i class="dot"></i>Wi-Fi</span>
+        <span id="laneBt"><i class="dot"></i>Bluetooth</span>
+      </div>
+      <button class="pill ghost" data-open="tv"><svg class="ico" style="width:17px;height:17px"><use href="#i-tv"/></svg>Mode TV</button>
+      <button class="pill lilac" data-open="pair">Sambungkan perangkat</button>
+    </header>
+
+    <div class="notice" id="notice" role="status"></div>
+
+    <section class="stage" id="panggung" aria-label="Layar">
+      <!-- ANDROID -->
+      <div class="droid">
+        <div class="droid-head">
+          <h2>Android</h2>
+          <div class="devices" id="devices" role="group" aria-label="Pilih perangkat"></div>
+        </div>
+
+        <div class="sheet">
+          <div class="seg light" id="modeSeg" role="group" aria-label="Mode Android">
+            <button type="button" data-mode="virtual" aria-pressed="true">Layar baru</button>
+            <button type="button" data-mode="mirror">Cermin</button>
+            <button type="button" data-mode="camera">Kamera</button>
+          </div>
+
+          <div data-for="virtual">
+            <div class="chips" id="resChips" role="group" aria-label="Resolusi">
+              <button class="chip" data-res="1280x720x160">720p</button>
+              <button class="chip" data-res="1920x1080x160" aria-pressed="true">1080p</button>
+              <button class="chip" data-res="2560x1440x220">1440p</button>
+              <button class="chip" data-res="3840x2160x320">TV 4K</button>
+            </div>
+            <div class="big" style="margin-top:10px"><strong id="resBig">1920×1080</strong><span id="dpiBig">160 dpi</span></div>
+            <p class="sub" style="margin:8px 0 0">Layar HP tidak berubah. Aplikasi dibuka di layar terpisah.</p>
+          </div>
+          <div data-for="mirror" hidden>
+            <div class="big"><strong>Cermin</strong><span>layar HP apa adanya</span></div>
+            <p class="sub" style="margin:8px 0 0">PC menampilkan persis yang ada di layar HP.</p>
+          </div>
+          <div data-for="camera" hidden>
+            <div class="row">
+              <div class="chips" id="facingChips" role="group" aria-label="Kamera">
+                <button class="chip" data-facing="back" aria-pressed="true">Belakang</button>
+                <button class="chip" data-facing="front">Depan</button>
+              </div>
+              <div class="chips" id="camSizeChips" role="group" aria-label="Ukuran kamera" style="margin-left:auto">
+                <button class="chip" data-size="1280x720">720p</button>
+                <button class="chip" data-size="1920x1080" aria-pressed="true">1080p</button>
+              </div>
+            </div>
+            <div class="split2" style="margin-top:12px">
+              <label class="toggle"><input type="checkbox" id="optTorch">Senter</label>
+              <label class="range">Zoom <input type="range" id="optZoom" min="1" max="4" step="0.5" value="1"><b id="zoomVal">1×</b></label>
+            </div>
+            <label class="field" id="v4l2Wrap" hidden style="margin-top:10px">Jadikan webcam untuk aplikasi meeting
+              <select id="optV4l2"><option value="">Tidak, cukup tampilkan</option></select>
+            </label>
+            <p class="hint" id="camHint" style="margin-top:8px">Butuh Android 12 ke atas.</p>
+          </div>
+
+          <div class="inner">
+            <div class="rateRow">
+              <div>
+                <div class="lbl">Kualitas video</div>
+                <div class="mid"><strong id="rateBig">16</strong><em>Mbps</em><span class="lbl" id="fpsBig">60 fps</span></div>
+              </div>
+              <div class="chips" id="presetChips" role="group" aria-label="Preset jalur">
+                <button class="chip" data-preset="usb" aria-pressed="true">Kabel</button>
+                <button class="chip" data-preset="wifi">Wi-Fi</button>
+                <button class="chip" data-preset="bt">Bluetooth</button>
+              </div>
+            </div>
+            <div class="split2">
+              <label class="toggle"><input type="checkbox" id="optAudio" checked>Audio ke PC</label>
+              <label class="toggle"><input type="checkbox" id="optRecord">Rekam ke MP4</label>
+              <label class="toggle" data-hide="camera"><input type="checkbox" id="optKeep" checked>HP tetap aktif</label>
+              <label class="toggle" data-only="virtual" id="flexWrap"><input type="checkbox" id="optFlex" checked>Ukuran jendela bebas</label>
+              <label class="toggle" data-hide="camera"><input type="checkbox" id="optPad">Gamepad PC ke HP</label>
+              <label class="toggle" data-only="mirror"><input type="checkbox" id="optOff">Matikan layar HP</label>
+            </div>
+            <label class="field">Tampilkan di
+              <select id="optScreen"><option value="">Jendela biasa</option></select>
+            </label>
+            <div class="actions">
+              <button class="pill white sm" id="btnShot"><svg class="ico" style="width:17px;height:17px"><use href="#i-camera"/></svg>Tangkap layar</button>
+              <button class="pill lilac" id="btnMirror">Mulai tampilkan</button>
+            </div>
+          </div>
+
+          <div data-for="virtual">
+            <div class="lbl" style="font-size:12.5px;color:var(--muted);margin-bottom:6px">Aplikasi HP di jendela sendiri</div>
+            <div class="applaunch">
+              <label class="sr" for="appIn">Nama aplikasi</label>
+              <input id="appIn" list="appList" placeholder="Ketik nama aplikasi, mis. WhatsApp" autocomplete="off">
+              <datalist id="appList"></datalist>
+              <button class="pill ink sm" id="btnApp">Buka</button>
+            </div>
+          </div>
+          <div class="sessions" id="sessions" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <!-- DEBIAN -->
+      <div class="deb glass">
+        <div class="deb-bar">
+          <h2>Debian 13 XFCE</h2>
+          <span class="status" id="debStatus"><i></i><span>Belum terhubung</span></span>
+          <span class="lock" id="debLock" hidden><svg class="ico"><use href="#i-lock"/></svg>Terenkripsi</span>
+          <div class="deb-tools" id="debTools" hidden>
+            <div class="seg mini" id="viewSeg" role="group" aria-label="Tampilan">
+              <button type="button" data-view="desk" aria-pressed="true">Desktop</button>
+              <button type="button" data-view="term">Terminal</button>
+            </div>
+            <button class="pill ghost sm" id="btnSound" aria-pressed="false"><svg class="ico" style="width:16px;height:16px"><use href="#i-sound"/></svg>Suara</button>
+            <button class="pill ghost sm" id="btnKvm" aria-pressed="false" title="Geser kursor ke tepi layar PC untuk mengontrol Debian"><svg class="ico" style="width:16px;height:16px"><use href="#i-mouse"/></svg>Satu mouse</button>
+            <select id="kvmEdge" aria-label="Tepi layar"><option value="right">Debian di kanan</option><option value="left">Debian di kiri</option></select>
+            <label class="toggle light" title="Ubah resolusi desktop Debian mengikuti ukuran panel"><input type="checkbox" id="fitSession">Ikuti ukuran</label>
+            <select id="debScreen" aria-label="Layar tujuan"><option value="">Layar ini</option></select>
+            <button class="pill ghost sm" id="btnFull"><svg class="ico" style="width:16px;height:16px"><use href="#i-full"/></svg>Layar penuh</button>
+            <button class="pill ghost sm" id="btnTiger" hidden>TigerVNC</button>
+            <button class="pill ghost sm" id="btnDebOff">Putuskan</button>
+          </div>
+        </div>
+        <div class="screen" id="screen">
+          <div id="vnc"></div>
+          <div id="term"></div>
+          <div class="connect">
+            <form class="card glass" id="debForm" autocomplete="off">
+              <h3>Hubungkan desktop Debian</h3>
+              <p id="debHelp">Jalankan <b>linkdeck-start</b> di Debian HP. HP di Wi-Fi yang sama atau lewat kabel akan muncul di sini.</p>
+              <div class="found" id="found"></div>
+              <button class="linkbtn" type="button" id="btnManual">Tidak muncul? Isi alamat manual</button>
+              <div id="manual" hidden>
+                <div class="seg" id="debSeg" role="group" aria-label="Jalur Debian">
+                  <button type="button" data-t="usb" aria-pressed="true">Kabel</button>
+                  <button type="button" data-t="wifi">Wi-Fi</button>
+                  <button type="button" data-t="bt">Bluetooth</button>
+                </div>
+                <label class="gfield" id="debHostWrap" hidden style="margin-top:10px">IP HP
+                  <input id="debHost" placeholder="192.168.1.23" inputmode="decimal">
+                </label>
+              </div>
+              <div class="two">
+                <label class="gfield" id="pinWrap">PIN agen<input id="debPin" inputmode="numeric" maxlength="6" placeholder="6 digit"></label>
+                <label class="gfield">Sandi VNC<input id="debPw" type="password" placeholder="sandi"></label>
+              </div>
+              <label class="checkrow"><input type="checkbox" id="debRemember" checked>Ingat perangkat ini dan sambung otomatis</label>
+              <span class="fp" id="debFp"></span>
+              <button class="pill lilac" type="submit" id="btnDeb">Hubungkan</button>
+              <button class="linkbtn" type="button" id="btnAgentPush" hidden>Agen belum terpasang di HP? Kirim paketnya lewat adb</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="lower">
+      <div class="clip" id="clipboard">
+        <h2>Clipboard bersama</h2>
+        <p class="muted">Salin di PC, tempel di Debian, dan sebaliknya.</p>
+        <div class="compose">
+          <label class="sr" for="clipIn">Teks untuk dikirim</label>
+          <textarea id="clipIn" placeholder="Tulis atau tempel teks, lalu kirim ke semua perangkat"></textarea>
+          <button class="pill lilac" id="btnClip">Kirim</button>
+        </div>
+        <ul class="cliplist" id="clipList" aria-live="polite"></ul>
+      </div>
+
+      <div class="notifs" id="notifikasi">
+        <div class="row"><h2>Notifikasi HP</h2>
+          <label class="toggle light" style="margin-left:auto;color:var(--on-glass-dim)"><input type="checkbox" id="setNotif" checked>Aktif</label></div>
+        <p class="hint" style="color:var(--on-glass-dim)">Ketuk notifikasi untuk membuka aplikasinya di jendela sendiri.</p>
+        <ul class="nlist" id="nList" aria-live="polite"></ul>
+      </div>
+
+      <div class="files" id="berkas">
+        <h2>Berkas & sinkron</h2>
+        <div class="chips" id="fileTarget" role="group" aria-label="Tujuan">
+          <button class="chip" data-target="android" aria-pressed="true">Ke Android</button>
+          <button class="chip" data-target="debian">Ke Debian</button>
+        </div>
+        <label class="drop" id="drop" tabindex="0">
+          <svg class="ico" aria-hidden="true"><use href="#i-up"/></svg>
+          <div><strong>Tarik berkas ke sini</strong><span id="dropWhere">Masuk ke Download/LinkDeck di HP</span></div>
+          <input type="file" id="fileIn" multiple class="sr">
+        </label>
+        <div class="linkrow">
+          <input id="linkIn" placeholder="https://… buka di perangkat tujuan" inputmode="url" aria-label="Tautan">
+          <button class="pill ink" id="btnLink">Buka tautan</button>
+        </div>
+        <div class="syncbox">
+          <div class="row"><svg class="ico" style="width:18px;height:18px"><use href="#i-sync"/></svg><b>Folder sinkron dua arah</b>
+            <label class="toggle" style="margin-left:auto"><input type="checkbox" id="setSync" checked>Aktif</label></div>
+          <span><code id="syncDir">~/LinkDeck-Sinkron</code> di PC ⇄ <code>~/LinkDeck-Sinkron</code> di Debian</span>
+          <span id="syncStatus">Belum ada sinkron.</span>
+          <div class="actions"><button class="pill white sm" id="btnSyncOpen">Buka folder</button><button class="pill ink sm" id="btnSyncNow">Sinkron sekarang</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="watch glass" id="pantauan" aria-label="Pantauan">
+      <div class="stat"><span class="k"><i style="background:var(--lilac)"></i>Baterai HP</span><b id="sBat">–</b><svg id="gBat" aria-hidden="true"></svg></div>
+      <div class="stat"><span class="k"><i style="background:var(--sky)"></i>Respons adb</span><b id="sLat">–</b><svg id="gLat" aria-hidden="true"></svg></div>
+      <div class="stat"><span class="k"><i style="background:var(--warn)"></i>Aliran Debian</span><b id="sVnc">–</b><svg id="gVnc" aria-hidden="true"></svg></div>
+      <div class="stat"><span class="k"><i style="background:var(--ok)"></i>Beban CPU Debian</span><b id="sLoad">–</b><svg id="gLoad" aria-hidden="true"></svg></div>
+    </section>
+  </main>
+</div>
+
+<!-- Laci: Mode TV -->
+<div class="drawer" id="drawer-tv" role="dialog" aria-modal="true" aria-labelledby="tvTitle">
+  <div class="veil" data-close></div>
+  <div class="panel glass">
+    <button class="pill ghost sm close" data-close aria-label="Tutup"><svg class="ico" style="width:16px;height:16px"><use href="#i-x"/></svg></button>
+    <h2 id="tvTitle">Mode TV</h2>
+    <p class="hint" style="color:var(--on-glass-dim)">Satu klik: layar besar, langsung penuh di TV, suara ikut.</p>
+    <div class="seg" id="tvWhat" role="group" aria-label="Isi">
+      <button type="button" data-what="android" aria-pressed="true">Android</button>
+      <button type="button" data-what="debian">Debian</button>
+      <button type="button" data-what="app">Aplikasi HP</button>
+    </div>
+    <label class="gfield" id="tvAppWrap" hidden>Aplikasi<input id="tvApp" list="appList" placeholder="mis. YouTube"></label>
+    <div class="seg" id="tvRes" role="group" aria-label="Resolusi" style="grid-template-columns:1fr 1fr">
+      <button type="button" data-res="1920x1080x160" aria-pressed="true">1080p</button>
+      <button type="button" data-res="3840x2160x320">4K</button>
+    </div>
+    <label class="gfield">Layar tujuan
+      <select id="tvScreen" style="background:rgba(255,255,255,.14);border:1px solid var(--glass-line);border-radius:12px;padding:10px 13px;color:var(--on-glass)"><option value="">Layar ini</option></select>
+    </label>
+    <button class="pill lilac" id="btnTv">Mulai Mode TV</button>
+    <ol class="steps">
+      <li><span>Colok TV ke laptop (HDMI) dan atur sebagai layar tambahan.</span></li>
+      <li><span>Pilih TV di <b>Layar tujuan</b>. Kalau daftarnya kosong, izinkan pengelolaan jendela saat browser bertanya.</span></li>
+    </ol>
+  </div>
+</div>
+
+<!-- Laci: sambungkan perangkat -->
+<div class="drawer" id="drawer-pair" role="dialog" aria-modal="true" aria-labelledby="pairTitle">
+  <div class="veil" data-close></div>
+  <div class="panel glass">
+    <button class="pill ghost sm close" data-close aria-label="Tutup"><svg class="ico" style="width:16px;height:16px"><use href="#i-x"/></svg></button>
+    <h2 id="pairTitle">Sambungkan Android</h2>
+    <div class="seg" id="pairSeg" role="tablist">
+      <button type="button" data-tab="usb" aria-pressed="true">Kabel</button>
+      <button type="button" data-tab="wifi">Wi-Fi</button>
+      <button type="button" data-tab="bt">Bluetooth</button>
+    </div>
+    <div data-pane="usb">
+      <ol class="steps">
+        <li><span>Di HP buka <b>Setelan → Opsi pengembang</b>, aktifkan <b>Debugging USB</b>.</span></li>
+        <li><span>Colok kabel charger ke laptop. Pilih <b>Izinkan</b> saat HP bertanya.</span></li>
+        <li><span>HP langsung muncul di bagian Android, dan agen Debian ikut terdeteksi lewat kabel.</span></li>
+      </ol>
+    </div>
+    <div data-pane="wifi" hidden>
+      <ol class="steps">
+        <li><span>HP dan laptop di Wi-Fi yang sama. Buka <b>Opsi pengembang → Debugging nirkabel</b>.</span></li>
+        <li><span>Ketuk <b>Sambungkan perangkat dengan kode</b>, isi alamat dan kodenya di bawah.</span></li>
+        <li><span>Lalu isi alamat di layar utama Debugging nirkabel (port-nya beda) dan tekan Sambungkan.</span></li>
+      </ol>
+      <form id="pairForm">
+        <div class="two">
+          <label class="gfield">Alamat pairing<input name="host" placeholder="192.168.1.23:41235"></label>
+          <label class="gfield">Kode<input name="code" inputmode="numeric" maxlength="6" placeholder="123456"></label>
+        </div>
+        <button class="pill ghost" type="submit">Pasangkan</button>
+      </form>
+      <form id="connForm">
+        <label class="gfield">Alamat debugging<input name="host" placeholder="192.168.1.23:37199"></label>
+        <button class="pill lilac" type="submit">Sambungkan</button>
+      </form>
+    </div>
+    <div data-pane="bt" hidden>
+      <ol class="steps">
+        <li><span>Pasangkan HP dan laptop lewat Bluetooth seperti biasa.</span></li>
+        <li><span>Di HP: <b>Hotspot & tethering → Tethering Bluetooth</b> nyalakan.</span></li>
+        <li><span>Di laptop gabung ke jaringan HP. Windows: klik kanan HP di Bluetooth → <b>Join a Personal Area Network</b>. Linux: Blueman → <b>Network Access Point</b>.</span></li>
+        <li><span>Debian HP muncul otomatis. Untuk Android, isi <b>192.168.44.1</b> di tab Wi-Fi.</span></li>
+      </ol>
+      <p class="hint" style="color:var(--on-glass-dim)">Bluetooth hanya sekitar 1–2 Mbps: cocok untuk clipboard, berkas kecil, terminal, dan desktop ringan.</p>
+    </div>
+    <div>
+      <h3 style="margin:0 0 10px;font-weight:600;font-size:16px">Perangkat terhubung</h3>
+      <div class="devrows" id="devRows"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Laci: pengaturan & bantuan -->
+<div class="drawer" id="drawer-help" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="veil" data-close></div>
+  <div class="panel glass">
+    <button class="pill ghost sm close" data-close aria-label="Tutup"><svg class="ico" style="width:16px;height:16px"><use href="#i-x"/></svg></button>
+    <h2 id="helpTitle">Pengaturan</h2>
+    <label class="setrow"><span>Sambung otomatis<small>Debian yang pernah tersambung langsung terhubung saat terdeteksi.</small></span><span class="toggle light"><input type="checkbox" id="setAuto" checked></span></label>
+    <div>
+      <h3 style="margin:0 0 10px;font-weight:600;font-size:16px">Debian yang diingat</h3>
+      <div class="devrows" id="pairRows"></div>
+    </div>
+    <h2 style="font-size:20px">Pintasan</h2>
+    <div class="keys">
+      <kbd>Ctrl C / Ctrl V</kbd><span>Copy-paste langsung di jendela Android</span>
+      <kbd>F11</kbd><span>Jendela Android layar penuh</span>
+      <kbd>Alt H / Alt B</kbd><span>Tombol Home / Kembali Android</span>
+      <kbd>Alt S</kbd><span>Daftar aplikasi terbuka</span>
+      <kbd>Alt O</kbd><span>Matikan layar HP, tampilan tetap jalan</span>
+      <kbd>Ctrl Alt Home</kbd><span>Ambil kembali mouse dari Debian</span>
+      <kbd>Tarik berkas</kbd><span>Ke jendela Android: APK terpasang, berkas lain ke /sdcard/Download</span>
+    </div>
+    <p class="hint" style="color:var(--on-glass-dim)">Satu mouse di macOS butuh izin <b>Aksesibilitas</b> dan <b>Pemantauan Input</b> untuk LinkDeck. Di Linux butuh sesi X11.</p>
+    <p class="ver" id="ver"></p>
+  </div>
+</div>
+
+<button class="pill ghost sm" id="kioskExit">Keluar layar penuh</button>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script type="module">
+const TOKEN = "__LD_TOKEN__";
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const WS = p => `ws://${location.host}${p}${p.includes('?')?'&':'?'}t=${encodeURIComponent(TOKEN)}`;
+
+const st = {
+  tools:{}, devices:[], serial:null, sessions:[], mode:'virtual', res:[1920,1080,160], preset:'usb',
+  facing:'back', camSize:'1920x1080', debT:'usb', debian:null, rfb:null, fileTarget:'android',
+  screens:[], clips:[], notifs:[], discovered:[], pairings:[], settings:{}, pick:null, view:'desk',
+  term:null, termWs:null, audio:null, kvm:{on:false,captured:false}, apps:{}
+};
+window.LD = st;   // untuk diagnosa dari konsol
+const RATES = {usb:[16,60], wifi:[6,60], bt:[1,15]};
+const LANE = {usb:'Kabel', wifi:'Wi-Fi', bt:'Bluetooth'};
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- util ---------- */
+function toast(msg, level='info', img){
+  const el = document.createElement('div');
+  el.className = `toast ${level}`;
+  el.innerHTML = '<i></i><div></div>';
+  el.lastChild.textContent = msg;
+  if(img){ const im = new Image(); im.src = img; im.alt = 'Tangkapan layar'; el.lastChild.append(im); }
+  $('#toasts').append(el);
+  setTimeout(() => el.remove(), img ? 9000 : level==='error' ? 8000 : 4500);
+}
+async function api(path, body){
+  const isForm = body instanceof FormData;
+  const res = await fetch(path, {
+    method: body===undefined ? 'GET' : 'POST',
+    headers: {'X-LinkDeck-Token':TOKEN, ...(body===undefined||isForm ? {} : {'Content-Type':'application/json'})},
+    body: body===undefined ? undefined : isForm ? body : JSON.stringify(body)
+  });
+  let data; try{ data = await res.json(); }catch{ data = {ok:false, error:`Server membalas ${res.status}`}; }
+  if(!data.ok) throw new Error(data.error || 'Permintaan gagal');
+  return data;
+}
+async function act(btn, fn){
+  if(btn) btn.disabled = true;
+  try{ return await fn(); }catch(e){ toast(e.message, 'error'); }
+  finally{ if(btn) btn.disabled = false; }
+}
+function spark(svg, vals){
+  const w=120, h=30;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`); svg.setAttribute('preserveAspectRatio','none');
+  if(!vals || vals.length < 2){ svg.innerHTML=''; return; }
+  const min=Math.min(...vals), max=Math.max(...vals), span=(max-min)||1;
+  const pts = vals.map((v,i)=>`${(i/(vals.length-1)*w).toFixed(1)},${(h-3-(v-min)/span*(h-6)).toFixed(1)}`).join(' ');
+  svg.innerHTML = `<polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+}
+const ago = t => { const s=Math.round(Date.now()/1000-t); return s<60?'baru saja':s<3600?`${Math.floor(s/60)} mnt lalu`:`${Math.floor(s/3600)} jam lalu`; };
+const pressOne = (box, el) => $$(`${box} button, ${box} [aria-pressed]`).forEach(b=>b.setAttribute('aria-pressed', b===el));
+const shown = new Set();
+function toastOnce(key,msg,lv){ if(shown.has(key)) return; shown.add(key); toast(msg,lv); }
+
+/* ---------- pemberitahuan alat ---------- */
+function renderTools(){
+  const t = st.tools, msgs = [];
+  if(!t.adb) msgs.push('<b>adb</b> belum terpasang (Android Platform Tools).');
+  if(!t.scrcpy) msgs.push('<b>scrcpy</b> belum terpasang.');
+  else if(!t.virtual_display) msgs.push(`scrcpy ${t.scrcpy_version||''} belum mendukung layar virtual. Perbarui ke 4.0+.`);
+  if(!t.clipboard) msgs.push('Pasang <code>pip install pyperclip</code> untuk sinkron clipboard PC.');
+  $('#notice').innerHTML = msgs.join(' ');
+  $('#notice').classList.toggle('show', msgs.length>0);
+  $('#btnTiger').hidden = !t.vncviewer;
+  $('#flexWrap').hidden = !t.flex || st.mode!=='virtual';
+  const v4 = t.v4l2 || [];
+  $('#v4l2Wrap').hidden = !v4.length;
+  $('#optV4l2').innerHTML = '<option value="">Tidak, cukup tampilkan</option>' + v4.map(d=>`<option>${esc(d)}</option>`).join('');
+  $('#camHint').textContent = v4.length ? 'Butuh Android 12 ke atas. Webcam virtual memakai modul v4l2loopback.'
+    : t.platform==='linux' ? 'Butuh Android 12 ke atas. Untuk dipakai sebagai webcam, pasang v4l2loopback.'
+    : 'Butuh Android 12 ke atas. Untuk Zoom/Meet, rekam jendela kamera ini dengan OBS Virtual Camera.';
+}
+
+/* ---------- Android ---------- */
+function renderDevices(){
+  const box = $('#devices'); box.innerHTML='';
+  const ready = st.devices.filter(d=>d.state==='device');
+  if(!ready.find(d=>d.serial===st.serial)) st.serial = ready[0]?.serial || null;
+  if(!ready.length) box.innerHTML = `<span class="empty-dev">${st.tools.adb ? 'Belum ada HP. Colok kabel atau sambungkan lewat Wi-Fi.' : 'adb belum siap'}</span>`;
+  for(const d of ready){
+    const b = document.createElement('button');
+    b.className='dev'; b.setAttribute('aria-pressed', d.serial===st.serial);
+    b.innerHTML = `<span>${esc(d.model)}</span><small>${LANE[d.transport]}</small>`;
+    b.onclick = () => { st.serial=d.serial; renderDevices(); };
+    box.append(b);
+  }
+  for(const d of st.devices.filter(d=>d.state==='unauthorized'))
+    toastOnce('auth'+d.serial, 'HP menunggu izin debugging. Ketuk Izinkan di layar HP.', 'warn');
+  const cur = ready.find(d=>d.serial===st.serial);
+  if(cur && !st.presetTouched) setPreset(cur.transport, false);
+  const running = cur && st.sessions.some(s=>s.serial===cur.serial && s.mode===st.mode && st.mode!=='virtual');
+  const btn = $('#btnMirror');
+  btn.textContent = running ? 'Hentikan' : st.mode==='virtual' && st.sessions.some(s=>s.serial===cur?.serial && s.mode==='virtual') ? 'Tambah layar' : 'Mulai tampilkan';
+  btn.classList.toggle('lilac', !running); btn.classList.toggle('ink', !!running);
+  btn.disabled = !cur || !st.tools.scrcpy;
+  $('#btnShot').disabled = !cur; $('#btnApp').disabled = !cur || !st.tools.scrcpy;
+  ['usb','wifi','bt'].forEach(k=>{
+    const on = ready.some(d=>d.transport===k) || (st.debian && st.debian.transport===k);
+    $('#lane'+{usb:'Usb',wifi:'Wifi',bt:'Bt'}[k]).classList.toggle('on', !!on);
+  });
+  renderDevRows();
+}
+function renderDevRows(){
+  const box = $('#devRows'); box.innerHTML='';
+  if(!st.devices.length){ box.innerHTML='<p class="hint" style="color:var(--on-glass-dim)">Belum ada perangkat.</p>'; return; }
+  for(const d of st.devices){
+    const row = document.createElement('div'); row.className='devrow';
+    row.innerHTML = `<div><div>${esc(d.model)}</div><small>${LANE[d.transport]} ${d.state==='device'?'siap':esc(d.state)}</small></div>`;
+    if(d.transport!=='usb'){
+      const b = document.createElement('button'); b.className='pill ghost sm'; b.textContent='Putuskan';
+      b.onclick = () => act(b, async()=>{ await api('/api/adb/disconnect',{serial:d.serial}); await loadState(); });
+      row.append(b);
+    }
+    box.append(row);
+  }
+}
+function renderSessions(){
+  const box = $('#sessions'); box.innerHTML='';
+  for(const s of st.sessions){
+    const el = document.createElement('span'); el.className='sess';
+    el.innerHTML = `${esc(s.label)}<button aria-label="Tutup ${esc(s.label)}"><svg class="ico"><use href="#i-x"/></svg></button>`;
+    el.querySelector('button').onclick = e => act(e.currentTarget, ()=>api('/api/mirror/stop',{id:s.id}));
+    box.append(el);
+  }
+  renderDevices();
+}
+function setMode(m){
+  st.mode = m;
+  pressOne('#modeSeg', $(`#modeSeg [data-mode="${m}"]`));
+  $$('[data-for]').forEach(el=>el.hidden = el.dataset.for!==m);
+  $$('[data-only]').forEach(el=>el.hidden = el.dataset.only!==m || (el.id==='flexWrap' && !st.tools.flex));
+  $$('[data-hide]').forEach(el=>el.hidden = el.dataset.hide===m);
+  if(m==='camera') $('#optAudio').checked = false;
+  renderDevices();
+}
+$('#modeSeg').onclick = e => { const b=e.target.closest('[data-mode]'); if(b) setMode(b.dataset.mode); };
+$('#resChips').onclick = e => {
+  const b = e.target.closest('[data-res]'); if(!b) return;
+  pressOne('#resChips', b); st.res = b.dataset.res.split('x').map(Number);
+  $('#resBig').textContent = `${st.res[0]}×${st.res[1]}`; $('#dpiBig').textContent = `${st.res[2]} dpi`;
+};
+$('#facingChips').onclick = e => { const b=e.target.closest('[data-facing]'); if(b){ pressOne('#facingChips', b); st.facing=b.dataset.facing; } };
+$('#camSizeChips').onclick = e => { const b=e.target.closest('[data-size]'); if(b){ pressOne('#camSizeChips', b); st.camSize=b.dataset.size; } };
+$('#optZoom').oninput = e => $('#zoomVal').textContent = `${e.target.value}×`;
+function setPreset(p, touched=true){
+  st.preset = p; if(touched) st.presetTouched = true;
+  $$('#presetChips .chip').forEach(c=>c.setAttribute('aria-pressed', c.dataset.preset===p));
+  $('#rateBig').textContent = RATES[p][0]; $('#fpsBig').textContent = `${RATES[p][1]} fps`;
+  if(p==='bt') $('#optAudio').checked = false;
+}
+$('#presetChips').onclick = e => { const b=e.target.closest('[data-preset]'); if(b) setPreset(b.dataset.preset); };
+
+function screenPos(sel){
+  const scr = st.screens[+$(sel).value - 1];
+  return scr ? {window_x:scr.left+40, window_y:scr.top+40, fullscreen:true} : {};
+}
+async function startSession(extra={}){
+  const dev = st.devices.find(d=>d.serial===st.serial);
+  return api('/api/mirror/start', {
+    serial:st.serial, mode:st.mode, preset:st.preset,
+    width:st.res[0], height:st.res[1], dpi:st.res[2],
+    audio:$('#optAudio').checked, record:$('#optRecord').checked,
+    keep_active:$('#optKeep').checked, flex:$('#optFlex').checked, gamepad:$('#optPad').checked,
+    screen_off:$('#optOff').checked, facing:st.facing, camera_size:st.camSize,
+    torch:$('#optTorch').checked, zoom:+$('#optZoom').value, v4l2:$('#optV4l2').value,
+    label: st.mode==='virtual' ? dev?.model : undefined,
+    ...screenPos('#optScreen'), ...extra
+  });
+}
+$('#btnMirror').onclick = e => act(e.currentTarget, async () => {
+  const running = st.sessions.find(s=>s.serial===st.serial && s.mode===st.mode && st.mode!=='virtual');
+  if(running) return api('/api/mirror/stop',{id:running.id});
+  await startSession();
+  toast({virtual:'Layar baru dibuka di PC. Layar HP tetap seperti semula.', mirror:'Layar HP ditampilkan di PC.', camera:'Kamera HP tampil di PC.'}[st.mode]);
+});
+$('#btnShot').onclick = e => act(e.currentTarget, async () => {
+  const r = await api('/api/screenshot',{serial:st.serial});
+  toast(`Disimpan di ${r.path}`, 'info', r.data);
+});
+
+/* aplikasi di jendela sendiri */
+async function loadApps(force){
+  if(!st.serial || (st.apps[st.serial] && !force)) return st.apps[st.serial] || [];
+  const r = await api('/api/apps',{serial:st.serial, refresh:!!force});
+  st.apps[st.serial] = r.apps;
+  $('#appList').innerHTML = r.apps.map(a=>`<option value="${esc(a.label)}">${esc(a.pkg)}</option>`).join('');
+  return r.apps;
+}
+$('#appIn').addEventListener('focus', () => loadApps().catch(()=>{}));
+function resolveApp(name){
+  const apps = st.apps[st.serial] || [];
+  const n = name.trim().toLowerCase();
+  const hit = apps.find(a=>a.label.toLowerCase()===n || a.pkg===name.trim()) || apps.find(a=>a.label.toLowerCase().startsWith(n));
+  return hit ? {pkg:hit.pkg, label:hit.label} : {pkg:'?'+name.trim(), label:name.trim()};
+}
+async function openApp(name, extra={}){
+  if(!name.trim()) throw new Error('Ketik nama aplikasinya dulu.');
+  await loadApps().catch(()=>{});
+  const a = resolveApp(name);
+  const prevMode = st.mode; st.mode = 'virtual';
+  try{ await startSession({app:a.pkg, label:a.label, width:1280, height:800, dpi:200, ...extra}); }
+  finally{ st.mode = prevMode; }
+  toast(`${a.label} dibuka di jendela sendiri.`);
+}
+$('#btnApp').onclick = e => act(e.currentTarget, async()=>{ await openApp($('#appIn').value); $('#appIn').value=''; });
+$('#appIn').addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); $('#btnApp').click(); } });
+
+/* ---------- daftar layar (monitor/TV) ---------- */
+const PV = () => window.pywebview?.api;
+function fillScreens(){
+  for(const sel of [$('#optScreen'), $('#debScreen'), $('#tvScreen')]){
+    const first = sel.options[0].outerHTML;
+    sel.innerHTML = first + st.screens.map((s,i)=>`<option value="${i+1}">${esc(s.label||'Layar '+(i+1))} ${s.width}×${s.height}${s.isPrimary?' (utama)':''}</option>`).join('');
+  }
+}
+async function loadScreens(ask){
+  if(PV()){
+    try{
+      const list = await PV().screens();
+      st.screens = list.map(s=>({native:s.i, left:s.x, top:s.y, width:s.width, height:s.height, label:`Layar ${s.i+1}`, isPrimary:s.i===0}));
+      fillScreens();
+    }catch{}
+    return;
+  }
+  if(!('getScreenDetails' in window)) return;
+  try{
+    if(!ask){
+      const p = await navigator.permissions.query({name:'window-management'}).catch(()=>null);
+      if(!p || p.state!=='granted') return addScreenAsk();
+    }
+    const det = await window.getScreenDetails();
+    st.screens = det.screens; fillScreens();
+    det.addEventListener('screenschange', () => loadScreens(true));
+  }catch{}
+}
+function addScreenAsk(){
+  for(const sel of [$('#optScreen'), $('#debScreen'), $('#tvScreen')]){
+    if(sel.querySelector('[value="ask"]')) continue;
+    sel.insertAdjacentHTML('beforeend','<option value="ask">Pilih monitor/TV…</option>');
+    sel.addEventListener('change', () => { if(sel.value==='ask'){ sel.value=''; loadScreens(true); } });
+  }
+}
+window.addEventListener('pywebviewready', () => loadScreens(true));
+
+/* ---------- Debian: penemuan & sambung ---------- */
+function renderFound(){
+  const box = $('#found'); box.innerHTML='';
+  const items = st.discovered;
+  if(!items.length){
+    box.innerHTML = '<p class="hint" style="color:var(--on-glass-dim);margin:0">Mencari Debian di jaringan dan kabel…</p>';
+    $('#manual').hidden = false; $('#btnManual').hidden = true;
+  } else { $('#btnManual').hidden = false; }
+  if(st.pick && !items.find(d=>d.id===st.pick)) st.pick = null;
+  if(!st.pick && items.length) st.pick = (items.find(d=>d.paired) || items[0]).id;
+  for(const d of items){
+    const b = document.createElement('button'); b.type='button';
+    b.setAttribute('aria-pressed', d.id===st.pick);
+    b.innerHTML = `<div><div>${esc(d.name)}</div><small>${LANE[d.transport]} ${d.transport==='usb'?'':esc(d.host)}</small></div><span class="tag">${d.paired?'Tersimpan':'Baru'}</span>`;
+    b.onclick = () => { st.pick = d.id; $('#manual').hidden = true; renderFound(); };
+    box.append(b);
+  }
+  const cur = items.find(d=>d.id===st.pick);
+  $('#pinWrap').hidden = !!(cur && cur.paired && $('#manual').hidden);
+  $('#debFp').textContent = cur && !cur.paired ? `Sidik jari: ${cur.fp_short}  (harus sama dengan di layar Debian)` : '';
+}
+$('#btnManual').onclick = () => { $('#manual').hidden = false; st.pick = null; renderFound(); };
+function setDebT(t){
+  st.debT = t;
+  $$('#debSeg button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.t===t));
+  $('#debHostWrap').hidden = t==='usb';
+  if(t==='bt' && !$('#debHost').value) $('#debHost').value = '192.168.44.1';
+}
+$('#debSeg').onclick = e => { const b=e.target.closest('[data-t]'); if(b) setDebT(b.dataset.t); };
+
+$('#debForm').onsubmit = e => { e.preventDefault(); act($('#btnDeb'), async () => {
+  const manual = !$('#manual').hidden || !st.pick;
+  const body = manual ? {transport:st.debT, serial:st.serial, host:$('#debHost').value.trim()} : {id:st.pick};
+  body.pin = $('#debPin').value.trim(); body.remember = $('#debRemember').checked;
+  try{ localStorage.setItem('ld.deb', JSON.stringify({t:st.debT, host:$('#debHost').value})); }catch{}
+  const r = await api('/api/debian/connect', body);
+  if(!st.debian) st.debian = r.debian;
+  await afterDebianConnected($('#debPw').value);
+}); };
+
+async function afterDebianConnected(typedPw){
+  let pw = typedPw;
+  if(!pw && st.debian?.has_password){ pw = (await api('/api/pairing/password',{})).password; }
+  if(!pw){ $('#pinWrap').hidden = true; $('#debPw').focus(); toast('Desktop Debian tersambung. Isi sandi VNC sekali untuk menampilkannya.','warn'); renderDebian(); return; }
+  if(typedPw) api('/api/pairing/password',{password:typedPw, remember:$('#debRemember').checked}).catch(()=>{});
+  await openViewer(pw);
+}
+
+async function openViewer(password){
+  if(!st.tools.novnc){ renderDebian(); return toast('Penampil desktop belum siap. Coba lagi sebentar.', 'warn'); }
+  const {default: RFB} = await import('/novnc/core/rfb.js');
+  st.rfb?.disconnect();
+  const rfb = new RFB($('#vnc'), WS('/ws/vnc'), {credentials:{password}});
+  rfb.scaleViewport = true; rfb.resizeSession = $('#fitSession').checked; rfb.background = 'transparent';
+  rfb.addEventListener('connect', () => { $('#screen').classList.add('live'); renderDebian(); toast('Desktop Debian tampil. Layar di HP tidak ikut berubah.'); });
+  rfb.addEventListener('disconnect', e => {
+    $('#screen').classList.remove('live');
+    if(st.rfb===rfb){ st.rfb=null; if(!e.detail.clean && st.debian) toast('Tampilan desktop Debian terputus.','warn'); }
+    renderDebian();
+  });
+  rfb.addEventListener('securityfailure', () => { toast('Sandi VNC salah. Isi ulang.','error'); api('/api/pairing/password',{password:'', remember:false}).catch(()=>{}); });
+  rfb.addEventListener('clipboard', e => { if(!st.debian?.agent) api('/api/clipboard',{text:e.detail.text, src:'debian-viewer'}).catch(()=>{}); });
+  st.rfb = rfb;
+}
+function renderDebian(){
+  const d = st.debian;
+  $('#debTools').hidden = !d; $('#debLock').hidden = !d;
+  const s = $('#debStatus');
+  s.classList.toggle('live', !!d?.agent);
+  s.lastChild.textContent = !d ? 'Belum terhubung' : `${esc(d.name)} lewat ${LANE[d.transport]}${d.agent ? '' : ', menyambung…'}`;
+  if(!d){ setView('desk'); stopAudio(); }
+  $('#btnKvm').setAttribute('aria-pressed', !!st.kvm.on);
+  $('#btnKvm').classList.toggle('lilac', !!st.kvm.on); $('#btnKvm').classList.toggle('ghost', !st.kvm.on);
+  renderDevices();
+}
+$('#fitSession').onchange = e => { if(st.rfb) st.rfb.resizeSession = e.target.checked; };
+$('#btnDebOff').onclick = e => act(e.currentTarget, async () => {
+  const r = st.rfb; st.rfb = null; r?.disconnect();
+  await api('/api/debian/disconnect',{});
+  st.debian = null; $('#screen').classList.remove('live'); renderDebian();
+});
+$('#btnTiger').onclick = e => act(e.currentTarget, () => api('/api/debian/external',{fullscreen:true, monitor:+$('#debScreen').value||0}));
+$('#btnAgentPush').onclick = e => act(e.currentTarget, async () => {
+  const r = await api('/api/agent/push',{serial:st.serial});
+  toast(`Paket ada di HP. Di terminal Debian jalankan: ${r.cmd}  lalu  linkdeck-start`);
+});
+
+/* layar penuh / kiosk */
+async function fullscreenDebian(scr){
+  if(PV()){ document.body.classList.add('kiosk'); await PV().fullscreen_on(scr ? scr.native : null); return; }
+  try{ await $('#screen').requestFullscreen(scr ? {screen:scr} : {}); }
+  catch(e){ toast('Layar penuh ditolak: '+e.message,'warn'); }
+}
+$('#btnFull').onclick = () => fullscreenDebian(st.screens[+$('#debScreen').value - 1]);
+async function exitKiosk(){
+  if(!document.body.classList.contains('kiosk')) return;
+  document.body.classList.remove('kiosk'); await PV()?.exit_fullscreen();
+}
+$('#kioskExit').onclick = exitKiosk;
+
+/* ---------- terminal ---------- */
+function loadScript(src){ return new Promise((ok,no)=>{ const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=no; document.head.append(s); }); }
+async function openTerm(){
+  if(!window.Terminal){
+    const css = document.createElement('link'); css.rel='stylesheet'; css.href='/xterm/xterm.css'; document.head.append(css);
+    await loadScript('/xterm/xterm.js'); await loadScript('/xterm/addon-fit.js');
+  }
+  if(!st.term){
+    st.term = new Terminal({fontFamily:'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace', fontSize:14, cursorBlink:true,
+      theme:{background:'#14121b', foreground:'#f4eef6', cursor:'#ecc6f5', selectionBackground:'#6f269055'}});
+    st.fit = new FitAddon.FitAddon(); st.term.loadAddon(st.fit); st.term.open($('#term'));
+    st.term.onData(d => st.termWs?.readyState===1 && st.termWs.send(new TextEncoder().encode(d)));
+    new ResizeObserver(() => { try{ st.fit.fit(); sendSize(); }catch{} }).observe($('#term'));
+  }
+  if(!st.termWs || st.termWs.readyState>1){
+    const ws = new WebSocket(WS('/ws/term')); ws.binaryType='arraybuffer'; st.termWs = ws;
+    ws.onopen = () => { st.fit.fit(); sendSize(); st.term.focus(); };
+    ws.onmessage = ev => st.term.write(typeof ev.data==='string' ? ev.data : new Uint8Array(ev.data));
+    ws.onclose = () => { st.term.write('\r\n\x1b[2m[terminal tertutup — klik Terminal lagi untuk membuka]\x1b[0m\r\n'); st.termWs=null; };
+  }
+  setTimeout(()=>{ st.fit.fit(); st.term.focus(); }, 50);
+}
+function sendSize(){ if(st.termWs?.readyState===1) st.termWs.send(JSON.stringify({type:'resize', rows:st.term.rows, cols:st.term.cols})); }
+function setView(v){
+  st.view = v; pressOne('#viewSeg', $(`#viewSeg [data-view="${v}"]`));
+  $('#screen').classList.toggle('term', v==='term');
+  if(v==='term') openTerm().catch(e=>toast('Terminal gagal dibuka: '+e.message,'error'));
+}
+$('#viewSeg').onclick = e => { const b=e.target.closest('[data-view]'); if(b) setView(b.dataset.view); };
+
+/* ---------- suara Debian ---------- */
+function stopAudio(){
+  if(!st.audio) return;
+  st.audio.ws.close(); st.audio.ctx.close(); st.audio = null;
+  $('#btnSound').setAttribute('aria-pressed', false); $('#btnSound').classList.replace('lilac','ghost');
+}
+function startAudio(){
+  const low = st.debian?.transport==='bt';
+  const ctx = new AudioContext(); const ws = new WebSocket(WS('/ws/audio' + (low ? '?q=low' : '')));
+  ws.binaryType = 'arraybuffer';
+  const a = st.audio = {ctx, ws, rate:48000, ch:2, next:0};
+  ws.onmessage = ev => {
+    if(typeof ev.data === 'string'){
+      const m = JSON.parse(ev.data);
+      if(m.type==='format'){ a.rate=m.rate; a.ch=m.channels; }
+      if(m.type==='error'){ toast(m.msg,'warn'); stopAudio(); }
+      return;
+    }
+    const pcm = new Int16Array(ev.data), frames = pcm.length / a.ch;
+    if(!frames) return;
+    const buf = ctx.createBuffer(a.ch, frames, a.rate);
+    for(let c=0;c<a.ch;c++){ const out = buf.getChannelData(c); for(let i=0;i<frames;i++) out[i] = pcm[i*a.ch+c]/32768; }
+    const src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination);
+    const now = ctx.currentTime;
+    if(a.next < now + 0.03 || a.next > now + 0.6) a.next = now + 0.08;   // jaga jeda tetap kecil
+    src.start(a.next); a.next += buf.duration;
+  };
+  ws.onclose = () => { if(st.audio===a) stopAudio(); };
+  $('#btnSound').setAttribute('aria-pressed', true); $('#btnSound').classList.replace('ghost','lilac');
+}
+$('#btnSound').onclick = () => st.audio ? stopAudio() : startAudio();
+
+/* ---------- satu mouse ---------- */
+$('#btnKvm').onclick = e => act(e.currentTarget, async () => {
+  const on = !st.kvm.on;
+  await api('/api/kvm', {on, edge:$('#kvmEdge').value});
+  if(on) toast(`Geser kursor melewati tepi ${$('#kvmEdge').value==='right'?'kanan':'kiri'} layar PC untuk mengontrol Debian.`);
+});
+function onKvm(m){
+  st.kvm = {on:m.on, captured:m.captured};
+  $('#kvmChip').classList.toggle('show', !!m.captured);
+  renderDebian();
+}
+
+/* ---------- clipboard ---------- */
+function renderClips(){
+  const ul = $('#clipList'); ul.innerHTML='';
+  if(!st.clips.length){ ul.innerHTML = '<li class="empty" style="display:block;border:0">Belum ada salinan. Coba Ctrl+C di PC atau Debian.</li>'; return; }
+  for(const c of st.clips){
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="src ${c.src}">${c.src==='debian'?'Debian':'PC'}</span><div class="cliptext"><span></span><small>${ago(c.t)}</small></div><button class="pill lilac">Salin lagi</button>`;
+    li.querySelector('.cliptext span').textContent = c.text.replace(/\s+/g,' ');
+    li.querySelector('.cliptext').title = c.text.slice(0,600);
+    li.querySelector('button').onclick = e => act(e.currentTarget, async()=>{ await api('/api/clipboard',{text:c.text}); toast('Disalin ke PC dan Debian.'); });
+    ul.append(li);
+  }
+}
+function onClip(item){
+  st.clips = [item, ...st.clips.filter(c=>c.id!==item.id)].slice(0,40);
+  renderClips();
+  if(item.src!=='debian' && st.rfb && !st.debian?.agent) st.rfb.clipboardPasteFrom(item.text);
+}
+$('#btnClip').onclick = e => act(e.currentTarget, async () => {
+  const text = $('#clipIn').value; if(!text.trim()) return;
+  const r = await api('/api/clipboard',{text});
+  $('#clipIn').value=''; toast(r.debian ? 'Terkirim ke PC dan Debian.' : 'Tersalin di PC. Debian belum tersambung.');
+});
+
+/* ---------- notifikasi ---------- */
+function renderNotifs(){
+  const ul = $('#nList'); ul.innerHTML='';
+  if(!st.notifs.length){ ul.innerHTML = `<li class="hint" style="color:var(--on-glass-dim)">${st.devices.length ? 'Belum ada notifikasi baru.' : 'Sambungkan HP Android untuk melihat notifikasinya.'}</li>`; return; }
+  for(const n of st.notifs.slice(0,30)){
+    const li = document.createElement('li');
+    li.innerHTML = `<button><span class="nav">${esc((n.app||'?')[0].toUpperCase())}</span><div><b>${esc(n.title||n.app)}</b><span>${esc(n.text)}</span><small>${esc(n.app)} · ${ago(n.t)}</small></div></button>`;
+    li.querySelector('button').onclick = e => act(e.currentTarget, async()=>{
+      st.serial = n.serial;
+      const prev = st.mode; st.mode='virtual';
+      try{ await startSession({app:n.pkg, label:n.app, width:1280, height:800, dpi:200}); } finally{ st.mode = prev; }
+      toast(`${n.app} dibuka di jendela sendiri.`);
+    });
+    ul.append(li);
+  }
+}
+function onNotif(items){
+  st.notifs = [...items, ...st.notifs].slice(0,60);
+  renderNotifs();
+  for(const n of items.filter(n=>!n.quiet).slice(0,3)){
+    toast(`${n.app}: ${n.title}${n.text ? ' — '+n.text : ''}`);
+    if(window.Notification?.permission==='granted' && document.hidden) new Notification(n.title || n.app, {body:n.text});
+  }
+}
+setInterval(() => { renderClips(); renderNotifs(); }, 60000);
+
+/* ---------- berkas, tautan, sinkron ---------- */
+$('#fileTarget').onclick = e => {
+  const b=e.target.closest('[data-target]'); if(!b) return;
+  st.fileTarget = b.dataset.target; pressOne('#fileTarget', b);
+  $('#dropWhere').textContent = st.fileTarget==='android' ? 'Masuk ke Download/LinkDeck di HP' : 'Masuk ke ~/Downloads/LinkDeck di Debian (maks 48 MB)';
+  $('#linkIn').placeholder = `https://… buka di ${st.fileTarget==='android'?'Android':'Debian'}`;
+};
+async function sendFiles(list){
+  if(!list.length) return;
+  const fd = new FormData();
+  fd.append('target', st.fileTarget); fd.append('serial', st.serial||'');
+  for(const f of list) fd.append('file', f, f.name);
+  toast(`Mengirim ${list.length} berkas…`);
+  await act(null, async () => { const r = await api('/api/files', fd); toast(`Terkirim ke ${r.where}: ${r.files.join(', ')}`); });
+}
+const drop = $('#drop');
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev, e=>{e.preventDefault(); drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev, ()=>drop.classList.remove('over')));
+drop.addEventListener('drop', e=>{ e.preventDefault(); sendFiles([...e.dataTransfer.files]); });
+drop.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('#fileIn').click(); }});
+$('#fileIn').onchange = e => { sendFiles([...e.target.files]); e.target.value=''; };
+$('#btnLink').onclick = e => act(e.currentTarget, async () => {
+  await api('/api/link',{url:$('#linkIn').value.trim(), target:st.fileTarget, serial:st.serial});
+  toast(`Tautan dibuka di ${st.fileTarget==='android'?'Android':'Debian'}.`); $('#linkIn').value='';
+});
+function renderSync(info){
+  if(info?.dir) $('#syncDir').textContent = info.dir;
+  $('#syncStatus').textContent = info?.error ? `Gagal: ${info.error}` : info?.last ? `Terakhir sinkron ${ago(info.last)}${info.count?`, ${info.count} perubahan sejauh ini`:''}.` : 'Belum ada sinkron. Mulai setelah Debian tersambung.';
+}
+$('#btnSyncNow').onclick = e => act(e.currentTarget, async()=>{ const r = await api('/api/sync/now',{}); toast(r.changed ? `${r.changed} berkas disinkronkan.` : 'Sudah sama di kedua sisi.'); renderSync({last:Date.now()/1000, dir:r.dir}); });
+$('#btnSyncOpen').onclick = e => act(e.currentTarget, () => api('/api/sync/open',{}));
+
+/* ---------- pengaturan & pasangan ---------- */
+async function setSetting(k, v){ const r = await api('/api/settings', {[k]:v}); st.settings = r.settings; }
+for(const [id,k] of [['#setAuto','autoconnect'],['#setSync','sync'],['#setNotif','notif']])
+  $(id).onchange = e => act(null, () => setSetting(k, e.target.checked));
+function renderPairings(){
+  const box = $('#pairRows'); box.innerHTML='';
+  if(!st.pairings.length){ box.innerHTML='<p class="hint" style="color:var(--on-glass-dim)">Belum ada.</p>'; return; }
+  for(const p of st.pairings){
+    const row = document.createElement('div'); row.className='pairrow';
+    row.innerHTML = `<div><div>${esc(p.name)}</div><small class="fp">${esc(p.fp_short)}</small></div><button class="pill ghost sm">Lupakan</button>`;
+    row.querySelector('button').onclick = e => act(e.currentTarget, async()=>{ await api('/api/pairing/forget',{id:p.id}); toast(`${p.name} dilupakan.`); });
+    box.append(row);
+  }
+}
+
+/* ---------- Mode TV ---------- */
+let tvWhat = 'android';
+$('#tvWhat').onclick = e => { const b=e.target.closest('[data-what]'); if(!b) return; pressOne('#tvWhat', b); tvWhat=b.dataset.what; $('#tvAppWrap').hidden = tvWhat!=='app'; if(tvWhat==='app') loadApps().catch(()=>{}); };
+$('#tvRes').onclick = e => { const b=e.target.closest('[data-res]'); if(b) pressOne('#tvRes', b); };
+$('#btnTv').onclick = e => act(e.currentTarget, async () => {
+  const [w,h,dpi] = $('#tvRes [aria-pressed="true"]').dataset.res.split('x').map(Number);
+  const scr = st.screens[+$('#tvScreen').value - 1];
+  const pos = scr ? {window_x:scr.left+40, window_y:scr.top+40} : {};
+  if(tvWhat==='debian'){
+    if(!st.rfb) throw new Error('Hubungkan dan tampilkan desktop Debian dulu.');
+    $('#fitSession').checked = true; st.rfb.resizeSession = true; setView('desk');
+    if(!st.audio) startAudio();
+    $('#drawer-tv').classList.remove('open');
+    return fullscreenDebian(scr);
+  }
+  if(!st.serial) throw new Error('Sambungkan HP Android dulu.');
+  const extra = {width:w, height:h, dpi, audio:true, fullscreen:true, flex:false, ...pos};
+  if(tvWhat==='app') await openApp($('#tvApp').value, extra);
+  else { const prev = st.mode; st.mode='virtual'; try{ await startSession(extra); } finally{ st.mode=prev; } }
+  $('#drawer-tv').classList.remove('open');
+  toast('Mode TV dimulai. Tekan F11 di jendela itu untuk keluar dari layar penuh.');
+});
+
+/* ---------- laci ---------- */
+function openDrawer(id){ const d=$('#drawer-'+id); d.classList.add('open'); d.querySelector('.close').focus(); if(id==='tv') loadScreens(false); }
+$$('[data-open]').forEach(b=>b.onclick=()=>openDrawer(b.dataset.open));
+$$('.drawer').forEach(d=>d.addEventListener('click', e=>{ if(e.target.closest('[data-close]')) d.classList.remove('open'); }));
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ $$('.drawer.open').forEach(d=>d.classList.remove('open')); exitKiosk(); } });
+$('#pairSeg').onclick = e => {
+  const b=e.target.closest('[data-tab]'); if(!b) return;
+  pressOne('#pairSeg', b); $$('[data-pane]').forEach(p=>p.hidden = p.dataset.pane!==b.dataset.tab);
+};
+$('#pairForm').onsubmit = e => { e.preventDefault(); const f=e.target; act(f.querySelector('button'), async()=>{
+  await api('/api/adb/pair',{host:f.host.value.trim(), code:f.code.value.trim()});
+  toast('Pairing berhasil. Sekarang isi alamat debugging lalu Sambungkan.');
+  const ip = f.host.value.split(':')[0]; if(ip) $('#connForm').host.value = ip+':';
+}); };
+$('#connForm').onsubmit = e => { e.preventDefault(); const f=e.target; act(f.querySelector('button'), async()=>{
+  const r = await api('/api/adb/connect',{host:f.host.value.trim()});
+  st.serial = r.serial; toast('HP tersambung lewat jaringan.'); await loadState();
+}); };
+
+/* ---------- pantauan ---------- */
+function onStats(s){
+  const d = s.devices?.[st.serial], bat = d?.bat || [], lat = d?.lat || [];
+  $('#sBat').innerHTML = bat.length ? `${bat.at(-1)}<small>%${d.temp?` ${d.temp}°C`:''}</small>` : '–';
+  $('#sLat').innerHTML = lat.length ? `${lat.at(-1)}<small>ms</small>` : '–';
+  spark($('#gBat'), bat); spark($('#gLat'), lat);
+  const v = s.vnc || [], kb = v.at(-1) ?? 0;
+  $('#sVnc').innerHTML = st.debian ? (kb>=1024 ? `${(kb/1024).toFixed(1)}<small>MB/s</small>` : `${Math.round(kb)}<small>KB/s</small>`) : '–';
+  spark($('#gVnc'), st.debian ? v : []);
+  const load = s.debian?.load || [];
+  $('#sLoad').innerHTML = load.length ? `${load.at(-1).toFixed(2)}<small>${s.debian.mem!=null?`RAM ${s.debian.mem}%`:''}</small>` : '–';
+  spark($('#gLoad'), load);
+}
+
+/* ---------- sinkron dengan server ---------- */
+async function loadState(){
+  const r = await api('/api/state');
+  Object.assign(st, {tools:r.tools, devices:r.devices, sessions:r.sessions, clips:r.clips, debian:r.debian,
+    discovered:r.discovered, pairings:r.pairings, settings:r.settings, notifs:r.notifs, kvm:r.kvm});
+  $('#ver').textContent = `LinkDeck ${r.version}`;
+  $('#btnAgentPush').hidden = !r.agent_pkg;
+  $('#setAuto').checked = r.settings.autoconnect; $('#setSync').checked = r.settings.sync; $('#setNotif').checked = r.settings.notif;
+  renderTools(); setMode(st.mode); renderSessions(); renderClips(); renderDebian(); renderFound(); renderPairings(); renderNotifs();
+  renderSync({...r.sync, dir:r.sync_dir}); onKvm(r.kvm);
+}
+function connectEvents(){
+  const ws = new WebSocket(WS('/ws/events'));
+  ws.onmessage = ev => {
+    const m = JSON.parse(ev.data);
+    switch(m.type){
+      case 'devices': st.devices = m.devices; renderDevices(); renderNotifs(); break;
+      case 'sessions': st.sessions = m.sessions; renderSessions(); break;
+      case 'clip': onClip(m.item); break;
+      case 'stats': onStats(m); break;
+      case 'debian': st.debian = m.debian; renderDebian(); break;
+      case 'autoconnected': st.debian = m.debian; renderDebian(); if(!st.rfb) afterDebianConnected('').catch(()=>{}); break;
+      case 'discovered': st.discovered = m.items; renderFound(); break;
+      case 'pairings': st.pairings = m.pairings; renderPairings(); break;
+      case 'notif': onNotif(m.items); break;
+      case 'sync': renderSync(m.info); toast(`Folder sinkron: ${m.changed} perubahan.`); break;
+      case 'kvm': onKvm(m); break;
+      case 'tools': st.tools = m.tools; renderTools(); break;
+      case 'file': toast(`Berkas dari Debian: ${m.name}`); break;
+      case 'log': if(m.level!=='info') toast(m.msg, m.level); break;
+    }
+  };
+  ws.onclose = () => { toastOnce('down','Server LinkDeck berhenti. Buka ulang aplikasinya.','error'); setTimeout(()=>{ shown.delete('down'); connectEvents(); loadState().catch(()=>{}); }, 3000); };
+}
+
+(function init(){
+  try{ const s = JSON.parse(localStorage.getItem('ld.deb')||'{}'); if(s.t) setDebT(s.t); if(s.host) $('#debHost').value=s.host; }catch{}
+  if(TOKEN.startsWith('__')){
+    $('#notice').innerHTML = 'Halaman ini harus dibuka lewat aplikasi LinkDeck atau <code>python server.py</code>.';
+    $('#notice').classList.add('show'); return;
+  }
+  setMode('virtual');
+  loadState().then(() => { if(st.debian && !st.rfb) afterDebianConnected('').catch(()=>{}); }).catch(e=>toast(e.message,'error'));
+  connectEvents();
+  loadScreens(false);
+  $('#nList').addEventListener('click', () => { if(window.Notification?.permission==='default') Notification.requestPermission(); }, {once:true});
+})();
+
+</script>
+</body>
+</html>

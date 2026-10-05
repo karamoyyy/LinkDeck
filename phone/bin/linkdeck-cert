@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Buat sertifikat TLS agen (sekali; dipakai untuk enkripsi Wi-Fi/Bluetooth). --baru untuk mengganti.
+LD="$HOME/.linkdeck"; mkdir -p "$LD"
+if [ "$1" = "--baru" ] || [ ! -f "$LD/cert.pem" ] || [ ! -f "$LD/key.pem" ]; then
+  openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes \
+    -keyout "$LD/key.pem" -out "$LD/cert.pem" -days 3650 -subj "/CN=linkdeck-agent" 2>/dev/null
+  chmod 600 "$LD/key.pem"
+fi
+openssl x509 -in "$LD/cert.pem" -noout -fingerprint -sha256 | cut -d= -f2 | cut -c1-23

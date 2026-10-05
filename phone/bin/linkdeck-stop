@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+pkill -f "^python3 /usr/lib/linkdeck-agent/agent.py" 2>/dev/null
+pkill -f "^(/usr/bin/)?Xtigervnc :1( |$)" 2>/dev/null
+pkill -x x0vncserver 2>/dev/null
+echo "LinkDeck di Debian dihentikan."

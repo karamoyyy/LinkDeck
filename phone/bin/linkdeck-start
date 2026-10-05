@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# linkdeck-start [baru|bagikan] [LEBARxTINGGI]
+#   baru    : desktop XFCE kedua (:1) seukuran monitor; layar HP tidak berubah (default)
+#   bagikan : bagikan sesi XFCE yang sedang terbuka di HP (DISPLAY :0, mis. Termux:X11)
+LD="$HOME/.linkdeck"
+AGENT=/usr/lib/linkdeck-agent/agent.py
+[ -f "$LD/config" ] && [ -f "$LD/vncpasswd" ] || linkdeck-setup || exit 1
+. "$LD/config"
+if [ -z "$LINKDECK_ID" ]; then   # konfigurasi versi lama: tambahkan ID
+  LINKDECK_ID=$(python3 -c "import secrets;print(secrets.token_hex(8))")
+  echo "LINKDECK_ID=$LINKDECK_ID" >> "$LD/config"
+fi
+FP=$(linkdeck-cert)
+MODE="${1:-baru}"; GEOM="${2:-$LINKDECK_GEOMETRY}"
+mkdir -p /tmp/.X11-unix 2>/dev/null; chmod 1777 /tmp/.X11-unix 2>/dev/null || true
+
+# VNC hanya mendengarkan di localhost; PC masuk lewat terowongan TLS milik agen.
+case "$MODE" in
+  baru|new)
+    export DISPLAY=:1
+    if ! pgrep -f "^(/usr/bin/)?Xtigervnc :1( |$)" >/dev/null; then
+      rm -f /tmp/.X1-lock /tmp/.X11-unix/X1
+      nohup Xtigervnc :1 -geometry "$GEOM" -depth 24 -rfbport 5901 -localhost=1 \
+        -SecurityTypes VncAuth -PasswordFile "$LD/vncpasswd" -AlwaysShared \
+        -desktop "Debian LinkDeck" >"$LD/vnc.log" 2>&1 &
+      for _ in $(seq 1 40); do [ -e /tmp/.X11-unix/X1 ] && break; sleep 0.25; done
+      nohup dbus-launch --exit-with-session startxfce4 >"$LD/xfce.log" 2>&1 &
+    fi ;;
+  bagikan|share)
+    export DISPLAY="${LINKDECK_SHARE_DISPLAY:-:0}"
+    if ! pgrep -x x0vncserver >/dev/null; then
+      nohup x0vncserver -display "$DISPLAY" -rfbport 5901 -localhost=1 \
+        -SecurityTypes VncAuth -PasswordFile "$LD/vncpasswd" -AlwaysShared \
+        >"$LD/vnc.log" 2>&1 &
+    fi ;;
+  *) echo "Pakai: linkdeck-start [baru|bagikan] [1920x1080]"; exit 1 ;;
+esac
+
+pkill -f "^python3 $AGENT" 2>/dev/null; sleep 0.3
+DISPLAY="$DISPLAY" LINKDECK_TOKEN="$LINKDECK_TOKEN" LINKDECK_ID="$LINKDECK_ID" \
+  nohup python3 "$AGENT" >"$LD/agent.log" 2>&1 &
+
+IP=$(python3 -c "import socket
+s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+try:
+    s.connect(('8.8.8.8',80)); print(s.getsockname()[0])
+except OSError:
+    print('-')")
+sleep 1
+echo
+echo "  Debian siap untuk LinkDeck (otomatis terlihat di PC pada jaringan yang sama)"
+echo "  Mode        : $MODE (DISPLAY $DISPLAY, $GEOM)"
+echo "  PIN agen    : $LINKDECK_TOKEN"
+echo "  Sidik jari  : $FP   (cocokkan dengan yang tampil di LinkDeck)"
+echo "  IP Wi-Fi    : $IP   | Bluetooth: 192.168.44.1"
+echo "  Log         : $LD/*.log"
