@@ -1,0 +1,70 @@
+name: Build LinkDeck
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PYTHON_VERSION: "3.12"
+  SCRCPY_VERSION: "4.1"
+
+jobs:
+  desktop:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, target: windows }
+          - { os: macos-14,       target: macos-arm64 }
+          - { os: ubuntu-22.04,   target: linux }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Tentukan versi
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then V="${GITHUB_REF_NAME#v}"; else V="$(cat VERSION)-dev.${GITHUB_RUN_NUMBER}"; fi
+          echo "LINKDECK_VERSION=$V" >> "$GITHUB_ENV"
+          echo "$V" > VERSION
+      - name: Pasang dependensi Python
+        run: python -m pip install -r requirements.txt -r build/requirements-build.txt
+      - name: Pasang Inno Setup
+        if: matrix.target == 'windows'
+        run: choco install innosetup --no-progress -y
+      - name: Unduh scrcpy, adb, dan noVNC
+        run: python build/fetch_deps.py ${{ matrix.target }}
+      - name: Bangun paket agen Debian (HP)
+        run: python build/build_agent_deb.py
+      - name: Bangun aplikasi (PyInstaller)
+        run: pyinstaller build/linkdeck.spec --noconfirm --distpath dist --workpath build/pyi-work
+      - name: Kemas installer
+        run: python build/package.py ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LinkDeck-${{ matrix.target }}
+          path: out/*
+          if-no-files-found: error
+
+  release:
+    needs: desktop
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
+          generate_release_notes: true
