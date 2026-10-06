@@ -32,7 +32,7 @@ from pathlib import Path
 
 from aiohttp import WSMsgType, web
 
-VERSION = "1.3.0"
+VERSION = "1.7.0"
 LD = Path.home() / ".linkdeck"
 TOKEN = os.environ.get("LINKDECK_TOKEN", "")
 AGENT_ID = os.environ.get("LINKDECK_ID", "")
@@ -76,23 +76,55 @@ def authorized(req) -> bool:
 
 # ------------------------------------------------------------------ clipboard
 
-def clip_get():
+def x_displays() -> list[str]:
+    """Semua layar X yang aktif: layar LinkDeck (:1) DAN layar XFCE yang tampil di HP (mis. Termux:X11 :0)."""
+    found = {DISPLAY}
+    for d in ("/tmp/.X11-unix", os.environ.get("PREFIX", "") + "/tmp/.X11-unix"):
+        try:
+            for name in os.listdir(d):
+                if name.startswith("X") and name[1:].isdigit():
+                    found.add(":" + name[1:])
+        except OSError:
+            pass
+    return sorted(found, key=lambda x: int(x[1:].split(".")[0]) if x[1:].split(".")[0].isdigit() else 99)
+
+
+def clip_get(display: str | None = None):
+    env = {**ENV, "DISPLAY": display or DISPLAY}
     try:
-        r = subprocess.run(["xclip", "-selection", "clipboard", "-o"], env=ENV,
+        r = subprocess.run(["xclip", "-selection", "clipboard", "-o"], env=env,
                            capture_output=True, timeout=2)
         return r.stdout.decode(errors="replace") if r.returncode == 0 else None
     except Exception:
         return None
 
 
-def clip_set(text: str) -> None:
+def clip_set(text: str, display: str | None = None) -> None:
+    env = {**ENV, "DISPLAY": display or DISPLAY}
     try:
-        p = subprocess.Popen(["xclip", "-selection", "clipboard", "-i"], env=ENV,
+        p = subprocess.Popen(["xclip", "-selection", "clipboard", "-i"], env=env,
                              stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
                              stderr=subprocess.DEVNULL)
         p.communicate(text.encode(), timeout=3)
     except Exception as e:
         log("clip_set:", e)
+
+
+disp_clip: dict[str, str | None] = {}     # isi clipboard terakhir per layar X
+
+
+async def clip_set_all(text: str, skip: str | None = None) -> None:
+    """Isi clipboard di semua layar X (kecuali asal salinan), lalu tunggu sampai benar-benar terpasang."""
+    for d in x_displays():
+        if d == skip:
+            disp_clip[d] = text
+            continue
+        await asyncio.to_thread(clip_set, text, d)
+        for _ in range(20):
+            if await asyncio.to_thread(clip_get, d) == text:
+                break
+            await asyncio.sleep(0.05)
+        disp_clip[d] = text
 
 
 # ------------------------------------------------------------------ berkas
@@ -269,17 +301,15 @@ async def handle(ws, d: dict) -> None:
         ok, msg = await asyncio.to_thread(set_resolution, size)
         await ws.send_str(json.dumps({"type": "resolution", "ok": ok, "size": size, "msg": msg,
                                       "screen": screen_size()}))
+    elif t == "clip_check":                         # untuk tombol Uji: isi clipboard tiap layar X
+        res = {d: await asyncio.to_thread(clip_get, d) for d in x_displays()}
+        await ws.send_str(json.dumps({"type": "clip_check", "displays": res, "xclip": bool(shutil.which("xclip"))}))
     elif t == "clip":
         text = d.get("text", "")
         if text and text != last_clip:
             last_clip = text
             recent_set[text] = time.time()
-            await asyncio.to_thread(clip_set, text)
-            # tunggu sampai X benar-benar memegang isi baru, supaya pemantau tidak membaca isi lama
-            for _ in range(20):
-                if await asyncio.to_thread(clip_get) == text:
-                    break
-                await asyncio.sleep(0.05)
+            await clip_set_all(text)
     elif t == "file":
         INBOX.mkdir(parents=True, exist_ok=True)
         dest = unique(INBOX / safe_name(d.get("name", "berkas")))
@@ -327,7 +357,8 @@ async def ws_handler(req: web.Request):
         pass
     await ws.send_str(json.dumps({"type": "hello", "id": AGENT_ID, "host": os.uname().nodename,
                                   "display": DISPLAY, "version": VERSION, "screen": size,
-                                  "sync_dir": str(SYNC)}))
+                                  "sync_dir": str(SYNC), "clip_displays": x_displays(),
+                                  "clip_ok": bool(shutil.which("xclip"))}))
     try:
         async for msg in ws:
             if msg.type != WSMsgType.TEXT:
@@ -499,21 +530,66 @@ async def audio_handler(req: web.Request):
     return ws
 
 
+# ------------------------------------------------------------------ antarmuka jaringan HP
+
+IFACE_LABEL = (("wlan", "Wi-Fi"), ("bt-pan", "Bluetooth"), ("bnep", "Bluetooth"), ("rndis", "Tethering USB"),
+               ("usb", "Tethering USB"), ("ap", "Hotspot"), ("swlan", "Hotspot"), ("rmnet", "Data seluler"),
+               ("ccmni", "Data seluler"), ("seth", "Data seluler"), ("v4-rmnet", "Data seluler"))
+
+
+def iface_label(name: str) -> str:
+    return next((label for pre, label in IFACE_LABEL if name.startswith(pre)), name)
+
+
+def list_ifaces() -> list[tuple[str, str]]:
+    """(nama, IPv4) tiap antarmuka lewat ioctl SIOCGIFCONF — tetap jalan di proot Android 11+ (netlink diblokir)."""
+    import array
+    out = []
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        size = 40 if struct.calcsize("P") == 8 else 32          # sizeof(struct ifreq)
+        buf = array.array("B", b"\0" * size * 32)
+        ifc = struct.pack("iL", len(buf), buf.buffer_info()[0])
+        n = struct.unpack("iL", fcntl.ioctl(s.fileno(), 0x8912, ifc))[0]
+        raw = buf.tobytes()[:n]
+        for i in range(0, n, size):
+            name = raw[i:i + 16].split(b"\0", 1)[0].decode(errors="replace")
+            ip = socket.inet_ntoa(raw[i + 20:i + 24])
+            if name != "lo" and not ip.startswith("127."):
+                out.append((name, ip))
+        s.close()
+    except OSError:
+        pass
+    return out
+
+
 # ------------------------------------------------------------------ tugas latar
 
 async def clip_loop() -> None:
+    """Pantau clipboard di SEMUA layar X. Salinan baru di satu layar dikirim ke PC dan disamakan ke layar lain."""
     global last_clip
-    last_clip = await asyncio.to_thread(clip_get)
+    for d in x_displays():
+        disp_clip[d] = await asyncio.to_thread(clip_get, d)
+    last_clip = disp_clip.get(DISPLAY)
+    if not shutil.which("xclip"):
+        log("Peringatan: xclip tidak ada; clipboard Debian tidak bisa dipantau. Pasang: sudo apt install xclip")
     while True:
-        await asyncio.sleep(0.7)
+        await asyncio.sleep(0.6)
         if not clients:
             continue
-        text = await asyncio.to_thread(clip_get)
-        if text and text != last_clip:
-            if time.time() - recent_set.get(text, 0) < 6:   # isi lama yang memantul: abaikan
+        for d in x_displays():
+            text = await asyncio.to_thread(clip_get, d)
+            if d not in disp_clip:                     # layar baru muncul: catat dulu, jangan kirim isi lama
+                disp_clip[d] = text
+                continue
+            if not text or text == disp_clip.get(d):
+                continue
+            disp_clip[d] = text
+            if text == last_clip or time.time() - recent_set.get(text, 0) < 6:   # gema dari PC: abaikan
                 continue
             last_clip = text
-            await send_all({"type": "clip", "text": text})
+            await send_all({"type": "clip", "text": text, "display": d})
+            await clip_set_all(text, skip=d)           # samakan ke layar X lain di HP
         for k in [k for k, v in recent_set.items() if time.time() - v > 60]:
             del recent_set[k]
 
@@ -538,7 +614,8 @@ async def info_loop() -> None:
             load = os.getloadavg()[0]
         except OSError:
             load = None
-        await send_all({"type": "info", "load": load, "mem": mem_used_pct(), "host": os.uname().nodename})
+        await send_all({"type": "info", "load": load, "mem": mem_used_pct(), "host": os.uname().nodename,
+                        "clip_displays": x_displays()})
 
 
 async def outbox_loop() -> None:
@@ -565,12 +642,22 @@ async def beacon_loop() -> None:
     sock.setblocking(False)
     msg = json.dumps({"ld": 1, "id": AGENT_ID, "name": os.uname().nodename, "port": PORT,
                       "fp": FP, "v": VERSION}).encode()
+    tick = 0
+    targets: set[str] = set()
     while True:
-        for target in ("255.255.255.255", "192.168.44.255"):
+        if tick % 10 == 0:
+            # siaran per jaringan (Wi-Fi, Bluetooth, hotspot) — 255.255.255.255 saja hanya keluar lewat
+            # jalur utama, yang sering kali data seluler
+            targets = {"255.255.255.255", "192.168.44.255"}
+            for name, ip in list_ifaces():
+                if iface_label(name) != "Data seluler":
+                    targets.add(ip.rsplit(".", 1)[0] + ".255")
+        for target in targets:
             try:
                 sock.sendto(msg, (target, BEACON_PORT))
             except OSError:
                 pass
+        tick += 1
         await asyncio.sleep(2)
 
 
@@ -580,6 +667,14 @@ async def on_startup(app):
 
 
 def main() -> None:
+    import sys
+    if "--ifaces" in sys.argv:                        # dipakai linkdeck-start untuk menampilkan IP
+        rows = list_ifaces()
+        for name, ip in rows:
+            print(f"  {iface_label(name) + ' (' + name + ')':<26}: {ip}")
+        if not rows:
+            print("  (daftar jaringan tidak terbaca)")
+        return
     if not TOKEN:
         raise SystemExit("LINKDECK_TOKEN kosong. Jalankan lewat linkdeck-start.")
     ctx = None

@@ -458,6 +458,32 @@ details.more.dark summary{color:var(--on-glass)}
 .subh{margin-top:14px}
 
 .big{flex-wrap:wrap;row-gap:2px}
+
+.droidhelp{background:#fff;border-radius:var(--r-lg);padding:16px;display:grid;gap:8px;color:var(--text);border:2px dashed var(--lilac-2)}
+.droidhelp b{font-size:15.5px;color:var(--lilac-ink)}
+.droidhelp p{margin:0;font-size:13.5px;color:var(--muted);line-height:1.45}
+
+/* ---------- notifikasi panduan saat aplikasi dibuka ---------- */
+.welcome{position:fixed;left:50%;top:50%;z-index:70;width:min(420px,calc(100% - 40px));
+  transform:translate(-50%,-50%);padding:20px 46px 18px 22px;border-radius:18px;text-align:center;
+  background:rgba(0,0,0,.5);border:1px solid var(--glass-line);color:var(--on-glass);
+  -webkit-backdrop-filter:blur(24px) saturate(1.35);backdrop-filter:blur(24px) saturate(1.35);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 18px 50px rgba(0,0,0,.35);
+  animation:welIn .55s cubic-bezier(.2,.9,.25,1.15) both}
+.welcome[hidden]{display:none}
+.welcome.out{animation:welOut .3s ease-in forwards}
+.welcome p{margin:0 0 10px;font-size:15px;line-height:1.45;font-weight:500}
+.welcome a{display:inline-block;font-size:14px;font-weight:600;color:var(--lilac);text-decoration:underline;
+  text-underline-offset:3px;word-break:break-all;padding:4px 10px;border-radius:999px;background:rgba(236,198,245,.1)}
+.welcome a:hover{background:rgba(236,198,245,.2)}
+.wclose{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;border:1px solid var(--glass-line);
+  background:rgba(255,255,255,.08);color:var(--on-glass);display:grid;place-items:center;cursor:pointer;padding:0}
+.wclose:hover{background:rgba(255,255,255,.18)}
+.wclose .ico{width:14px;height:14px}
+@keyframes welIn{from{opacity:0;transform:translate(-50%,-44%) scale(.92);filter:blur(6px)}
+  to{opacity:1;transform:translate(-50%,-50%) scale(1);filter:none}}
+@keyframes welOut{to{opacity:0;transform:translate(-50%,-54%) scale(.96)}}
+@media (prefers-reduced-motion:reduce){.welcome,.welcome.out{animation:none}}
 </style>
 </head>
 <body>
@@ -522,6 +548,15 @@ details.more.dark summary{color:var(--on-glass)}
           <div class="devices" id="devices" role="group" aria-label="Pilih perangkat"></div>
         </div>
 
+        <div class="droidhelp" id="droidHelp" hidden>
+          <b id="dhTitle">Sambungkan Android dulu</b>
+          <p id="dhText"></p>
+          <div class="gadd">
+            <button class="pill primary sm" type="button" data-help="usb">Kabel</button>
+            <button class="pill white sm" type="button" data-help="wifi">Wi-Fi (kode QR)</button>
+            <button class="pill white sm" type="button" data-help="bt">Bluetooth</button>
+          </div>
+        </div>
         <div class="sheet">
           <div class="seg light" id="modeSeg" role="group" aria-label="Mode Android">
             <button type="button" data-mode="virtual" aria-pressed="true">Layar baru</button>
@@ -676,7 +711,7 @@ details.more.dark summary{color:var(--on-glass)}
           <div class="connect">
             <form class="card glass" id="debForm" autocomplete="off">
               <h3>Hubungkan desktop Debian</h3>
-              <p id="debHelp">Jalankan <b>linkdeck-start</b> di Debian HP. HP di Wi-Fi yang sama atau lewat kabel akan muncul di sini.</p>
+              <p id="debHelp">Jalankan <b>linkdeck-start</b> di Debian HP. HP di Wi-Fi yang sama, lewat kabel, atau lewat Bluetooth akan muncul di sini.</p>
               <div class="found" id="found"></div>
               <button class="linkbtn" type="button" id="btnManual">Tidak muncul? Isi alamat manual</button>
               <div id="manual" hidden>
@@ -928,6 +963,7 @@ details.more.dark summary{color:var(--on-glass)}
       <kbd>Tarik berkas</kbd><span>Ke jendela Android: APK terpasang, berkas lain ke /sdcard/Download</span>
     </div>
     <p class="hint" style="color:var(--on-glass-dim)">Satu mouse di macOS butuh izin <b>Aksesibilitas</b> dan <b>Pemantauan Input</b> untuk LinkDeck. Di Linux butuh sesi X11.</p>
+    <p class="ver"><a id="guideLink" target="_blank" rel="noopener noreferrer" style="color:var(--lilac)">Panduan lengkap di GitHub</a></p>
     <p class="ver" id="ver"></p>
   </div>
 </div>
@@ -971,6 +1007,14 @@ details.more.dark summary{color:var(--on-glass)}
   </div>
 </section>
 
+<div class="welcome" id="welcome" role="status" aria-live="polite" hidden>
+  <button class="wclose" id="welClose" type="button" aria-label="Tutup">
+    <svg class="ico"><use href="#i-x"/></svg>
+  </button>
+  <p>Untuk cara memakainya, harap baca panduan di link di bawah ini</p>
+  <a id="welLink" target="_blank" rel="noopener noreferrer"></a>
+</div>
+
 <button class="pill ghost sm" id="kioskExit">Keluar layar penuh</button>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
@@ -987,7 +1031,8 @@ const st = {
   term:null, termWs:null, audio:null, kvm:{on:false,captured:false}, apps:{}
 };
 window.LD = st;   // untuk diagnosa dari konsol
-const RATES = {usb:[16,60], wifi:[6,60], bt:[1,15]};
+const GUIDE_URL = 'https://github.com/karamoyyy/LinkDeck';   // panduan pemakaian (README di GitHub)
+const RATES = {usb:[16,60], wifi:[6,60], bt:[0.8,15]};
 const LANE = {usb:'Kabel', wifi:'Wi-Fi', bt:'Bluetooth'};
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -1035,7 +1080,8 @@ function renderTools(){
   const t = st.tools, msgs = [];
   if(!t.adb) msgs.push('<b>adb</b> belum terpasang (Android Platform Tools).');
   if(!t.scrcpy) msgs.push('<b>scrcpy</b> belum terpasang.');
-  else if(!t.virtual_display) msgs.push(`scrcpy ${t.scrcpy_version||''} belum mendukung layar virtual. Perbarui ke 4.0+.`);
+  else if(!t.scrcpy_version) msgs.push('Memeriksa versi scrcpy… (bisa lebih lama saat pertama kali dibuka).');
+  else if(!t.virtual_display) msgs.push(`scrcpy ${t.scrcpy_version} belum mendukung layar virtual. Perbarui ke 4.0+.`);
   if(!t.clipboard) msgs.push('Pasang <code>pip install pyperclip</code> untuk sinkron clipboard PC.');
   $('#notice').innerHTML = msgs.join(' ');
   $('#notice').classList.toggle('show', msgs.length>0);
@@ -1054,7 +1100,8 @@ function renderDevices(){
   const box = $('#devices'); box.innerHTML='';
   const ready = st.devices.filter(d=>d.state==='device');
   if(!ready.find(d=>d.serial===st.serial)) st.serial = ready[0]?.serial || null;
-  if(!ready.length) box.innerHTML = `<span class="empty-dev">${st.tools.adb ? 'Belum ada HP. Colok kabel atau sambungkan lewat Wi-Fi.' : 'adb belum siap'}</span>`;
+  if(!ready.length) box.innerHTML = `<span class="empty-dev">${st.tools.adb ? 'Belum tersambung' : 'adb belum siap'}</span>`;
+  renderDroidHelp(ready.length > 0);
   for(const d of ready){
     const b = document.createElement('button');
     b.className='dev'; b.setAttribute('aria-pressed', d.serial===st.serial);
@@ -1079,6 +1126,28 @@ function renderDevices(){
   });
   renderDevRows();
 }
+function btNet(){ return (st.networks || []).find(n => n.bt && n.gateway); }
+function renderDroidHelp(connected){
+  const box = $('#droidHelp');
+  box.hidden = connected || !st.tools.adb;
+  if(box.hidden) return;
+  const bt = btNet();
+  if(st.devices.some(d => d.state === 'unauthorized')){
+    $('#dhTitle').textContent = 'Izinkan debugging di layar HP';
+    $('#dhText').textContent = 'HP sudah terdeteksi. Ketuk "Izinkan" (centang "Selalu izinkan") pada pertanyaan Debugging USB di HP.';
+  } else if(bt){
+    $('#dhTitle').textContent = 'Bluetooth ke HP sudah tersambung';
+    $('#dhText').textContent = `Laptop sudah di jaringan Bluetooth HP (${bt.gateway}). Agar Layar baru, Cermin, Kamera, dan Game bisa lewat Bluetooth, Android perlu mengaktifkan adb satu kali lewat kabel atau Wi-Fi (aturan Android). Klik "Bluetooth" untuk langkahnya — setelah itu LinkDeck menyambung sendiri lewat Bluetooth sampai HP di-restart.`;
+  }
+  const primary = bt ? 'bt' : 'usb';
+  $$('#droidHelp [data-help]').forEach(b => { b.classList.toggle('primary', b.dataset.help === primary); b.classList.toggle('white', b.dataset.help !== primary); });
+  if(bt || st.devices.some(d => d.state === 'unauthorized')) return;
+  {
+    $('#dhTitle').textContent = 'Sambungkan Android dulu';
+    $('#dhText').textContent = 'Layar baru, Cermin, Kamera, dan Game butuh Android tersambung. Pilih jalurnya:';
+  }
+}
+$('#droidHelp').onclick = e => { const b = e.target.closest('[data-help]'); if(b) openPair('android', b.dataset.help); };
 function renderDevRows(){
   const box = $('#devRows'); box.innerHTML='';
   if(!st.devices.length){ box.innerHTML='<p class="hint" style="color:var(--on-glass-dim)">Belum ada perangkat.</p>'; return; }
@@ -1316,7 +1385,12 @@ function setDebT(t){
   st.debT = t;
   $$('#debSeg button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.t===t));
   $('#debHostWrap').hidden = t==='usb';
-  if(t==='bt' && !$('#debHost').value) $('#debHost').value = '192.168.44.1';
+  if(t==='bt'){
+    const bt = btNet();
+    const cur = $('#debHost').value.trim();
+    if(bt && (!cur || /^(10|100)\./.test(cur) || cur === '192.168.44.1')) $('#debHost').value = bt.gateway;
+    else if(!cur) $('#debHost').value = '192.168.44.1';
+  }
 }
 $('#debSeg').onclick = e => { const b=e.target.closest('[data-t]'); if(b) setDebT(b.dataset.t); };
 
@@ -1542,12 +1616,13 @@ function renderClipStatus(cs){
   if(!cs.enabled) html += chip(false, 'Android mati', 'Nyalakan sakelar Android untuk memantau clipboard HP');
   else if(!cs.android.length) html += chip(false, 'Android', 'Belum ada HP Android tersambung');
   else for(const a of cs.android) html += chip(a.ok, a.model, a.ok ? 'Clipboard HP terpantau' : (a.error ? 'Menyambung ulang: '+a.error : 'Menyambung…'));
-  html += chip(cs.debian, 'Debian', cs.debian ? 'Clipboard Debian terpantau' : 'Debian belum tersambung');
+  html += chip(cs.debian && !cs.debian_error, 'Debian', !cs.debian ? 'Debian belum tersambung' : cs.debian_error || `Clipboard Debian terpantau di layar ${(cs.debian_displays||[]).join(', ')}`);
   html += `<button class="clink test" id="btnClipTest" type="button" title="Tulis teks uji ke clipboard PC lalu kirim ke semua perangkat">Uji</button>`;
   $('#clipLinks').innerHTML = html;
   $('#btnClipTest').onclick = e => act(e.currentTarget, clipTest);
   const errs = [];
   if(cs.pc_error) errs.push(`PC: ${cs.pc_error}`);
+  if(cs.debian_error) errs.push(`Debian: ${cs.debian_error}`);
   if(cs.enabled) for(const a of cs.android) if(!a.ok && a.error) errs.push(`${a.model}: ${a.error}`);
   $('#clipErr').hidden = !errs.length; $('#clipErr').textContent = errs.join(' · ');
 }
@@ -1556,7 +1631,7 @@ async function clipTest(){
   renderClipStatus(r.status);
   const parts = [r.pc ? 'PC ✓' : `PC ✗ (${r.pc_error||'gagal'})`];
   if(r.android_total) parts.push(`HP ${r.android}/${r.android_total} ✓`); else parts.push('HP: belum ada yang tersambung');
-  parts.push(r.debian ? 'Debian ✓' : 'Debian: belum tersambung');
+  parts.push(r.debian ? `Debian ✓ (layar ${(r.debian_displays||[]).join(', ')})` : r.debian_error ? `Debian ✗ (${r.debian_error})` : 'Debian: belum tersambung');
   toast(`Uji clipboard — ${parts.join(' · ')}. Coba tempel di HP atau Debian.`, r.pc ? 'info' : 'error');
 }
 $('#setClipAndroid').onchange = e => act(null, () => setSetting('clip_android', e.target.checked));
@@ -1732,16 +1807,36 @@ function onStats(s){
   spark($('#gLoad'), load);
 }
 
+/* ---------- notifikasi panduan (sekali tiap aplikasi dibuka) ---------- */
+function showWelcome(){
+  const w = $('#welcome');
+  $('#welLink').href = GUIDE_URL; $('#welLink').textContent = GUIDE_URL.replace(/^https?:\/\//, '');
+  w.hidden = false;
+  const close = () => {
+    if(w.hidden || w.classList.contains('out')) return;
+    clearTimeout(w._t);
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    w.classList.add('out');
+    setTimeout(() => { w.hidden = true; w.classList.remove('out'); }, reduce ? 0 : 300);
+  };
+  $('#welClose').onclick = close;
+  $('#welLink').addEventListener('click', () => setTimeout(close, 400), {once:true});
+  w._t = setTimeout(close, 15000);
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') close(); }, {once:true});
+}
+
 /* ---------- sinkron dengan server ---------- */
 async function loadState(){
   const r = await api('/api/state');
   Object.assign(st, {tools:r.tools, devices:r.devices, sessions:r.sessions, clips:r.clips, debian:r.debian,
-    discovered:r.discovered, pairings:r.pairings, settings:r.settings, notifs:r.notifs, kvm:r.kvm});
+    discovered:r.discovered, pairings:r.pairings, settings:r.settings, notifs:r.notifs, kvm:r.kvm, networks:r.networks||[]});
   $('#ver').textContent = `LinkDeck ${r.version}`;
   $('#btnAgentPush').hidden = !r.agent_pkg;
   $('#setAuto').checked = r.settings.autoconnect; $('#setSync').checked = r.settings.sync; $('#setNotif').checked = r.settings.notif;
   renderTools(); setMode(st.mode); renderSessions(); renderClips(); renderDebian(); renderFound(); renderPairings(); renderNotifs();
   renderSync({...r.sync, dir:r.sync_dir}); onKvm(r.kvm); renderClipStatus(r.clip_status);
+  if(r.welcome) setTimeout(showWelcome, 500);
+  $('#guideLink').href = GUIDE_URL;
 }
 function connectEvents(){
   const ws = new WebSocket(WS('/ws/events'));
@@ -1753,6 +1848,7 @@ function connectEvents(){
       case 'clip': onClip(m.item); break;
       case 'clipstatus': renderClipStatus(m.status); break;
       case 'qrpair': onQrPair(m); break;
+      case 'networks': st.networks = m.networks; renderDroidHelp(st.devices.some(d=>d.state==='device')); break;
       case 'stats': onStats(m); break;
       case 'debian': st.debian = m.debian; if(st.rfb) applyQuality(st.rfb); renderDebian(); break;
       case 'resolution': toast(m.ok ? `Resolusi desktop Debian: ${m.size}` : `Resolusi gagal diubah: ${m.msg||''}`, m.ok?'info':'warn'); break;
@@ -1881,6 +1977,7 @@ async function startGame(){
   $('#game').hidden = false; $('#gTitle').textContent = name || 'Layar HP';
   gmsg('Membuka game… layar dibuat seukuran laptop.');
   try{ await $('#game').requestFullscreen(); await new Promise(r=>setTimeout(r, 250)); }catch{}
+  lockEsc();
   const size = gameDisplaySize();
   await loadKeymap();
   const r = await api('/api/game/start', {serial:st.serial, mode: name ? 'virtual' : 'mirror', app, ...size, audio:$('#optAudio').checked});
@@ -1892,7 +1989,12 @@ async function startGame(){
   G.statTimer = setInterval(() => { $('#gStat').textContent = `${G.frames - G.lastFps} fps · ${G.size[0]}×${G.size[1]}`; G.lastFps = G.frames; }, 1000);
   bumpBar();
 }
+function lockEsc(){
+  // Esc dipakai sebagai tombol Kembali Android; keluar layar penuh = tahan Esc (WebView2/Chrome/Edge)
+  try{ if(document.fullscreenElement) navigator.keyboard?.lock?.(['Escape']).catch(()=>{}); }catch{}
+}
 async function stopGame(){
+  try{ navigator.keyboard?.unlock?.(); }catch{}
   releaseAll();
   const ws = G.ws; G.ws = null; ws?.close();
   if(G.id) api('/api/game/stop', {id:G.id}).catch(()=>{});
@@ -1908,7 +2010,7 @@ $('#btnGame').onclick = e => act(e.currentTarget, async () => { if(!st.serial) t
 $('#gameApp').addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); $('#btnGame').click(); } });
 $('#gameApp').addEventListener('focus', () => loadApps().catch(()=>{}));
 $('#gExit').onclick = stopGame;
-$('#gFull').onclick = () => document.fullscreenElement ? document.exitFullscreen() : $('#game').requestFullscreen().catch(()=>{});
+$('#gFull').onclick = () => document.fullscreenElement ? document.exitFullscreen() : $('#game').requestFullscreen().then(lockEsc).catch(()=>{});
 $('#gShow').onclick = () => { const on = $('#gShow').getAttribute('aria-pressed') !== 'true'; $('#gShow').setAttribute('aria-pressed', on); $('#gKeys').classList.toggle('hidden', !on); };
 
 /* bilah atas menghilang sendiri saat bermain */

@@ -181,6 +181,8 @@ class State:
         self.sdk: dict[str, int] = {}      # versi API Android per perangkat
         self.camera_info: dict[str, dict] = {}
         self.games: dict = {}
+        self.welcomed = False              # notifikasi panduan: sekali per aplikasi dibuka
+        self.net_cache: tuple[float, list] = (0.0, [])
         self.polled: dict[str, float] = {}
 
 
@@ -293,16 +295,33 @@ def save_pairings() -> None:
 
 # ================================================================ alat & perangkat
 
+def bundled_scrcpy() -> bool:
+    exe = shutil.which("scrcpy")
+    return bool(exe) and Path(exe).resolve().parent == BIN.resolve()
+
+
+async def scrcpy_version(timeout: float = 15) -> str | None:
+    """Versi scrcpy. Untuk scrcpy bawaan LinkDeck dibaca dari berkas VERSION (tanpa menjalankan apa pun);
+    selain itu dari `scrcpy --version` dengan batas waktu longgar (pemindai antivirus bisa memperlambat run pertama)."""
+    vf = BIN / "VERSION"
+    if bundled_scrcpy() and vf.is_file():
+        v = vf.read_text().strip()
+        if re.match(r"^\d+(\.\d+)+$", v):
+            return v
+    _, out, err = await run("scrcpy", "--version", timeout=timeout)
+    m = re.search(r"scrcpy v?(\d+(?:\.\d+)+)", out + err)
+    return m.group(1) if m else None
+
+
 async def detect_tools() -> dict:
     t = {k: bool(shutil.which(k)) for k in ("adb", "scrcpy", "vncviewer")}
     t["clipboard"] = bool(S.pcclip and S.pcclip.available)
     t["scrcpy_version"] = None
     t["virtual_display"] = t["flex"] = False
+    t["scrcpy_version_full"] = None
     if t["scrcpy"]:
-        _, out, err = await run("scrcpy", "--version", timeout=8)
-        full = re.search(r"scrcpy v?(\d+(?:\.\d+)+)", out + err)
-        t["scrcpy_version_full"] = full.group(1) if full else None
-        m = re.search(r"scrcpy (\d+)\.(\d+)", out + err)
+        t["scrcpy_version_full"] = await scrcpy_version()
+        m = re.match(r"(\d+)\.(\d+)", t["scrcpy_version_full"] or "")
         if m:
             major = int(m.group(1))
             t["scrcpy_version"] = f"{m.group(1)}.{m.group(2)}"
@@ -314,6 +333,17 @@ async def detect_tools() -> dict:
     t["platform"] = sys.platform
     S.tools = t
     return t
+
+
+async def scrcpy_version_retry() -> None:
+    """Bila versi scrcpy belum terbaca saat start (mis. run pertama dipindai antivirus), coba lagi di latar."""
+    while S.tools.get("scrcpy") and not S.tools.get("scrcpy_version_full"):
+        await asyncio.sleep(20)
+        v = await scrcpy_version(timeout=60)
+        if v:
+            await detect_tools()
+            await broadcast({"type": "tools", "tools": S.tools})
+            await log(f"scrcpy {v} siap.")
 
 
 async def refresh_devices() -> None:
@@ -427,6 +457,158 @@ async def clip_watcher() -> None:
                 print("[warn]", pc.error, flush=True)
                 await broadcast_clip_status()
             await asyncio.sleep(1)
+
+
+# ================================================================ jaringan laptop (untuk Bluetooth/Wi-Fi ke HP)
+
+IPV4 = re.compile(r"(\d{1,3}(?:\.\d{1,3}){3})")
+
+
+def parse_ipconfig(text: str) -> list[dict]:
+    """Baca keluaran `ipconfig` Windows (Inggris maupun Indonesia)."""
+    nets, cur, want_gw = [], None, False
+    for line in text.splitlines():
+        if line and not line[0].isspace() and line.rstrip().endswith(":"):
+            cur = {"name": line.strip().rstrip(":"), "ip": None, "gateway": None}
+            cur["bt"] = "bluetooth" in cur["name"].lower()
+            nets.append(cur)
+            want_gw = False
+            continue
+        if cur is None:
+            continue
+        low = line.lower()
+        if "ipv4" in low:
+            m = IPV4.search(line.split(":", 1)[-1])
+            if m:
+                cur["ip"] = m.group(1)
+            want_gw = False
+        elif "gateway" in low:
+            m = IPV4.search(line.split(":", 1)[-1])
+            cur["gateway"] = m.group(1) if m else None
+            want_gw = m is None                     # gateway IPv4 bisa ada di baris berikutnya
+        elif want_gw and ":" not in line.strip()[:20]:
+            m = IPV4.search(line)
+            if m:
+                cur["gateway"], want_gw = m.group(1), False
+        else:
+            want_gw = False
+    return [n for n in nets if n["ip"]]
+
+
+def linux_networks_fallback() -> list[dict]:
+    """Tanpa perintah `ip`: IP lewat ioctl SIOCGIFCONF, gateway dari /proc/net/route."""
+    import array
+    import fcntl
+    import struct
+    nets = []
+    try:
+        gws = {}
+        for line in Path("/proc/net/route").read_text().splitlines()[1:]:
+            f = line.split()
+            if len(f) > 2 and f[1] == "00000000":
+                gws[f[0]] = socket.inet_ntoa(struct.pack("<L", int(f[2], 16)))
+        sk = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        size = 40 if struct.calcsize("P") == 8 else 32
+        buf = array.array("B", b"\0" * size * 32)
+        n = struct.unpack("iL", fcntl.ioctl(sk.fileno(), 0x8912, struct.pack("iL", len(buf), buf.buffer_info()[0])))[0]
+        raw = buf.tobytes()[:n]
+        for i in range(0, n, size):
+            dev = raw[i:i + 16].split(b"\0", 1)[0].decode(errors="replace")
+            ip = socket.inet_ntoa(raw[i + 20:i + 24])
+            if dev != "lo":
+                nets.append({"name": dev, "ip": ip, "gateway": gws.get(dev),
+                             "bt": dev.startswith(("bnep", "bt-pan", "pan"))})
+        sk.close()
+    except OSError:
+        pass
+    return nets
+
+
+async def pc_networks() -> list[dict]:
+    """Daftar jaringan laptop: nama, IP, gateway, dan apakah itu jaringan Bluetooth."""
+    if time.time() - S.net_cache[0] < 8:
+        return S.net_cache[1]
+    nets: list[dict] = []
+    try:
+        if sys.platform == "win32":
+            _, out, _ = await run("ipconfig", timeout=10)
+            nets = parse_ipconfig(out)
+        elif sys.platform.startswith("linux") and not shutil.which("ip"):
+            nets = linux_networks_fallback()
+        elif sys.platform.startswith("linux"):
+            _, out, _ = await run("ip", "-4", "-o", "addr", "show", timeout=5)
+            _, rt, _ = await run("ip", "-4", "route", timeout=5)
+            for m in re.finditer(r"^\d+:\s+(\S+)\s+inet\s+(\S+)/", out, re.M):
+                dev, ip = m.group(1), m.group(2)
+                if dev == "lo":
+                    continue
+                gw = re.search(rf"default via (\S+) dev {re.escape(dev)}\b", rt)
+                nets.append({"name": dev, "ip": ip, "gateway": gw.group(1) if gw else None,
+                             "bt": dev.startswith(("bnep", "bt-pan", "pan"))})
+        else:
+            _, out, _ = await run("ifconfig", timeout=5)
+            for m in re.finditer(r"^(\S+): .*?\n(?:\s+.*\n)*?\s+inet (\S+)", out, re.M):
+                if m.group(1) != "lo0":
+                    nets.append({"name": m.group(1), "ip": m.group(2), "gateway": None, "bt": False})
+    except Exception as e:
+        print("pc_networks:", e, flush=True)
+    for n in nets:                                   # tethering Bluetooth Android biasanya 192.168.44.x
+        if n["ip"].startswith("192.168.44."):
+            n["bt"] = True
+        if n["bt"] and not n["gateway"]:
+            n["gateway"] = n["ip"].rsplit(".", 1)[0] + ".1"
+    S.net_cache = (time.time(), nets)
+    return nets
+
+
+async def port_open(host: str, port: int, timeout: float = 0.8) -> bool:
+    try:
+        _, w = await asyncio.wait_for(asyncio.open_connection(host, port), timeout)
+        w.close()
+        return True
+    except Exception:
+        return False
+
+
+async def adb_probe_once() -> None:
+    """
+    Temukan Android yang adb-nya sudah aktif lewat jaringan (setelah "Siapkan lewat Bluetooth/Wi-Fi"),
+    lalu sambungkan otomatis — termasuk lewat tethering Bluetooth tanpa perlu klik apa pun.
+    """
+    nets = await pc_networks()
+    cands: dict[str, str] = {}
+    for n in nets:
+        if n["bt"] and n["gateway"]:
+            cands[f"{n['gateway']}:5555"] = "bt"
+    for e in S.discovered.values():
+        if e["transport"] in ("wifi", "bt") and e.get("host"):
+            cands.setdefault(f"{e['host']}:5555", e["transport"])
+    present = {d["serial"] for d in S.devices if d["state"] == "device"}
+    have_phone = any(d["transport"] in ("bt", "wifi") for d in S.devices if d["state"] == "device")
+    for addr, kind in cands.items():
+        if addr in present or (have_phone and addr not in S.adb_targets):
+            continue
+        host = addr.rsplit(":", 1)[0]
+        if not await port_open(host, 5555):
+            continue
+        _, out, err = await run("adb", "connect", addr, timeout=10)
+        if "connected to" in out + err:
+            S.adb_targets[addr] = kind
+            save_json(user_data_dir() / "adb-targets.json", S.adb_targets)
+            await refresh_devices()
+            await log(f"Android tersambung otomatis lewat {'Bluetooth' if kind == 'bt' else 'Wi-Fi'} ({addr}).")
+    await broadcast({"type": "networks", "networks": nets})
+
+
+async def adb_probe_loop() -> None:
+    while True:
+        await asyncio.sleep(6)
+        if not S.tools.get("adb"):
+            continue
+        try:
+            await adb_probe_once()
+        except Exception as e:
+            print("adb_probe_loop:", e, flush=True)
 
 
 # ================================================================ clipboard Android (tanpa jendela)
@@ -607,6 +789,9 @@ def clip_status() -> dict:
     pc = S.pcclip
     return {"pc": bool(pc and pc.available and not pc.error), "pc_backend": pc.name if pc else None,
             "pc_error": pc.error if pc else "belum siap", "debian": S.agent_ws is not None,
+            "debian_displays": S.debian_info.get("clip_displays"),
+            "debian_error": (None if S.debian_info.get("clip_ok", True) or not S.agent_ws
+                             else "xclip belum terpasang di Debian (sudo apt install xclip)"),
             "enabled": S.settings.get("clip_android", True),
             "android": [{"serial": s, "model": device_label(s), "ok": b.ok, "error": b.error}
                         for s, b in S.android_clips.items()]}
@@ -924,6 +1109,10 @@ async def on_agent_msg(d: dict) -> None:
         fut = S.waiters.get("sync_list")
         if fut and not fut.done():
             fut.set_result(d)
+    elif t == "clip_check":
+        fut = S.waiters.get("clip_check")
+        if fut and not fut.done():
+            fut.set_result(d)
     elif t == "sync_file":
         fut = S.waiters.get("sync_file:" + d.get("path", ""))
         if fut and not fut.done():
@@ -951,9 +1140,15 @@ async def on_agent_msg(d: dict) -> None:
             info["load"] = (info["load"] + [round(float(d["load"]), 2)])[-40:]
         info["mem"] = d.get("mem")
         info["host"] = d.get("host") or info["host"]
+        if d.get("clip_displays") and d["clip_displays"] != info.get("clip_displays"):
+            info["clip_displays"] = d["clip_displays"]          # mis. Termux:X11 baru dibuka
+            await broadcast_clip_status()
     elif t == "hello":
         S.debian_info["host"] = d.get("host")
         S.debian_info["screen"] = d.get("screen")
+        S.debian_info["clip_displays"] = d.get("clip_displays")
+        S.debian_info["clip_ok"] = d.get("clip_ok", True)
+        await broadcast_clip_status()
         if S.debian:
             S.debian["sync_dir"] = d.get("sync_dir")
     elif t == "saved":
@@ -1359,13 +1554,14 @@ def find_agent_deb() -> Path | None:
 
 async def h_state(req: web.Request) -> web.Response:
     await refresh_devices()
+    welcome, S.welcomed = not S.welcomed, True
     return ok(tools=S.tools, devices=S.devices, clips=S.clips, debian=public_debian(),
               save_dir=str(SAVE_DIR), sync_dir=str(SYNC_DIR), sessions=public_sessions(),
               version=VERSION, agent_pkg=find_agent_deb() is not None, settings=S.settings,
               pairings=public_pairings(), notifs=S.notifs[:30],
               discovered=[{k: v for k, v in e.items() if k != "fp"} for e in S.discovered.values()],
               sync=S.sync_info, kvm={"on": S.kvm_on, "captured": bool(S.kvm and S.kvm.captured)},
-              clip_status=clip_status())
+              clip_status=clip_status(), networks=await pc_networks(), welcome=welcome)
 
 
 async def h_tools(req: web.Request) -> web.Response:
@@ -1674,6 +1870,8 @@ def build_scrcpy_args(d: dict, label: str) -> list[str]:
     if mode == "camera":
         args += ["--video-source=camera", f"--camera-facing={d.get('facing', 'back')}"]
         size = str(d.get("camera_size") or "1920x1080")
+        if preset == "bt":
+            size = "1280x720" if size == "1920x1080" else size
         if re.match(r"^\d+x\d+$", size):
             args.append(f"--camera-size={size}")
         if d.get("torch") and d.get("facing", "back") == "back":
@@ -1686,7 +1884,7 @@ def build_scrcpy_args(d: dict, label: str) -> list[str]:
             args += [f"--v4l2-sink={sink}"]
             if d.get("hide_window"):
                 args.append("--no-video-playback")
-        if not d.get("audio"):
+        if not d.get("audio") and "--no-audio" not in args:
             args.append("--no-audio")
     else:
         if mode == "virtual":
@@ -1874,7 +2072,15 @@ async def h_debian_connect(req: web.Request) -> web.Response:
         deb = await connect_debian(transport, host, serial, str(d.get("pin", "")).strip(),
                                    remember=d.get("remember", True))
     except ValueError as e:
-        return fail(str(e))
+        msg = str(e)
+        if transport == "bt" and "tidak menjawab" in msg:
+            bt = [n for n in await pc_networks() if n["bt"]]
+            if not bt:
+                msg += (" Laptop belum tergabung ke jaringan Bluetooth HP: nyalakan Tethering Bluetooth di HP, "
+                        "lalu di laptop Win+R → control printers → klik kanan HP → Connect using → Access point.")
+            elif bt[0]["gateway"] and bt[0]["gateway"] != host:
+                msg += f" IP HP di jaringan Bluetooth adalah {bt[0]['gateway']} — coba IP itu."
+        return fail(msg)
     finally:
         S.connecting = False
     return ok(debian=deb)
@@ -2021,7 +2227,19 @@ async def h_clip_test(req: web.Request) -> web.Response:
         result["pc"], result["pc_error"] = False, str(e)
     mark_current(marker)
     await add_clip(marker, "pc")
-    result["debian"] = await send_agent({"type": "clip", "text": marker})
+    result["debian"] = False
+    if await send_agent({"type": "clip", "text": marker}):
+        await asyncio.sleep(0.8)                      # beri waktu agen mengisi semua layar X
+        chk = await agent_request({"type": "clip_check"}, "clip_check", timeout=8)
+        if chk is None:
+            result["debian_error"] = "agen Debian versi lama (perbarui ke 1.7.0) atau tidak menjawab"
+        else:
+            got = [d for d, v in (chk.get("displays") or {}).items() if v == marker]
+            result["debian"] = bool(got)
+            result["debian_displays"] = got
+            if not got:
+                result["debian_error"] = ("xclip belum terpasang di Debian" if not chk.get("xclip")
+                                          else "teks uji tidak terbaca di clipboard Debian")
     result["android"] = await android_set_clip(marker)
     result["android_total"] = len(S.android_clips)
     result["status"] = clip_status()
@@ -2248,7 +2466,8 @@ async def on_startup(app: web.Application) -> None:
     print(f"Clipboard PC: {S.pcclip.name}" + (f" ({S.pcclip.error})" if S.pcclip.error else ""), flush=True)
     await detect_tools()
     S.tasks = [asyncio.create_task(t()) for t in (clip_watcher, stats_loop, assets_task, discovery_loop,
-                                                  sync_loop, notif_loop, adb_reconnect_loop, android_clip_loop)]
+                                                  sync_loop, notif_loop, adb_reconnect_loop, android_clip_loop, adb_probe_loop,
+                                                  scrcpy_version_retry)]
     if OPEN_BROWSER and "--no-browser" not in sys.argv:
         asyncio.get_running_loop().call_later(0.8, webbrowser.open, f"http://{HOST}:{PORT}/")
 

@@ -1,5 +1,37 @@
 # Riwayat perubahan
 
+## 1.7.0
+**Perbaikan: salinan dari Debian tidak muncul di Clipboard bersama**
+- Penyebab: agen hanya memantau clipboard di desktop LinkDeck (`:1`), padahal XFCE yang tampil di layar HP (mis. Termux:X11, `:0`) memakai clipboard X terpisah. Kini agen memantau dan mengisi clipboard di **semua** layar X Debian sekaligus, dan menyamakan salinan antar layar.
+- Tombol **Uji** kini membaca balik clipboard Debian di setiap layar, jadi hasil "Debian ✓" benar-benar terbukti.
+- Kartu Clipboard memberi tahu bila `xclip` belum terpasang di Debian, dan menampilkan layar X yang terpantau.
+
+**Notifikasi panduan**
+- Saat aplikasi dibuka, muncul notifikasi kaca kecil di tengah layar (latar hitam transparan 50%) berisi tautan panduan di GitHub. Muncul sekali setiap aplikasi dibuka, bisa ditutup, dan hilang sendiri setelah 15 detik. Tautan panduan juga ada di laci **Pengaturan**.
+
+**Dokumentasi**
+- README dilengkapi: cara membuka Opsi pengembang per merek HP, **Debugging USB (Setelan keamanan)** untuk Xiaomi/Redmi/POCO, cara memasang Debian 13 XFCE di HP lewat Termux + proot-distro, dua lokasi paket agen, cara menyalin di Debian, catatan audio Android 11, memperbarui/menghapus aplikasi, WebView2 di Windows 10, serta tautan unduhan ke halaman Releases.
+
+## 1.6.0
+**Perbaikan**
+- Peringatan keliru *"scrcpy belum mendukung layar virtual"* di Windows. Versi scrcpy bawaan kini dibaca dari berkas versinya, tanpa menjalankan program (pemeriksaan lama bisa melewati batas waktu saat pertama kali dipindai antivirus). Ini juga memulihkan Layar baru, Mode Game, dan jembatan clipboard HP yang ikut bergantung pada versi itu.
+- Bila versi scrcpy belum terbaca saat aplikasi dibuka, LinkDeck terus mencoba di latar (tanpa menahan jendela) dan menampilkan "Memeriksa versi scrcpy…", bukan peringatan keliru.
+- Mode Game: `Esc` kini benar-benar dikirim sebagai tombol Kembali saat layar penuh (Keyboard Lock di WebView2/Chrome/Edge); tahan `Esc` untuk keluar dari layar penuh.
+- Debian kini terdeteksi otomatis lewat Bluetooth dan hotspot: agen menyiarkan sinyalnya ke setiap jaringan HP, bukan hanya jalur utama (yang sering kali data seluler).
+
+**Android lewat Bluetooth**
+- Begitu adb di HP aktif (setelah **Siapkan Android lewat Bluetooth**), LinkDeck menemukan dan menyambung Android lewat Bluetooth secara otomatis setiap kali jaringan Bluetooth HP tersambung — Layar baru, Cermin, Kamera, dan Mode Game langsung bisa dipakai.
+- LinkDeck membaca jaringan laptop (`ipconfig` berbahasa Inggris maupun Indonesia) untuk mengenali jaringan Bluetooth HP beserta IP-nya.
+- Kartu Android menampilkan panduan saat belum tersambung, termasuk saat Bluetooth ke HP sudah tersambung tetapi adb belum aktif.
+- Kamera lewat Bluetooth memakai 720p agar tetap lancar; angka kualitas Bluetooth di kartu kini sesuai pengaturan sebenarnya (0,8 Mbps).
+
+**Debian**
+- `linkdeck-start` menampilkan alamat HP per jaringan (Wi-Fi, Bluetooth, data seluler) agar tidak salah memakai alamat data seluler.
+- IP Bluetooth di panel Debian terisi otomatis dari jaringan Bluetooth yang terdeteksi; pesan galat menyebut IP yang benar.
+
+**Dokumentasi**
+- README ditulis ulang: tutorial khusus Android (kabel, Wi-Fi, Bluetooth) untuk Layar baru, Cermin, Kamera, dan Mode Game; bagian Debian dipisah sebagai opsional; daftar pintasan dicocokkan dengan scrcpy 4.1.
+
 ## 1.5.0
 **Mode Game (baru)**
 - Main game Android di laptop dengan keyboard & mouse. Video game ditampilkan langsung di LinkDeck (WebCodecs H.264) dan layarnya dibuat **seukuran layar laptop**, jadi penuh tanpa bilah hitam.

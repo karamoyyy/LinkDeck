@@ -40,17 +40,12 @@ pkill -f "^python3 $AGENT" 2>/dev/null; sleep 0.3
 DISPLAY="$DISPLAY" LINKDECK_TOKEN="$LINKDECK_TOKEN" LINKDECK_ID="$LINKDECK_ID" \
   nohup python3 "$AGENT" >"$LD/agent.log" 2>&1 &
 
-IP=$(python3 -c "import socket
-s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-try:
-    s.connect(('8.8.8.8',80)); print(s.getsockname()[0])
-except OSError:
-    print('-')")
 sleep 1
 echo
 echo "  Debian siap untuk LinkDeck (otomatis terlihat di PC pada jaringan yang sama)"
 echo "  Mode        : $MODE (DISPLAY $DISPLAY, $GEOM)"
 echo "  PIN agen    : $LINKDECK_TOKEN"
 echo "  Sidik jari  : $FP   (cocokkan dengan yang tampil di LinkDeck)"
-echo "  IP Wi-Fi    : $IP   (harus satu jaringan dengan laptop; Bluetooth: lihat Default Gateway di ipconfig laptop)"
+echo "  Alamat HP per jaringan (pakai yang SATU jaringan dengan laptop):"
+python3 "$AGENT" --ifaces
 echo "  Log         : $LD/*.log"
