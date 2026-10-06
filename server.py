@@ -51,6 +51,7 @@ FROZEN = getattr(sys, "frozen", False)
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 sys.path.insert(0, str(ROOT))
 import notif  # noqa: E402
+import pcclip  # noqa: E402
 
 STATIC = ROOT / "static"
 BIN = ROOT / "bin"
@@ -176,6 +177,10 @@ class State:
         self.dev_gone: dict[str, float] = {}
         self.android_clips: dict = {}
         self.clip_recent: dict[str, float] = {}
+        self.pcclip = None                 # pcclip.PCClipboard, dibuat saat start
+        self.sdk: dict[str, int] = {}      # versi API Android per perangkat
+        self.camera_info: dict[str, dict] = {}
+        self.games: dict = {}
         self.polled: dict[str, float] = {}
 
 
@@ -290,7 +295,7 @@ def save_pairings() -> None:
 
 async def detect_tools() -> dict:
     t = {k: bool(shutil.which(k)) for k in ("adb", "scrcpy", "vncviewer")}
-    t["clipboard"] = pyperclip is not None
+    t["clipboard"] = bool(S.pcclip and S.pcclip.available)
     t["scrcpy_version"] = None
     t["virtual_display"] = t["flex"] = False
     if t["scrcpy"]:
@@ -343,15 +348,19 @@ async def refresh_devices() -> None:
 # ================================================================ clipboard
 
 async def set_pc_clip(text: str) -> None:
-    if not pyperclip:
+    pc = S.pcclip
+    if not pc or not pc.available:
         return
     try:
-        await asyncio.to_thread(pyperclip.copy, text)
-    except Exception:
+        await asyncio.to_thread(pc.set, text)
+        pc.error = None
+    except Exception as e:
+        pc.error = f"Tidak bisa menulis clipboard PC: {e}"
         if not S.clip_warned:
             S.clip_warned = True
             hint = " Pasang xclip atau wl-clipboard." if sys.platform.startswith("linux") else ""
-            await log("Clipboard PC tidak bisa ditulis." + hint, "warn")
+            await log(pc.error + hint, "warn")
+        await broadcast_clip_status()
 
 
 ECHO_WINDOW = 6.0   # detik: isi lama yang muncul lagi dalam jendela ini dianggap gema, bukan salinan baru
@@ -382,23 +391,42 @@ async def add_clip(text: str, src: str, label: str | None = None) -> None:
 
 
 async def clip_watcher() -> None:
-    if not pyperclip:
+    """Pantau clipboard PC. Di Windows/macOS hanya membaca saat penanda perubahan bergeser."""
+    pc = S.pcclip
+    if not pc or not pc.available:
+        await broadcast_clip_status()
         return
+    last_token = object()
     try:
-        S.last_clip = await asyncio.to_thread(pyperclip.paste)
+        S.last_clip = await asyncio.to_thread(pc.get)
+        last_token = await asyncio.to_thread(pc.token)
     except Exception:
-        S.last_clip = None
+        pass
+    failing = False
     while True:
-        await asyncio.sleep(0.7)
+        await asyncio.sleep(0.5)
         try:
-            text = await asyncio.to_thread(pyperclip.paste)
-        except Exception:
-            continue
-        if text and text != S.last_clip and not is_stale_echo(text):
-            mark_current(text)
-            await add_clip(text, "pc")
-            await send_agent({"type": "clip", "text": text})
-            await android_set_clip(text)
+            token = await asyncio.to_thread(pc.token)
+            if token is not None and token == last_token:
+                continue
+            text = await asyncio.to_thread(pc.get)
+            last_token = token
+            if failing:
+                failing, pc.error = False, None
+                await broadcast_clip_status()
+            if text and text != S.last_clip and not is_stale_echo(text):
+                mark_current(text)
+                await add_clip(text, "pc")
+                await send_agent({"type": "clip", "text": text})
+                await android_set_clip(text)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:      # jangan pernah berhenti memantau karena satu kegagalan
+            if not failing:
+                failing, pc.error = True, f"Tidak bisa membaca clipboard PC: {e}"
+                print("[warn]", pc.error, flush=True)
+                await broadcast_clip_status()
+            await asyncio.sleep(1)
 
 
 # ================================================================ clipboard Android (tanpa jendela)
@@ -433,7 +461,18 @@ class AndroidClip:
         self.proc: asyncio.subprocess.Process | None = None
         self.port: int | None = None
         self.error: str | None = None
+        self.tail: list[str] = []          # keluaran terakhir server di HP, untuk diagnosa
         self.task = asyncio.create_task(self.run())
+
+    async def _read_output(self) -> None:
+        try:
+            async for raw in self.proc.stdout:
+                line = raw.decode(errors="replace").strip()
+                if line:
+                    self.tail = (self.tail + [line])[-6:]
+                    print(f"[clip {self.serial}] {line}", flush=True)
+        except Exception:
+            pass
 
     async def run(self) -> None:
         delay = 2.0
@@ -444,7 +483,10 @@ class AndroidClip:
             except asyncio.CancelledError:
                 raise
             except Exception as e:
-                self.error = str(e) or e.__class__.__name__
+                msg = str(e) or e.__class__.__name__
+                if self.tail:
+                    msg += " | " + self.tail[-1]
+                self.error = msg[:240]
             finally:
                 await self.close()
             await broadcast_clip_status()
@@ -468,13 +510,15 @@ class AndroidClip:
         cmd = (f"CLASSPATH={ANDROID_CLIP_JAR} app_process / com.genymobile.scrcpy.Server {version} "
                f"scid={scid} log_level=warn video=false audio=false control=true tunnel_forward=true "
                "send_device_meta=false clipboard_autosync=true power_on=false cleanup=false")
+        self.tail = []
         self.proc = await asyncio.create_subprocess_exec("adb", "-s", self.serial, "shell", cmd,
                                                          stdout=PIPE, stderr=STDOUT, creationflags=NOWIN)
+        out_task = asyncio.create_task(self._read_output())
         reader = None
         for _ in range(50):                       # server butuh sebentar untuk siap
             if self.proc.returncode is not None:
-                tail = (await self.proc.stdout.read()).decode(errors="replace").strip()
-                raise RuntimeError(f"server berhenti: {tail[-160:]}")
+                await asyncio.sleep(0.2)
+                raise RuntimeError("server clipboard di HP berhenti")
             try:
                 r, w = await asyncio.open_connection("127.0.0.1", self.port)
                 await asyncio.wait_for(r.readexactly(1), 2)   # byte penanda koneksi
@@ -487,7 +531,12 @@ class AndroidClip:
         self.ok, self.error = True, None
         await broadcast_clip_status()
         while True:
-            t = (await reader.readexactly(1))[0]
+            try:
+                t = (await reader.readexactly(1))[0]
+            except asyncio.IncompleteReadError:
+                await asyncio.sleep(0.3)
+                out_task.cancel()
+                raise RuntimeError("sambungan clipboard HP terputus")
             if t == 0:                                        # clipboard dari HP
                 n = int.from_bytes(await reader.readexactly(4), "big")
                 text = (await reader.readexactly(n)).decode("utf-8", errors="replace")
@@ -536,6 +585,7 @@ def device_label(serial: str) -> str:
 
 
 async def on_android_clip(serial: str, text: str) -> None:
+    text = pcclip.normalize(text)
     if not text or text == S.last_clip or is_stale_echo(text):
         return
     mark_current(text)
@@ -554,7 +604,9 @@ async def android_set_clip(text: str, exclude: str | None = None) -> int:
 
 
 def clip_status() -> dict:
-    return {"pc": pyperclip is not None, "debian": S.agent_ws is not None,
+    pc = S.pcclip
+    return {"pc": bool(pc and pc.available and not pc.error), "pc_backend": pc.name if pc else None,
+            "pc_error": pc.error if pc else "belum siap", "debian": S.agent_ws is not None,
             "enabled": S.settings.get("clip_android", True),
             "android": [{"serial": s, "model": device_label(s), "ok": b.ok, "error": b.error}
                         for s, b in S.android_clips.items()]}
@@ -585,6 +637,235 @@ async def android_clip_loop() -> None:
                 await broadcast_clip_status()
         except Exception as e:
             print("android_clip_loop:", e, flush=True)
+
+
+# ================================================================ Mode Game (video di LinkDeck + pemetaan tombol)
+
+GAME_JAR = "/data/local/tmp/linkdeck-game.jar"
+GAME_BITRATE = {"usb": 12_000_000, "wifi": 6_000_000, "bt": 900_000}
+GAME_FPS = {"usb": 60, "wifi": 60, "bt": 20}
+
+
+class GameSession:
+    """
+    Satu sesi scrcpy-server yang videonya ditampilkan di LinkDeck (WebCodecs) dan kanal kontrolnya
+    dipakai LinkDeck untuk menyuntikkan sentuhan dari keyboard/mouse (pemetaan tombol game).
+    """
+
+    def __init__(self, serial: str, opts: dict) -> None:
+        self.id = secrets.token_hex(4)
+        self.serial, self.opts = serial, opts
+        self.proc = self.audio_proc = None
+        self.port = None
+        self.video_r = self.ctrl_w = None
+        self.ctrl_r = None
+        self.size = None
+        self.tail: list[str] = []
+        self.app_sent = False
+
+    async def start(self) -> None:
+        jar, version = scrcpy_server_path(), S.tools.get("scrcpy_version_full")
+        if not jar or not version:
+            raise ValueError("scrcpy-server tidak ditemukan.")
+        c, _, e = await run("adb", "-s", self.serial, "push", str(jar), GAME_JAR, timeout=60)
+        if c:
+            raise ValueError(f"Gagal mengirim server ke HP: {e.strip()[:150]}")
+        scid = f"{secrets.randbelow(0x7FFFFFFF):08x}"
+        c, out, e = await run("adb", "-s", self.serial, "forward", "tcp:0", f"localabstract:scrcpy_{scid}", timeout=10)
+        if c or not out.strip().isdigit():
+            raise ValueError(f"adb forward gagal: {(out + e).strip()[:150]}")
+        self.port = int(out.strip())
+        o = self.opts
+        transport = next((d["transport"] for d in S.devices if d["serial"] == self.serial), "usb")
+        args = [f"scid={scid}", "log_level=warn", "video=true", "audio=false", "control=true",
+                "tunnel_forward=true", "send_device_meta=false", "video_codec=h264",
+                f"video_bit_rate={GAME_BITRATE.get(transport, GAME_BITRATE['wifi'])}",
+                f"max_fps={GAME_FPS.get(transport, 60)}", "clipboard_autosync=false", "power_on=true"]
+        if o.get("mode", "virtual") == "virtual":
+            w = max(320, min(7680, int(o.get("width", 1920)))) // 8 * 8
+            h = max(240, min(4320, int(o.get("height", 1080)))) // 8 * 8
+            dpi = max(80, min(640, int(o.get("dpi", 220))))
+            args.append(f"new_display={w}x{h}/{dpi}")
+        else:
+            args.append("max_size=1920")
+        cmd = f"CLASSPATH={GAME_JAR} app_process / com.genymobile.scrcpy.Server {version} " + " ".join(args)
+        self.proc = await asyncio.create_subprocess_exec("adb", "-s", self.serial, "shell", cmd,
+                                                         stdout=PIPE, stderr=STDOUT, creationflags=NOWIN)
+        asyncio.create_task(self._read_output())
+        for _ in range(60):                                   # soket video dulu (berisi byte penanda)
+            if self.proc.returncode is not None:
+                await asyncio.sleep(0.2)
+                raise ValueError("Server game di HP berhenti. " + (self.tail[-1] if self.tail else ""))
+            try:
+                r, w = await asyncio.open_connection("127.0.0.1", self.port)
+                await asyncio.wait_for(r.readexactly(1), 2)
+                self.video_r, self._video_w = r, w
+                break
+            except (OSError, asyncio.IncompleteReadError, asyncio.TimeoutError):
+                await asyncio.sleep(0.25)
+        if not self.video_r:
+            raise ValueError("Server game di HP tidak menjawab.")
+        self.ctrl_r, self.ctrl_w = await asyncio.open_connection("127.0.0.1", self.port)
+        codec = await asyncio.wait_for(self.video_r.readexactly(4), 10)
+        if codec in (b"\x00\x00\x00\x00", b"\x00\x00\x00\x01"):
+            raise ValueError("HP tidak bisa merekam layar untuk Mode Game.")
+        asyncio.create_task(self._drain_control())
+        if o.get("audio", True) and S.tools.get("scrcpy") and transport != "bt":
+            sdk = await get_sdk(self.serial)
+            aargs = ["scrcpy", f"--serial={self.serial}", "--no-window", "--audio-buffer=60"]
+            if sdk >= 33:
+                aargs.append("--audio-source=playback")
+            if sdk >= 30:
+                self.audio_proc = await asyncio.create_subprocess_exec(*aargs, stdout=asyncio.subprocess.DEVNULL,
+                                                                       stderr=asyncio.subprocess.DEVNULL,
+                                                                       creationflags=NOWIN)
+
+    async def _read_output(self) -> None:
+        try:
+            async for raw in self.proc.stdout:
+                line = raw.decode(errors="replace").strip()
+                if line:
+                    self.tail = (self.tail + [line])[-6:]
+                    print(f"[game {self.serial}] {line}", flush=True)
+        except Exception:
+            pass
+
+    async def _drain_control(self) -> None:
+        """Pesan dari HP di kanal kontrol (mis. clipboard) dibaca supaya kanal tidak macet."""
+        try:
+            while True:
+                t = (await self.ctrl_r.readexactly(1))[0]
+                if t == 0:
+                    n = int.from_bytes(await self.ctrl_r.readexactly(4), "big")
+                    await self.ctrl_r.readexactly(n)
+                elif t == 1:
+                    await self.ctrl_r.readexactly(8)
+                elif t == 2:
+                    head = await self.ctrl_r.readexactly(4)
+                    await self.ctrl_r.readexactly(int.from_bytes(head[2:4], "big"))
+                else:
+                    return
+        except Exception:
+            return
+
+    async def pump(self, ws: web.WebSocketResponse) -> None:
+        """Baca paket video scrcpy dan teruskan ke browser.
+        Format pesan ke browser: [jenis u8] + isi
+          1 = ukuran layar (lebar u32, tinggi u32) | 2 = konfigurasi (SPS/PPS) | 3 = frame kunci | 4 = frame biasa"""
+        r = self.video_r
+        while True:
+            head = await r.readexactly(12)
+            if head[0] & 0x80:                                 # meta sesi: ukuran berubah
+                w, h = int.from_bytes(head[4:8], "big"), int.from_bytes(head[8:12], "big")
+                self.size = (w, h)
+                await ws.send_bytes(b"\x01" + head[4:12])
+                if not self.app_sent and self.opts.get("app"):
+                    self.app_sent = True
+                    await self.start_app(self.opts["app"])
+                continue
+            flags = int.from_bytes(head[0:8], "big")
+            n = int.from_bytes(head[8:12], "big")
+            data = await r.readexactly(n)
+            kind = 2 if flags & (1 << 62) else (3 if flags & (1 << 61) else 4)
+            pts = (flags & ((1 << 61) - 1)).to_bytes(8, "big")
+            await ws.send_bytes(bytes([kind]) + pts + data)
+
+    async def send_control(self, data: bytes) -> None:
+        if self.ctrl_w:
+            self.ctrl_w.write(data)
+            await self.ctrl_w.drain()
+
+    async def start_app(self, name: str) -> None:
+        raw = name.encode("utf-8")[:255]
+        await self.send_control(bytes([16, len(raw)]) + raw)
+
+    async def stop(self) -> None:
+        for w in (self.ctrl_w, getattr(self, "_video_w", None)):
+            if w:
+                w.close()
+        for p in (self.proc, self.audio_proc):
+            if p and p.returncode is None:
+                p.kill()
+        if self.port:
+            await run("adb", "-s", self.serial, "forward", "--remove", f"tcp:{self.port}", timeout=5)
+            self.port = None
+
+
+async def h_game_start(req: web.Request) -> web.Response:
+    d = await req.json()
+    serial = d.get("serial", "")
+    if not serial:
+        return fail("Pilih perangkat Android dulu.")
+    for gid, g in list(S.games.items()):                     # satu Mode Game per HP
+        if g.serial == serial:
+            await g.stop()
+            S.games.pop(gid, None)
+    g = GameSession(serial, d)
+    try:
+        await g.start()
+    except (ValueError, asyncio.TimeoutError, asyncio.IncompleteReadError) as e:
+        await g.stop()
+        return fail(str(e) or "Mode Game gagal dimulai.")
+    S.games[g.id] = g
+    return ok(id=g.id)
+
+
+async def h_game_stop(req: web.Request) -> web.Response:
+    g = S.games.pop((await req.json()).get("id", ""), None)
+    if g:
+        await g.stop()
+    return ok()
+
+
+async def ws_game(req: web.Request) -> web.StreamResponse:
+    g = S.games.get(req.query.get("id", ""))
+    if not g:
+        return web.Response(status=404, text="Sesi game tidak ada")
+    ws = web.WebSocketResponse(max_msg_size=0, heartbeat=20)
+    await ws.prepare(req)
+    pump = asyncio.create_task(g.pump(ws))
+    try:
+        async for m in ws:
+            if m.type == WSMsgType.BINARY:
+                await g.send_control(m.data)                 # pesan kontrol scrcpy (sudah dikodekan browser)
+            elif m.type == WSMsgType.TEXT:
+                d = json.loads(m.data)
+                if d.get("type") == "app" and d.get("name"):
+                    await g.start_app(d["name"])
+            else:
+                break
+    except Exception:
+        pass
+    finally:
+        pump.cancel()
+        S.games.pop(g.id, None)
+        await g.stop()
+    return ws
+
+
+def keymap_file() -> Path:
+    return user_data_dir() / "keymaps.json"
+
+
+async def h_keymap_get(req: web.Request) -> web.Response:
+    key = (await req.json()).get("key", "default")
+    maps = load_json(keymap_file(), {})
+    return ok(keymap=maps.get(key), keys=sorted(maps))
+
+
+async def h_keymap_save(req: web.Request) -> web.Response:
+    d = await req.json()
+    key = str(d.get("key") or "default")[:120]
+    items = d.get("items")
+    if not isinstance(items, list) or len(items) > 60:
+        return fail("Data tombol tidak valid.")
+    maps = load_json(keymap_file(), {})
+    if items:
+        maps[key] = {"items": items, "updated": time.time()}
+    else:
+        maps.pop(key, None)
+    save_json(keymap_file(), maps)
+    return ok()
 
 
 # ================================================================ agen Debian (TLS)
@@ -648,7 +929,7 @@ async def on_agent_msg(d: dict) -> None:
         if fut and not fut.done():
             fut.set_result(d)
     elif t == "clip":
-        text = d.get("text", "")
+        text = pcclip.normalize(d.get("text", ""))
         if text and text != S.last_clip and not is_stale_echo(text):
             mark_current(text)
             await set_pc_clip(text)
@@ -1117,16 +1398,105 @@ async def h_agent_push(req: web.Request) -> web.Response:
 
 # ================================================================ HTTP: Android
 
+def parse_mdns(out: str) -> list[dict]:
+    svcs = []
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) >= 3 and "_adb-tls-" in parts[1] and ":" in parts[2]:
+            svcs.append({"name": parts[0], "type": parts[1].rstrip("."), "addr": parts[2]})
+    return svcs
+
+
+async def mdns_services() -> list[dict]:
+    _, out, err = await run("adb", "mdns", "services", timeout=8)
+    return parse_mdns(out + "\n" + err)
+
+
+async def connect_after_pair(ip: str, tries: int = 12) -> str | None:
+    """Setelah pairing, HP mengumumkan layanan _adb-tls-connect; sambungkan ke sana."""
+    for _ in range(tries):
+        await refresh_devices()
+        known = next((d["serial"] for d in S.devices if d["state"] == "device" and d["serial"].startswith(ip + ":")), None)
+        if known:
+            return known
+        con = next((x for x in await mdns_services() if "connect" in x["type"] and x["addr"].startswith(ip + ":")), None)
+        if con:
+            _, out, err = await run("adb", "connect", con["addr"], timeout=15)
+            if "connected to" in (out + err):
+                await refresh_devices()
+                return con["addr"]
+        await asyncio.sleep(1.5)
+    return None
+
+
 async def h_pair(req: web.Request) -> web.Response:
     d = await req.json()
     host, code = d.get("host", "").strip(), d.get("code", "").strip()
     if not re.match(r"^[\w.\-]+:\d+$", host) or not code.isdigit():
-        return fail("Isi IP:port dan kode 6 digit dari layar Debugging nirkabel.")
+        return fail("Isi alamat dan kode 6 angka dari layar Debugging nirkabel.")
     c, out, err = await run("adb", "pair", host, code, timeout=30)
     msg = (out + err).strip()
     if c or "Successfully" not in msg:
         return fail(f"Pairing gagal: {msg or 'adb tidak memberi pesan'}")
-    return ok(msg=msg)
+    serial = await connect_after_pair(host.split(":")[0])
+    return ok(msg=msg, serial=serial)
+
+
+async def h_mdns(req: web.Request) -> web.Response:
+    return ok(services=await mdns_services())
+
+
+def make_qr_svg(text: str) -> str:
+    import qrcode
+    import qrcode.image.svg
+    img = qrcode.make(text, image_factory=qrcode.image.svg.SvgPathImage, box_size=10, border=2)
+    buf = io.BytesIO()
+    img.save(buf)
+    svg = buf.getvalue().decode()
+    return svg[svg.index("<svg"):]
+
+
+async def qr_pair_loop(name: str, pw: str) -> None:
+    async def say(state: str, **kw) -> None:
+        await broadcast({"type": "qrpair", "state": state, **kw})
+    await say("waiting")
+    deadline = time.time() + 180
+    while time.time() < deadline:
+        svc = next((x for x in await mdns_services() if x["name"] == name and "pairing" in x["type"]), None)
+        if svc:
+            await say("pairing")
+            c, out, err = await run("adb", "pair", svc["addr"], pw, timeout=30)
+            if "Successfully" not in out + err:
+                await say("error", msg=(out + err).strip()[:160])
+                return
+            await say("connecting")
+            serial = await connect_after_pair(svc["addr"].split(":")[0], tries=15)
+            if serial:
+                await log(f"Android tersambung lewat Wi-Fi tanpa kabel ({serial}).")
+                await say("connected", serial=serial)
+            else:
+                await say("error", msg="terpasang, tetapi belum bisa menyambung. Coba buka ulang Debugging nirkabel.")
+            return
+        await asyncio.sleep(1.5)
+    await say("timeout")
+
+
+async def h_qr(req: web.Request) -> web.Response:
+    """QR seperti Android Studio: WIFI:T:ADB;S:<nama>;P:<sandi>;; lalu dipasangkan lewat mDNS."""
+    if not S.tools.get("adb"):
+        return fail("adb belum siap.")
+    if getattr(S, "qr_task", None):
+        S.qr_task.cancel()
+    name = "linkdeck-" + secrets.token_hex(3)
+    pw = "".join(secrets.choice("0123456789") for _ in range(10))
+    try:
+        svg = make_qr_svg(f"WIFI:T:ADB;S:{name};P:{pw};;")
+    except ImportError:
+        return fail("Pustaka qrcode belum terpasang (pip install qrcode). Pakai cara kode 6 angka.")
+    if os.environ.get("LINKDECK_DEBUG_QR"):          # hanya untuk pengujian otomatis
+        (user_data_dir() / "qr-debug.txt").write_text(f"{name} {pw}")
+    S.qr_task = asyncio.create_task(qr_pair_loop(name, pw))
+    return ok(svg=svg, name=name)
 
 
 async def h_connect(req: web.Request) -> web.Response:
@@ -1196,10 +1566,12 @@ async def h_tcpip(req: web.Request) -> web.Response:
     """Satu tombol: lewat kabel, pindahkan adb ke jaringan (Bluetooth/Wi-Fi) lalu sambungkan."""
     d = await req.json()
     prefer = d.get("prefer", "bt")
-    usb = [x for x in S.devices if x["state"] == "device" and x["transport"] == "usb"]
-    serial = d.get("serial") if any(x["serial"] == d.get("serial") for x in usb) else (usb[0]["serial"] if usb else "")
+    ready = [x for x in S.devices if x["state"] == "device"]
+    usb = [x for x in ready if x["transport"] == "usb"]
+    pool = usb or [x for x in ready if not re.match(r"^[\d.]+:5555$", x["serial"])] or ready
+    serial = d.get("serial") if any(x["serial"] == d.get("serial") for x in pool) else (pool[0]["serial"] if pool else "")
     if not serial:
-        return fail("Colok HP ke laptop pakai kabel dulu (sekali saja), lalu klik tombol ini lagi.")
+        return fail("Sambungkan Android sekali dulu lewat kabel atau Wi-Fi (kode QR), lalu klik tombol ini lagi.")
     _, out, _ = await run("adb", "-s", serial, "shell", "ip", "-o", "-4", "addr", "show", timeout=10)
     ifaces = parse_ifaces(out)
     if not ifaces:
@@ -1304,11 +1676,11 @@ def build_scrcpy_args(d: dict, label: str) -> list[str]:
         size = str(d.get("camera_size") or "1920x1080")
         if re.match(r"^\d+x\d+$", size):
             args.append(f"--camera-size={size}")
-        if d.get("torch"):
+        if d.get("torch") and d.get("facing", "back") == "back":
             args.append("--camera-torch")
         zoom = float(d.get("zoom") or 1)
-        if zoom > 1:
-            args.append(f"--camera-zoom={zoom:.1f}")
+        if abs(zoom - 1) >= 0.01:
+            args.append(f"--camera-zoom={zoom:.2f}")
         sink = d.get("v4l2")
         if sink and sys.platform.startswith("linux") and re.match(r"^/dev/video\d+$", sink):
             args += [f"--v4l2-sink={sink}"]
@@ -1337,8 +1709,19 @@ def build_scrcpy_args(d: dict, label: str) -> list[str]:
             args.append("--keep-active" if S.tools.get("flex") else "--stay-awake")
         if d.get("gamepad"):
             args.append("--gamepad=uhid")
-        if not d.get("audio", True) and "--no-audio" not in args:
-            args.append("--no-audio")
+        want_audio = d.get("audio", True) and "--no-audio" not in args
+        sdk = int(d.get("_sdk") or 0)
+        if want_audio and (d.get("_audio_busy") or (sdk and sdk < 30)):
+            want_audio = False          # sesi lain sudah memegang audio / Android < 11 tidak bisa
+        if not want_audio:
+            if "--no-audio" not in args:
+                args.append("--no-audio")
+        elif sdk >= 33:
+            # "playback" merutekan suara HANYA ke PC (HP senyap), kecuali diminta tetap di HP juga
+            args.append("--audio-source=playback")
+            if d.get("audio_dup"):
+                args.append("--audio-dup")
+        # Android 11-12: sumber bawaan "output" (REMOTE_SUBMIX) juga mematikan suara di HP
     if d.get("window_x") is not None and d.get("window_y") is not None:
         args += [f"--window-x={int(d['window_x'])}", f"--window-y={int(d['window_y'])}"]
     if d.get("fullscreen"):
@@ -1349,32 +1732,107 @@ def build_scrcpy_args(d: dict, label: str) -> list[str]:
     return args
 
 
-async def h_mirror_start(req: web.Request) -> web.Response:
-    if not S.tools.get("scrcpy"):
-        return fail("scrcpy belum terpasang.")
-    d = await req.json()
+async def get_sdk(serial: str) -> int:
+    if serial not in S.sdk:
+        _, out, _ = await run("adb", "-s", serial, "shell", "getprop", "ro.build.version.sdk", timeout=8)
+        S.sdk[serial] = int(out.strip()) if out.strip().isdigit() else 0
+    return S.sdk[serial]
+
+
+async def start_session(d: dict) -> tuple[str, list[str]]:
+    """Mulai satu jendela scrcpy. Mengembalikan (id sesi, catatan untuk pengguna)."""
     serial, mode = d.get("serial", ""), d.get("mode", "virtual")
     if not serial:
-        return fail("Pilih perangkat Android dulu.")
+        raise ValueError("Pilih perangkat Android dulu.")
     if mode == "virtual" and not S.tools.get("virtual_display"):
-        return fail("Layar virtual butuh scrcpy 3.0 atau lebih baru.")
-    if mode in ("mirror", "camera") and any(s["serial"] == serial and s["mode"] == mode
-                                            for s in S.sessions.values()):
-        return fail("Mode ini sudah berjalan untuk perangkat ini.")
+        raise ValueError("Layar virtual butuh scrcpy 3.0 atau lebih baru.")
+    if mode in ("mirror", "camera") and any(x["serial"] == serial and x["mode"] == mode
+                                            for x in S.sessions.values()):
+        raise ValueError("Mode ini sudah berjalan untuk perangkat ini.")
+    notes = []
+    d = dict(d)
+    d["_sdk"] = await get_sdk(serial)
+    wants_audio = bool(d.get("audio", mode != "camera")) and d.get("preset") != "bt"
+    d["_audio_busy"] = mode != "camera" and any(x["serial"] == serial and x.get("audio")
+                                                for x in S.sessions.values())
+    if wants_audio and mode != "camera":
+        if d["_audio_busy"]:
+            notes.append("Suara sudah dikirim oleh jendela lain, jadi jendela ini tanpa suara.")
+        elif d["_sdk"] and d["_sdk"] < 30:
+            notes.append("Android di bawah 11 tidak bisa mengirim suara ke PC; suara tetap di HP.")
+        elif d["_sdk"] >= 33 and not d.get("audio_dup"):
+            notes.append("Suara HP dipindah ke PC; HP jadi senyap selama jendela ini terbuka.")
+    if mode == "camera" and d.get("torch") and d.get("facing", "back") != "back":
+        notes.append("Senter hanya tersedia di kamera belakang.")
     dev = next((x for x in S.devices if x["serial"] == serial), {})
     label = d.get("label") or {"camera": "Kamera", "mirror": "Cermin"}.get(mode) or dev.get("model", serial)
-    try:
-        args = build_scrcpy_args(d, label)
-    except ValueError as e:
-        return fail(str(e))
+    args = build_scrcpy_args(d, label)
     proc = await asyncio.create_subprocess_exec(*args, stdout=PIPE, stderr=STDOUT, creationflags=NOWIN)
     sid = secrets.token_hex(4)
-    S.sessions[sid] = {"serial": serial, "mode": mode, "label": label, "proc": proc}
+    has_audio = "--no-audio" not in args and mode != "camera"
+    S.sessions[sid] = {"serial": serial, "mode": mode, "label": label, "proc": proc,
+                       "audio": has_audio, "req": {k: v for k, v in d.items() if not k.startswith("_")}}
     asyncio.create_task(watch_session(sid, proc))
     print("scrcpy:", " ".join(shlex.quote(a) for a in args[1:]), flush=True)
     await broadcast({"type": "sessions", "sessions": public_sessions()})
     await refresh_devices()
-    return ok(id=sid)
+    return sid, notes
+
+
+async def h_mirror_start(req: web.Request) -> web.Response:
+    if not S.tools.get("scrcpy"):
+        return fail("scrcpy belum terpasang.")
+    try:
+        sid, notes = await start_session(await req.json())
+    except ValueError as e:
+        return fail(str(e))
+    return ok(id=sid, notes=notes)
+
+
+async def stop_session(sid: str) -> None:
+    sess = S.sessions.get(sid)
+    if not sess:
+        return
+    S.stopping.add(sid)
+    sess["proc"].terminate()
+    try:
+        await asyncio.wait_for(sess["proc"].wait(), 6)
+    except asyncio.TimeoutError:
+        sess["proc"].kill()
+
+
+async def h_camera_info(req: web.Request) -> web.Response:
+    """Rentang zoom tiap kamera (dari scrcpy --list-cameras)."""
+    serial = (await req.json()).get("serial", "")
+    if not serial:
+        return fail("Pilih perangkat Android dulu.")
+    if serial not in S.camera_info:
+        _, out, err = await run("scrcpy", f"--serial={serial}", "--list-cameras", timeout=30)
+        info = {}
+        for m in re.finditer(r"--camera-id=(\S+)\s+\((\w+),([^)]*)\)", out + err):
+            facing, rest = m.group(2), m.group(3)
+            z = re.search(r"zoom-range=\[([\d.]+),\s*([\d.]+)\]", rest)
+            if facing not in info:
+                info[facing] = {"id": m.group(1), "zoom": [float(z.group(1)), float(z.group(2))] if z else None}
+        S.camera_info[serial] = info
+    return ok(cameras=S.camera_info[serial])
+
+
+async def h_camera_update(req: web.Request) -> web.Response:
+    """Terapkan senter/zoom/arah kamera ke sesi kamera yang sedang jalan (dibuka ulang sebentar)."""
+    d = await req.json()
+    serial = d.get("serial", "")
+    sid = next((k for k, v in S.sessions.items() if v["serial"] == serial and v["mode"] == "camera"), None)
+    if not sid:
+        return ok(applied=False)
+    newreq = {**S.sessions[sid]["req"], **{k: d[k] for k in ("torch", "zoom", "facing", "camera_size") if k in d}}
+    await stop_session(sid)
+    await asyncio.sleep(0.6)                  # beri waktu HP melepas kamera
+    try:
+        new_sid, notes = await start_session(newreq)
+    except ValueError as e:
+        return fail(str(e))
+    return ok(applied=True, id=new_sid, notes=notes)
 
 
 async def h_mirror_stop(req: web.Request) -> web.Response:
@@ -1383,10 +1841,9 @@ async def h_mirror_stop(req: web.Request) -> web.Response:
     if not ids:
         return fail("Tidak ada tampilan yang berjalan.")
     for sid in ids:
-        sess = S.sessions.get(sid)
-        if sess:
+        if sid in S.sessions:
             S.stopping.add(sid)
-            sess["proc"].terminate()
+            S.sessions[sid]["proc"].terminate()
     return ok()
 
 
@@ -1551,6 +2008,26 @@ async def h_debian_external(req: web.Request) -> web.Response:
     return ok()
 
 
+async def h_clip_test(req: web.Request) -> web.Response:
+    """Tulis teks uji ke clipboard PC, baca lagi, lalu sebarkan ke HP dan Debian."""
+    marker = "LinkDeck uji clipboard " + time.strftime("%H:%M:%S")
+    pc, result = S.pcclip, {"marker": marker}
+    try:
+        await asyncio.to_thread(pc.set, marker)
+        back = await asyncio.to_thread(pc.get)
+        result["pc"] = back == marker
+        result["pc_error"] = None if result["pc"] else f"terbaca: {back!r}"[:120]
+    except Exception as e:
+        result["pc"], result["pc_error"] = False, str(e)
+    mark_current(marker)
+    await add_clip(marker, "pc")
+    result["debian"] = await send_agent({"type": "clip", "text": marker})
+    result["android"] = await android_set_clip(marker)
+    result["android_total"] = len(S.android_clips)
+    result["status"] = clip_status()
+    return ok(**result)
+
+
 async def h_resolution(req: web.Request) -> web.Response:
     size = str((await req.json()).get("size", ""))
     if not re.match(r"^\d{3,4}x\d{3,4}$", size):
@@ -1581,7 +2058,7 @@ async def h_open_sync(req: web.Request) -> web.Response:
 
 async def h_clipboard(req: web.Request) -> web.Response:
     d = await req.json()
-    text = str(d.get("text", ""))
+    text = pcclip.normalize(str(d.get("text", "")))
     if not text:
         return fail("Teks kosong.")
     if d.get("src") == "debian-viewer":
@@ -1767,6 +2244,8 @@ async def assets_task() -> None:
 
 async def on_startup(app: web.Application) -> None:
     S.loop = asyncio.get_running_loop()
+    S.pcclip = pcclip.PCClipboard()
+    print(f"Clipboard PC: {S.pcclip.name}" + (f" ({S.pcclip.error})" if S.pcclip.error else ""), flush=True)
     await detect_tools()
     S.tasks = [asyncio.create_task(t()) for t in (clip_watcher, stats_loop, assets_task, discovery_loop,
                                                   sync_loop, notif_loop, adb_reconnect_loop, android_clip_loop)]
@@ -1775,6 +2254,8 @@ async def on_startup(app: web.Application) -> None:
 
 
 async def on_shutdown(app: web.Application) -> None:
+    for g in list(S.games.values()):
+        await g.stop()
     for b in list(S.android_clips.values()):
         await b.stop()
     for sid, sess in list(S.sessions.items()):
@@ -1816,10 +2297,19 @@ def build_app() -> web.Application:
     r.add_post("/api/adb/pair", h_pair)
     r.add_post("/api/adb/connect", h_connect)
     r.add_post("/api/adb/disconnect", h_disconnect)
+    r.add_post("/api/adb/mdns", h_mdns)
+    r.add_post("/api/adb/qr", h_qr)
     r.add_post("/api/adb/tcpip", h_tcpip)
     r.add_post("/api/apps", h_apps)
     r.add_post("/api/mirror/start", h_mirror_start)
     r.add_post("/api/mirror/stop", h_mirror_stop)
+    r.add_post("/api/camera/info", h_camera_info)
+    r.add_post("/api/game/start", h_game_start)
+    r.add_post("/api/game/stop", h_game_stop)
+    r.add_post("/api/keymap/get", h_keymap_get)
+    r.add_post("/api/keymap/save", h_keymap_save)
+    r.add_get("/ws/game", ws_game)
+    r.add_post("/api/camera/update", h_camera_update)
     r.add_post("/api/screenshot", h_screenshot)
     r.add_post("/api/agent/push", h_agent_push)
     r.add_post("/api/debian/connect", h_debian_connect)
@@ -1832,6 +2322,7 @@ def build_app() -> web.Application:
     r.add_post("/api/sync/open", h_open_sync)
     r.add_post("/api/kvm", h_kvm)
     r.add_post("/api/clipboard", h_clipboard)
+    r.add_post("/api/clipboard/test", h_clip_test)
     r.add_post("/api/files", h_files)
     r.add_post("/api/link", h_link)
     r.add_get("/ws/events", ws_events)

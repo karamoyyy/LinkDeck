@@ -23,7 +23,7 @@ if VENDOR.is_dir():
         is_bin = f.suffix.lower() in (".exe", ".dll") or (not IS_WIN and os.access(f, os.X_OK))
         (binaries if is_bin else datas).append((str(f), "bin"))
 
-hidden = ["pyperclip", "notif", "kvm", "pynput.keyboard", "pynput.mouse"]
+hidden = ["pyperclip", "pcclip", "qrcode", "qrcode.image.svg", "notif", "kvm", "pynput.keyboard", "pynput.mouse"]
 # backend pynput disebut eksplisit: hook bawaannya butuh layar aktif saat build (tidak ada di CI)
 _pyn = {"win32": "win32", "darwin": "darwin"}.get(sys.platform, "xorg")
 hidden += [f"pynput.keyboard._{_pyn}", f"pynput.mouse._{_pyn}", f"pynput._util.{_pyn}"]

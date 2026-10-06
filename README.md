@@ -10,6 +10,7 @@ LinkDeck menampilkan **Android** dan **Linux Debian 13 XFCE** dari HP-mu di lapt
 | Cermin layar HP | Terminal Debian | Kirim berkas & buka tautan |
 | Aplikasi HP di jendela sendiri | Suara Debian ke laptop | Folder sinkron otomatis |
 | HP jadi kamera / webcam | Satu mouse untuk laptop & Debian | Sambung otomatis, terenkripsi |
+| **Mode Game**: WASD, tombol, bidik mouse | | Android tanpa kabel (kode QR) |
 | Notifikasi HP muncul di laptop | Pilih resolusi desktop | Mode TV satu klik |
 
 ---
@@ -113,6 +114,8 @@ Lewati bagian ini kalau kamu hanya ingin menampilkan Android.
 
 ## 3. Menyambungkan HP
 
+**Android dan Debian disambungkan terpisah.** Android memakai *Debugging USB/nirkabel* (adb); Debian memakai *agen LinkDeck* (`linkdeck-start`). Keduanya bisa lewat jalur berbeda, misalnya Android lewat kabel dan Debian lewat Wi-Fi. Klik **Sambungkan perangkat** lalu pilih **Android** atau **Debian 13 XFCE** untuk panduan masing-masing.
+
 | Jalur | Kecepatan | Cocok untuk |
 |---|---|---|
 | **Kabel** | Paling cepat, paling stabil | Semua fitur, video lancar, main game |
@@ -138,7 +141,12 @@ Selesai. Berikutnya cukup colok kabel dan jalankan `linkdeck-start` — LinkDeck
 1. Jalankan `linkdeck-start`. Pastikan `IP Wi-Fi` yang tampil diawali angka yang sama dengan IP laptop (mis. sama-sama `192.168.1.x`).
 2. Di LinkDeck, Debian muncul otomatis di panel Debian → pilih → isi PIN dan sandi → **Hubungkan**.
 
-**Android — cara cepat (pakai kabel sekali)**
+**Android — tanpa kabel: pindai kode QR (Android 11+)**
+1. Di HP: **Opsi pengembang → Debugging nirkabel** → nyalakan → **Sambungkan perangkat dengan kode QR**.
+2. Di LinkDeck: **Sambungkan perangkat → Android → Wi-Fi → Tampilkan kode QR**.
+3. Arahkan kamera HP ke kode QR. LinkDeck memasangkan dan menyambung sendiri.
+
+**Android — cara cepat lain (pakai kabel sekali)**
 1. Colok kabel, pastikan HP terlihat di LinkDeck.
 2. Klik **Sambungkan perangkat → Wi-Fi → Siapkan Android lewat Wi-Fi**.
 3. Tunggu tulisan *"Selesai"*, lalu cabut kabel. HP tetap tersambung.
@@ -171,10 +179,10 @@ Langkah ini perlu diulang hanya kalau HP di-restart.
 3. Kalau tidak muncul: klik *Isi alamat manual* → pilih **Bluetooth** → isi IP = angka **Default Gateway** dari `ipconfig` (biasanya `192.168.44.1`).
 4. Supaya lancar: buka menu **Lainnya** di panel Debian → **Resolusi** → pilih **1280×720**.
 
-**Langkah 3 — Android (pakai kabel sekali)**
-1. Colok kabel, pastikan HP terlihat di LinkDeck.
+**Langkah 3 — Android**
+1. Sambungkan Android sekali lewat **Wi-Fi (kode QR)** atau **kabel**, pastikan HP terlihat di LinkDeck.
 2. Klik **Lanjut tanpa kabel** di kartu Android (atau **Sambungkan perangkat → Bluetooth → Siapkan Android lewat Bluetooth**).
-3. Tunggu tulisan *"Selesai"*, lalu cabut kabel.
+3. Tunggu tulisan *"Selesai"*. Kabel/Wi-Fi boleh diputus; Android tetap tersambung lewat Bluetooth.
 
 Langkah 3 perlu diulang hanya kalau HP di-restart.
 
@@ -188,13 +196,28 @@ Langkah 3 perlu diulang hanya kalau HP di-restart.
 |---|---|
 | **Layar baru** | Membuat layar Android **tambahan** di laptop. Layar HP tetap seperti semula — bisa dipakai bersamaan |
 | **Cermin** | Menampilkan persis apa yang ada di layar HP |
-| **Kamera** | Kamera HP tampil di laptop (pilih belakang/depan, senter, zoom) |
+| **Kamera** | Kamera HP tampil di laptop. Senter (kamera belakang), zoom sesuai rentang lensa, dan arah kamera bisa diubah saat kamera sedang tampil |
 
 - **Mulai tampilkan** — membuka jendela Android sesuai mode.
 - **Aplikasi HP di jendela sendiri** — ketik nama aplikasi (mis. *WhatsApp*) → **Buka**. Tiap aplikasi dapat jendela sendiri.
 - **Tangkap layar** — tersimpan di folder `Downloads/LinkDeck` laptop.
-- **Pengaturan lain** — rekam ke MP4, gamepad, dan pilih monitor/TV tujuan.
+- **Audio ke PC** — suara HP dipindah ke laptop dan HP jadi senyap (Android 13+), supaya suara tidak bertabrakan. Ingin tetap terdengar di HP juga? Nyalakan **Suara juga di HP** di *Pengaturan lain*.
+- **Pengaturan lain** — rekam ke MP4, gamepad, suara juga di HP, dan pilih monitor/TV tujuan.
 - Kualitas video otomatis menyesuaikan jalur (Kabel/Wi-Fi/Bluetooth); bisa diganti manual lewat tombol di bagian *Kualitas video*.
+
+### Mode Game
+
+1. Di kartu Android pilih **Game**, ketik nama game (mis. *Mobile Legends*), klik **Main**.
+2. Layar game terbuka penuh seukuran laptop. Gerakkan mouse ke **atas layar** untuk menu.
+3. Klik **Edit tombol** → **Template dasar** (atau tambah sendiri) → seret tanda ke tombol di game → klik tanda lalu tekan tombol keyboard untuk mengganti → **Simpan**. Pengaturan disimpan per game.
+
+| Jenis tanda | Cara kerja |
+|---|---|
+| **Joystick WASD** | W/A/S/D (atau panah) menggeser jari di lingkaran joystick. Ukurannya bisa diatur |
+| **Tombol** | Tombol keyboard = ketukan di titik itu. Bisa juga **Klik kiri/kanan** (saat bidik aktif) |
+| **Bidik mouse** | Tekan tombolnya (bawaan `` ` ``) untuk mengunci mouse: gerakan mouse = menggeser kamera/bidikan. Esc untuk melepas |
+
+Tombol yang tidak dipetakan dikirim sebagai ketikan (untuk chat). `Esc` = tombol Kembali Android. Mode Game butuh WebView2 (Windows), Chrome/Edge, atau macOS 13+.
 
 ### Debian
 
@@ -313,6 +336,8 @@ Lainnya:
 | Pintasan | Fungsi |
 |---|---|
 | `Ctrl + Alt + Home` | Mengambil kembali mouse dari Debian ("Satu mouse") |
+| Mode Game: `Esc` | Tombol Kembali Android (atau melepas bidik mouse) |
+| Mode Game: `` ` `` | Mengunci/melepas mouse untuk bidik (bisa diganti) |
 | `Esc` | Keluar dari layar penuh Debian / menutup panel |
 
 ---
@@ -332,10 +357,15 @@ Lainnya:
 | Bluetooth: *Media disconnected* di `ipconfig` | Tethering Bluetooth belum menyala, atau langkah **Connect using → Access point** belum dilakukan |
 | Bluetooth terasa lambat | Normal (±1–2 Mbps). Pakai resolusi 1280×720, matikan *Suara*, pakai wallpaper polos di XFCE |
 | Gambar patah-patah lewat Wi-Fi | Pakai Wi-Fi 5 GHz, dekatkan ke router, atau pilih kualitas **Bluetooth** untuk sementara |
+| Mode Game layar hitam | Pastikan membuka LinkDeck dari aplikasinya (Windows: WebView2) atau Chrome/Edge — browser lain mungkin tidak bisa memutar video H.264. Keluar lalu klik **Main** lagi |
+| Kode QR tidak terdeteksi | HP dan laptop harus di Wi-Fi yang sama; sebagian router memblokir pencarian perangkat (AP isolation). Pakai **kode 6 angka** atau kabel |
+| Ada bilah hitam di kiri-kanan jendela Android | Pilih resolusi **Layar ini** di kartu Android. Mode **Cermin** selalu mengikuti bentuk layar HP |
 | Layar hitam di desktop Debian | Jalankan `linkdeck-stop`, lalu `linkdeck-start` lagi. Cek `tail -n 30 ~/.linkdeck/xfce.log` |
 | Suara Debian tidak keluar | Lihat bagian *Suara Debian* di [Daftar perintah](#di-terminal-debian-hp) |
 | Copy-paste tidak jalan (laptop Linux) | `sudo apt install xclip` |
-| Salinan dari HP tidak muncul | Pastikan sakelar **Android** di kartu Clipboard menyala dan nama HP di kartu itu bertitik hijau. Kalau abu-abu, cabut-sambung HP. Teks yang disalin harus berupa teks (bukan gambar) |
+| Salinan tidak muncul di kartu Clipboard | Klik tombol **Uji** di kartu Clipboard. Hasilnya menunjukkan bagian mana yang bermasalah (PC, HP, atau Debian), dan pesan galatnya tampil di bawah daftar perangkat. Pastikan sakelar **Android** menyala dan nama HP bertitik hijau. Yang disalin harus berupa teks (bukan gambar/berkas) |
+| Senter tidak menyala | Senter hanya ada di kamera **belakang**. Kalau kamera sedang tampil, perubahan senter/zoom diterapkan dalam ±1 detik |
+| Suara keluar dari HP dan laptop sekaligus | Pastikan **Suara juga di HP** (Pengaturan lain) mati. HP dengan Android 11–12 mengikuti pengaturan pabrikan; Android 13+ dijamin senyap |
 | Mode kamera gagal | Butuh Android 12+. Tutup aplikasi lain yang sedang memakai kamera |
 | "Satu mouse" tidak jalan di macOS | Buka **System Settings → Privacy & Security** → izinkan LinkDeck di **Accessibility** dan **Input Monitoring** |
 | "Satu mouse" tidak jalan di Linux | Butuh sesi **X11**; Wayland belum didukung. Pilih "Xorg" di layar login |

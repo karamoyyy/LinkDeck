@@ -1,5 +1,38 @@
 # Riwayat perubahan
 
+## 1.5.0
+**Mode Game (baru)**
+- Main game Android di laptop dengan keyboard & mouse. Video game ditampilkan langsung di LinkDeck (WebCodecs H.264) dan layarnya dibuat **seukuran layar laptop**, jadi penuh tanpa bilah hitam.
+- Pemetaan tombol: **joystick WASD** (atau panah), **tombol** keyboard → ketukan di titik mana pun, **klik kiri/kanan** sebagai tombol, dan **bidik mouse** (pointer lock) untuk game tembak-tembakan. Tombol yang tidak dipetakan dikirim sebagai ketikan Android; Esc = tombol Kembali.
+- **Edit tombol**: seret tanda ke posisinya, klik lalu tekan tombol keyboard untuk mengganti, atur ukuran joystick dan kepekaan bidik, "Template dasar" sekali klik. Disimpan per game.
+- Suara game tetap keluar di laptop.
+
+**Layar penuh tanpa bilah hitam**
+- Pilihan resolusi baru **Layar ini** (bawaan) untuk "Layar baru", jendela aplikasi, dan notifikasi: layar virtual Android dibuat seukuran layar laptop, sehingga layar penuh benar-benar penuh.
+
+**Menyambungkan**
+- Laci "Sambungkan perangkat" kini dipisah **Android** (adb) dan **Debian 13 XFCE** (agen LinkDeck), masing-masing dengan panduan Kabel / Wi-Fi / Bluetooth.
+- Android **tanpa kabel**: pindai **kode QR** dari Debugging nirkabel (Android 11+), LinkDeck memasangkan dan menyambung otomatis. Cara kode 6 angka kini mendeteksi alamatnya sendiri dan langsung menyambung setelah dipasangkan.
+- Android lewat **Bluetooth** tidak lagi wajib kabel: cukup tersambung sekali lewat Wi-Fi (kode QR).
+
+## 1.4.0
+**Clipboard bersama**
+- Pemantau clipboard PC ditulis ulang. Windows memakai API Win32 langsung dan hanya membuka clipboard saat isinya berubah (GetClipboardSequenceNumber), jadi lebih andal dan tidak mengganggu aplikasi lain. macOS memakai NSPasteboard. Linux tetap memakai xclip/wl-clipboard.
+- Pemantau tidak pernah berhenti lagi karena satu kesalahan; masalah ditampilkan langsung di kartu Clipboard.
+- Tombol **Uji** di kartu Clipboard: menulis teks uji ke clipboard PC, membacanya kembali, lalu mengirimnya ke HP dan Debian, dan melaporkan hasilnya per perangkat.
+- Pesan galat jembatan clipboard HP kini menyertakan keluaran dari HP, supaya penyebabnya terlihat.
+- Baris baru dinormalkan antara Windows (CRLF), Android, dan Debian, sehingga teks yang sama tidak dianggap berbeda.
+
+**Kamera**
+- Senter, zoom, dan arah kamera kini langsung diterapkan saat kamera sedang tampil (kamera dibuka ulang ±1 detik). Sebelumnya hanya berlaku saat kamera pertama dibuka.
+- Zoom tepat sampai 0,1× dengan rentang asli lensa HP (mis. 0,6×–10× untuk kamera belakang dengan ultra-wide), plus tombol −, 1×, +.
+- Senter otomatis dinonaktifkan untuk kamera depan (tidak punya senter).
+
+**Audio ke PC**
+- Android 13+: suara HP **dipindah** ke PC dan HP jadi senyap, sehingga tidak bertabrakan. Opsi **Suara juga di HP** tersedia di Pengaturan lain bila ingin keduanya.
+- Hanya satu jendela per HP yang mengambil suara; jendela berikutnya otomatis tanpa suara agar tidak dobel.
+- Android di bawah 11 diberi tahu bahwa suara tidak bisa dikirim ke PC.
+
 ## 1.3.0
 - **Clipboard Android selalu tersinkron**, tanpa perlu membuka jendela Android. LinkDeck menjalankan jembatan clipboard ringan di HP (scrcpy-server hanya kanal kontrol: tanpa video, audio, atau jendela). Salin di HP → langsung ada di PC dan Debian; salin di PC atau Debian → langsung ada di HP.
 - Kartu Clipboard menampilkan status tiap perangkat (PC, setiap HP Android, Debian), lencana sumber **HP** beserta nama HP, dan sakelar **Android** untuk menyalakan/mematikan pemantauan clipboard HP.
