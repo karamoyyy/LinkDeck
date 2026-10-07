@@ -1,0 +1,3 @@
+#!/bin/sh
+# Peluncur LinkDeck untuk Debian (paket linkdeck-debian, tanpa biner per arsitektur)
+exec python3 /usr/lib/linkdeck/app.py "$@"

@@ -1,5 +1,33 @@
 # Riwayat perubahan
 
+## 1.9.0 — pembaruan besar tahap 1
+**Alat Android (tanpa aplikasi tambahan di HP)**
+- **Berkas HP**: jelajahi `/sdcard`, unggah ke folder mana pun, unduh, ganti nama, hapus, buat folder, dan pratinjau foto/video/musik/teks.
+- **Aplikasi HP**: daftar dengan pencarian (termasuk aplikasi sistem), buka di jendela sendiri, hentikan, cadangkan APK (termasuk aplikasi split), hapus data, copot, dan pasang APK dengan seret-lepas.
+- **Dock aplikasi favorit** di kartu Android (maks. 12).
+- **Kontrol media**: judul yang sedang diputar, sebelumnya/putar-jeda/berikutnya, volume.
+- **Keyboard & mouse saja**: kendalikan HP dengan keyboard dan mouse laptop tanpa menampilkan layar (UHID).
+
+**Kenyamanan**
+- **Mode privasi** (manual atau otomatis saat Mode TV/layar penuh): isi clipboard, notifikasi, dan judul lagu disamarkan.
+- **Tema** Otomatis/Gelap/Terang dan **ukuran teks** Normal/Besar/Lebih besar.
+- **Pembaruan otomatis** dari GitHub Releases, dengan jalur cadangan bila API GitHub menolak permintaan. Windows: pemasang dijalankan otomatis; AppImage diganti otomatis; macOS/Debian: dipandu.
+- **Pintasan global**: `Ctrl+Alt+M` layar Android (memakai pengaturan terakhir, atau Cermin bila Layar baru tidak didukung), `Ctrl+Alt+K` keyboard & mouse saja.
+- **Kirim ke HP** dari menu klik kanan **Kirim ke** di Windows Explorer, atau perintah `--send` di Linux/macOS; berkas antre bila HP belum tersambung.
+- **Laporan masalah** sekali klik: zip berisi info versi, status, dan log dengan alamat IP dan nomor seri disamarkan.
+
+## 1.8.0
+**Aplikasi LinkDeck untuk Debian di HP (baru)**
+- Paket baru `linkdeck-debian_<versi>_all.deb`: aplikasi LinkDeck tanpa biner per arsitektur, sehingga bisa dipasang di Debian 13 pada HP (arm64) maupun Debian/Ubuntu lain. adb, scrcpy, Chromium, dan pustaka Python diambil dari repositori Debian.
+- Server scrcpy 4.1 dibundel: **Mode Game** dan **Clipboard bersama** langsung jalan apa pun versi scrcpy sistem.
+- Perintah `linkdeck-scrcpy-build` membangun scrcpy versi yang sesuai langsung di HP, untuk **Layar baru**, **Cermin**, dan **Kamera** bila scrcpy bawaan Debian terlalu lama. Peringatan di aplikasi langsung menyebut perintah ini.
+- Jalur baru **HP ini**: LinkDeck di Debian HP menyambung otomatis ke Android di HP yang sama (`127.0.0.1:5555`) dengan kualitas yang disesuaikan.
+- Chromium dijalankan dengan opsi yang dibutuhkan proot (`--no-sandbox`).
+- Workflow GitHub Actions ikut membangun dan merilis paket ini.
+
+**Dokumentasi**
+- README: tabel berkas mana untuk perangkat mana (termasuk penjelasan galat `libc6:amd64` di HP) dan bagian baru *Aplikasi LinkDeck di Debian HP (arm64)*.
+
 ## 1.7.0
 **Perbaikan: salinan dari Debian tidak muncul di Clipboard bersama**
 - Penyebab: agen hanya memantau clipboard di desktop LinkDeck (`:1`), padahal XFCE yang tampil di layar HP (mis. Termux:X11, `:0`) memakai clipboard X terpisah. Kini agen memantau dan mengisi clipboard di **semua** layar X Debian sekaligus, dan menyamakan salinan antar layar.

@@ -27,6 +27,7 @@ Ditambah fitur bersama: copy-paste dua arah, kirim berkas, notifikasi HP di lapt
 8. [Mengatasi masalah](#8-mengatasi-masalah)
 9. [Untuk pengembang](#9-untuk-pengembang)
 10. [Keamanan dan komponen pihak ketiga](#10-keamanan-dan-komponen-pihak-ketiga)
+11. [Aplikasi LinkDeck di Debian HP (arm64)](#11-aplikasi-linkdeck-di-debian-hp-arm64)
 
 ---
 
@@ -50,6 +51,16 @@ adb dan scrcpy sudah ada di dalam LinkDeck — tidak perlu dipasang sendiri.
 ## 2. Instalasi
 
 Semua berkas ada di halaman **Releases** repo ini (kolom kanan halaman GitHub → *Releases* → versi terbaru).
+
+| Berkas | Untuk | Arsitektur |
+|---|---|---|
+| `LinkDeck-<versi>-windows-setup.exe` / `-windows-portable.zip` | Laptop/PC Windows | x64 |
+| `LinkDeck-<versi>-macos-arm64.dmg` | Mac Apple Silicon | arm64 |
+| `linkdeck_<versi>_amd64.deb` / `LinkDeck-<versi>-x86_64.AppImage` | Laptop/PC **Linux** | Intel/AMD (amd64) saja |
+| `linkdeck-debian_<versi>_all.deb` | Aplikasi LinkDeck di **Debian HP** (atau Debian/Ubuntu ARM lain) | semua |
+| `linkdeck-agent_<versi>_all.deb` | Agen di **Debian HP**, supaya Debian tampil di laptop | semua |
+
+> `linkdeck_<versi>_amd64.deb` **tidak bisa** dipasang di Debian HP (galat `libc6:amd64 ... [no choices]`), karena HP memakai prosesor ARM. Untuk HP, pakai `linkdeck-debian_<versi>_all.deb`. Cek arsitektur dengan `dpkg --print-architecture`.
 
 ### 2.1 Di laptop
 
@@ -252,7 +263,7 @@ Lewati kalau Debian 13 XFCE sudah berjalan di HP-mu.
    apt update && apt install -y xfce4 xfce4-terminal dbus-x11
    cat /etc/debian_version              # harus 13.x
    ```
-4. Untuk masuk lagi ke Debian kapan saja: buka Termux → `proot-distro login debian --shared-tmp`.
+4. Untuk masuk lagi ke Debian kapan saja: buka Termux → `proot-distro login debian --shared-tmp` (sebagai root) atau `proot-distro login debian --user NAMAMU --shared-tmp` (sebagai pengguna biasa). Jalankan `linkdeck-start` sebagai pengguna yang biasa kamu pakai untuk XFCE.
 
 > `--shared-tmp` membuat Debian dan Termux berbagi folder `/tmp`, sehingga XFCE di Termux:X11 dan clipboard-nya ikut terpantau LinkDeck.
 
@@ -266,7 +277,11 @@ Lewati kalau Debian 13 XFCE sudah berjalan di HP-mu.
    sudo apt install /sdcard/Download/LinkDeck/linkdeck-agent.deb           # cara pertama
    sudo apt install /sdcard/Download/linkdeck-agent_<versi>_all.deb        # cara kedua
    ```
-   Di proot-distro kamu login sebagai `root`, jadi hapus kata `sudo`. Kalau `/sdcard` tidak ada, jalankan `termux-setup-storage` di Termux, lalu login ulang ke Debian.
+   Pemasangan paket butuh hak **root**:
+   - Masuk sebagai **root** (`proot-distro login debian` tanpa `--user`, prompt diakhiri `#`): hapus kata `sudo`.
+   - Masuk sebagai **pengguna biasa** (mis. `--user tiny`, prompt diakhiri `$`): tetap pakai `sudo`. Kalau `sudo` belum ada atau ditolak, keluar dulu (`exit`), masuk sebagai root dengan `proot-distro login debian`, jalankan perintah pasang tanpa `sudo`, lalu `exit` dan masuk lagi sebagai penggunamu.
+
+   Kalau `/sdcard` tidak ada, jalankan `termux-setup-storage` di Termux, lalu login ulang ke Debian.
 3. Jalankan:
    ```bash
    linkdeck-start
@@ -319,6 +334,25 @@ Tidak muncul? Klik **Tidak muncul? Isi alamat manual** → pilih jalurnya → is
 - **Folder sinkron dua arah** — isi `LinkDeck-Sinkron` di laptop dan di Debian selalu disamakan.
 - **Mode TV** — colok TV ke laptop (HDMI) → **Mode TV** → pilih **Android**, **Debian**, atau **Aplikasi HP** → resolusi → **Layar tujuan** → **Mulai Mode TV**.
 
+### Alat Android
+
+Semua alat ini bekerja lewat adb — tidak perlu memasang aplikasi apa pun di HP.
+
+- **Berkas HP** (ikon folder di bilah kiri) — jelajahi penyimpanan HP (`/sdcard`): buka folder, **Naik**, buat **+ Folder**, **Unggah ke sini**, **Unduh** (ke `Downloads/LinkDeck` di laptop), **Ganti nama**, dan **Hapus**. Klik nama berkas untuk pratinjau foto, video, musik, atau teks.
+- **Aplikasi HP** (ikon kotak-kotak di bilah kiri) — daftar aplikasi dengan pencarian (centang **Aplikasi sistem** untuk ikut menampilkannya). Tiap aplikasi bisa **Buka** (jendela sendiri), **★ Dock**, **Hentikan**, **Cadangkan** (APK disimpan di `Downloads/LinkDeck/APK`), **Hapus data**, dan **Copot** (khusus aplikasi yang kamu pasang). Tarik berkas `.apk` ke kotak **Pasang APK** untuk memasang; kalau HP bertanya, izinkan di layar HP.
+- **Dock** — aplikasi yang disematkan lewat **★ Dock** muncul di kartu Android (mode **Layar baru**); klik untuk membukanya di jendela sendiri. Maksimal 12 aplikasi.
+- **Kontrol media** — saat HP memutar musik/video, kartu Android menampilkan judulnya beserta tombol sebelumnya, putar/jeda, berikutnya, dan volume.
+- **Keyboard & mouse saja** — pakai keyboard dan mouse laptop untuk HP **tanpa** menampilkan layarnya. Jendela kecil terbuka; klik di dalamnya lalu mengetik/menggerakkan mouse. Tekan `Alt` kiri untuk melepas mouse. Klik tombolnya lagi untuk berhenti.
+
+### Kenyamanan
+
+- **Mode privasi** — tombol **Privasi** di bilah atas menyamarkan isi clipboard, notifikasi, dan judul lagu, serta menahan munculan notifikasi. Bila **Otomatis saat presentasi** menyala (Pengaturan), mode ini aktif sendiri selama **Mode TV** atau layar penuh Debian.
+- **Tema & ukuran teks** — **Pengaturan → Tampilan**: tema **Otomatis** (ikut sistem), **Gelap**, atau **Terang**; ukuran teks **Normal**, **Besar**, atau **Lebih besar**.
+- **Pembaruan otomatis** — saat dibuka, LinkDeck mengecek rilis terbaru di GitHub dan menampilkan bilah **Perbarui** bila ada versi baru. Windows: pemasang diunduh lalu dijalankan otomatis; LinkDeck ditutup selama pemasangan dan biasanya terbuka lagi sendiri (bila tidak, buka dari menu Start). macOS: berkas `.dmg` dibuka — seret LinkDeck ke Applications. Linux/Debian: LinkDeck menampilkan perintah `sudo apt install …` untuk ditempel di terminal; AppImage diganti otomatis. Bisa dimatikan atau dicek manual di **Pengaturan → Pembaruan**.
+- **Pintasan global** — **Pengaturan → Pintasan global → Aktifkan**. `Ctrl + Alt + M` menampilkan/menutup layar Android (memakai pengaturan **Mulai tampilkan** terakhir), `Ctrl + Alt + K` menyalakan/mematikan **Keyboard & mouse saja**. Berfungsi walau jendela LinkDeck tidak aktif (Linux: butuh sesi X11).
+- **Kirim ke HP dari Explorer** (Windows) — **Pengaturan → Windows Explorer** → nyalakan. Lalu klik kanan berkas → **Kirim ke** → **LinkDeck (HP Android)**; berkas masuk ke `Download/LinkDeck` di HP. Kalau HP belum tersambung, berkas dikirim begitu HP tersambung. Di Linux dan macOS pakai perintah `--send` (lihat [Daftar perintah](#6-daftar-perintah)).
+- **Laporan masalah** — **Pengaturan → Bantuan → Buat laporan**. LinkDeck membuat `linkdeck-laporan-….zip` di `Downloads/LinkDeck` (berisi info versi, status, dan log; alamat IP dan nomor seri disamarkan), lalu membuka halaman GitHub Issues untuk melampirkannya.
+
 ### Lokasi berkas
 
 | Isi | Laptop | Debian |
@@ -336,7 +370,8 @@ Tidak muncul? Klik **Tidak muncul? Isi alamat manual** → pilih jalurnya → is
 
 | Perintah | Fungsi |
 |---|---|
-| `proot-distro login debian --shared-tmp` | (di Termux) Masuk ke Debian |
+| `proot-distro login debian --shared-tmp` | (di Termux) Masuk ke Debian sebagai root |
+| `proot-distro login debian --user NAMAMU --shared-tmp` | (di Termux) Masuk ke Debian sebagai pengguna biasa |
 | `linkdeck-start` | Menyalakan LinkDeck di Debian: desktop XFCE **baru** seukuran monitor (layar HP tidak berubah) |
 | `linkdeck-start baru 1280x720` | Sama, dengan resolusi tertentu (mis. untuk Bluetooth) |
 | `linkdeck-start baru 3840x2160` | Resolusi 4K untuk TV |
@@ -354,6 +389,9 @@ Tidak muncul? Klik **Tidak muncul? Isi alamat manual** → pilih jalurnya → is
 | `sudo apt remove linkdeck-agent` | Menghapus agen |
 | `rm -rf ~/.linkdeck` | Menghapus semua pengaturan agen (PIN, sandi, sertifikat) |
 | `apt install xclip` | Memasang ulang pemantau clipboard Debian bila kartu Clipboard menulis *"xclip belum terpasang"* |
+| `linkdeck` | Menjalankan aplikasi LinkDeck di Debian HP (paket `linkdeck-debian`) |
+| `linkdeck-scrcpy-build` | Membangun scrcpy versi yang sesuai di Debian HP (untuk Layar baru, Cermin, Kamera) |
+| `dpkg --print-architecture` | Melihat arsitektur Debian (`arm64` di HP) |
 
 **Suara Debian lewat PulseAudio Termux.** Kalau tombol **Suara** memberi pesan galat, jalankan di **Termux** (bukan di Debian):
 ```bash
@@ -364,6 +402,14 @@ Lalu di Debian, sebelum `linkdeck-start`:
 sudo apt install pulseaudio-utils
 export PULSE_SERVER=127.0.0.1
 ```
+
+### Di laptop (semua sistem)
+
+| Perintah | Fungsi |
+|---|---|
+| `linkdeck --send FOTO.jpg DOKUMEN.pdf` | (Linux) Kirim berkas ke `Download/LinkDeck` di HP lewat LinkDeck yang sedang berjalan |
+| `/Applications/LinkDeck.app/Contents/MacOS/LinkDeck --send BERKAS` | (macOS) Sama seperti di atas |
+| `"C:\Program Files\LinkDeck\LinkDeck.exe" --send BERKAS` | (Windows) Sama seperti di atas; menu **Kirim ke** memakai perintah ini. Bila dipasang untuk pengguna saja, lokasinya `%LOCALAPPDATA%\Programs\LinkDeck` |
 
 ### Di laptop Windows
 
@@ -430,6 +476,8 @@ Lainnya:
 | Pintasan | Fungsi |
 |---|---|
 | `Ctrl + Alt + Home` | Mengambil kembali mouse dari Debian ("Satu mouse") |
+| `Ctrl + Alt + M` | Tampilkan/tutup layar Android (bila **Pintasan global** aktif) |
+| `Ctrl + Alt + K` | Nyalakan/matikan **Keyboard & mouse saja** (bila **Pintasan global** aktif) |
 | `Esc` | Keluar dari layar penuh Debian / menutup panel |
 
 ---
@@ -456,6 +504,12 @@ Lainnya:
 | Copy-paste tidak jalan (laptop Linux) | `sudo apt install xclip` |
 | Debian tidak muncul | Pastikan `linkdeck-start` sudah jalan dan HP satu jaringan dengan laptop; atau isi alamat manual |
 | Alamat HP diawali `10.` atau `100.` | Itu alamat data seluler. Pakai alamat Wi-Fi atau Bluetooth dari daftar `linkdeck-start` |
+| Pintasan global tidak bereaksi | Di Linux butuh sesi X11 (Wayland belum didukung); di macOS izinkan LinkDeck di **Accessibility** dan **Input Monitoring**. Matikan lalu nyalakan lagi di Pengaturan |
+| Menu **Kirim ke → LinkDeck** tidak ada | Nyalakan di **Pengaturan → Windows Explorer**. Bila LinkDeck dipindah/diinstal ulang, matikan lalu nyalakan lagi |
+| Pembaruan otomatis gagal | Klik **Perbarui** sekali lagi, atau unduh manual dari halaman Releases |
+| **Copot** tidak ada untuk suatu aplikasi | Aplikasi bawaan (sistem) tidak bisa dicopot dari LinkDeck — hanya aplikasi yang kamu pasang sendiri |
+| `libc6:amd64 ... [no choices]` saat memasang di HP | Berkasnya salah: `linkdeck_<versi>_amd64.deb` hanya untuk laptop Intel/AMD. Di HP pakai `linkdeck-debian_<versi>_all.deb` (aplikasi) atau `linkdeck-agent_<versi>_all.deb` (agen) |
+| `dpkg: error: requested operation requires superuser privilege` saat memasang agen | Kamu masuk sebagai pengguna biasa. Pakai `sudo apt install ./linkdeck-agent_<versi>_all.deb`, atau masuk sebagai root (`proot-distro login debian`) lalu pasang tanpa `sudo`. Peringatan `debconf ... Dialog` aman diabaikan |
 | *"Agen Debian tidak menjawab"* | `linkdeck-stop`, lalu `linkdeck-start`. Lihat log: `tail -n 30 ~/.linkdeck/agent.log` |
 | *"PIN agen salah"* | Lihat PIN dengan `cat ~/.linkdeck/config` |
 | *"Sandi VNC salah"* | Buat sandi baru dengan `linkdeck-setup`, lalu sambungkan ulang |
@@ -543,5 +597,60 @@ LinkDeck memakai komponen pihak ketiga berikut, masing-masing dengan lisensinya 
 [xterm.js](https://github.com/xtermjs/xterm.js) (MIT),
 [TigerVNC](https://tigervnc.org/) (GPL-2.0, di HP),
 [aiohttp](https://github.com/aio-libs/aiohttp), [pywebview](https://github.com/r0x0r/pywebview), [pynput](https://github.com/moses-palmer/pynput), [pyperclip](https://github.com/asweigart/pyperclip), dan [python-qrcode](https://github.com/lincolnloop/python-qrcode).
+
+---
+
+## 11. Aplikasi LinkDeck di Debian HP (arm64)
+
+Selain dipakai di laptop, aplikasi LinkDeck juga bisa dipasang **di Debian 13 XFCE pada HP itu sendiri**. Gunanya:
+
+- **Layar baru**: aplikasi Android terbuka sebagai **jendela di desktop XFCE**, seperti mode desktop. Paling terasa saat XFCE ditampilkan di monitor/TV.
+- **Clipboard bersama** antara Android dan Debian di HP yang sama.
+- **Kamera** dan **Mode Game** di dalam Debian.
+- **Cermin** layar Android (berguna saat XFCE tampil di monitor; di layar HP sendiri gambarnya akan berulang seperti cermin berhadapan).
+
+Paket ini **tidak sama** dengan agen. Agen (`linkdeck-agent`) membuat Debian tampil di laptop; aplikasi (`linkdeck-debian`) menjalankan LinkDeck di Debian. Keduanya boleh dipasang bersamaan.
+
+### 11.1 Pasang
+
+1. Unduh `linkdeck-debian_<versi>_all.deb` dari halaman Releases ke HP.
+2. Di terminal Debian:
+   ```bash
+   sudo apt update
+   sudo apt install /sdcard/Download/linkdeck-debian_<versi>_all.deb
+   ```
+   Paket ini sekaligus memasang adb, scrcpy, Chromium, dan pustaka Python dari repositori Debian (unduhannya bisa beberapa ratus MB). Kalau masuk sebagai root, hapus `sudo` (lihat [bagian 4.1](#41-pasang-agen-sekali)).
+3. Cek versi scrcpy:
+   ```bash
+   scrcpy --version
+   ```
+   **Layar baru**, **Cermin**, dan **Kamera** butuh scrcpy **4.0 atau lebih baru**. Kalau versinya lebih lama, bangun versi yang sesuai langsung di HP (sekali saja, butuh internet, sekitar 5–15 menit):
+   ```bash
+   linkdeck-scrcpy-build
+   ```
+   **Mode Game** dan **Clipboard bersama** sudah jalan tanpa langkah ini, karena memakai server scrcpy bawaan LinkDeck.
+4. Jalankan dari menu aplikasi XFCE (cari **LinkDeck**) atau ketik `linkdeck` di terminal.
+
+### 11.2 Sambungkan Android di HP yang sama
+
+LinkDeck di Debian mengendalikan Android lewat adb, sama seperti di laptop. Bedanya, adb di HP harus membuka "pintu jaringan" (port 5555) agar bisa dijangkau dari Debian. Pilih salah satu:
+
+**Cara A — dengan laptop (paling mudah):**
+1. Sambungkan HP ke LinkDeck di laptop (kabel atau Wi-Fi), lalu klik **Lanjut tanpa kabel** → **Siapkan Android lewat Wi-Fi** (atau **Bluetooth**). Langkah ini membuka port 5555 di HP.
+2. Buka LinkDeck di Debian HP. Android tersambung sendiri dengan label **HP ini** (alamat `127.0.0.1:5555`). Pertama kali, HP bertanya *"Izinkan debugging USB?"* untuk Debian — centang **Selalu izinkan** → **Izinkan**.
+
+**Cara B — tanpa laptop (Android 11+, HP harus tersambung ke Wi-Fi):**
+1. Di HP: **Opsi pengembang → Debugging nirkabel** → nyalakan.
+2. Buka LinkDeck di Debian → **Sambungkan perangkat → Android → Wi-Fi → Atau pakai kode 6 angka**.
+3. Pakai **layar terpisah** (split screen): satu sisi **Setelan → Debugging nirkabel → Sambungkan perangkat dengan kode penyambungan**, sisi lain LinkDeck. Isi **Alamat pairing** dan **Kode** yang tampil di Setelan → **Pasangkan & sambungkan**.
+4. Kalau belum tersambung sendiri, isi alamat yang tertera di layar utama **Debugging nirkabel** (port-nya berbeda dari alamat pairing) ke **Alamat debugging (manual)** → **Sambungkan**.
+
+Port 5555 tertutup lagi setiap HP di-restart; ulangi Cara A atau B setelah restart.
+
+### 11.3 Tips
+
+- Lewat jalur **HP ini**, kualitas video otomatis diturunkan (4 Mbps, 30 fps, maks. 1280 px) karena merekam dan menampilkan dikerjakan prosesor yang sama.
+- Panel **Debian** di aplikasi ini tidak diperlukan — kamu sudah berada di Debian.
+- Kalau jendela LinkDeck tidak terbuka: pastikan Chromium terpasang (`sudo apt install chromium`). LinkDeck menjalankannya dengan opsi `--no-sandbox` karena sandbox Chromium tidak tersedia di proot.
 
 Riwayat perubahan ada di [CHANGELOG.md](CHANGELOG.md).

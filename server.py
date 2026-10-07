@@ -112,14 +112,20 @@ PRESETS = {
     "wifi": ["--video-bit-rate=6M", "--max-size=1600", "--max-fps=60", "--video-buffer=40"],
     "bt": ["--video-bit-rate=800K", "--max-size=720", "--max-fps=15", "--video-buffer=150", "--no-audio"],
 }
+# HP ini sendiri (LinkDeck di Debian HP): encoder & tampilan berbagi satu prosesor, jadi dibuat ringan
+PRESETS["local"] = ["--video-bit-rate=4M", "--max-size=1280", "--max-fps=30"]
 # Kualitas VNC (noVNC) per jalur: (kualitas JPEG 0-9, kompresi 0-9)
-VNC_QUALITY = {"usb": (8, 1), "wifi": (6, 2), "bt": (2, 9)}
+VNC_QUALITY = {"usb": (8, 1), "wifi": (6, 2), "bt": (2, 9), "local": (8, 1)}
 # Seberapa sering adb ditanya (detik) per jalur: Bluetooth jauh lebih jarang agar tidak memakan bandwidth
 POLL = {"usb": {"lat": 3, "bat": 15, "notif": 6}, "wifi": {"lat": 3, "bat": 30, "notif": 8},
+        "local": {"lat": 5, "bat": 30, "notif": 8},
         "bt": {"lat": 15, "bat": 120, "notif": 25}}
 NOTIF_CMD = r"dumpsys notification --noredact | grep -E '^  [^ ]|NotificationRecord\(|android\.(title|text|bigText)='"
 DEVICE_GRACE = 10   # detik: perangkat yang hilang sesaat tetap ditampilkan (cegah UI berkedip)
 DEFAULT_SETTINGS = {"autoconnect": True, "sync": True, "notif": True, "clip_android": True}
+# pengaturan tahap 1 (diubah lewat /api/prefs di features.py)
+EXTRA_SETTINGS = {"theme": "auto", "zoom": 1, "privacy": False, "auto_privacy": True, "auto_update": True,
+                  "hotkeys": False, "sendto": False, "dock": [], "onboarded": False}
 
 
 def load_json(p: Path, default):
@@ -161,7 +167,8 @@ class State:
         self.tasks: list[asyncio.Task] = []
         self.discovered: dict[str, dict] = {}
         self.pairings: dict = load_json(user_data_dir() / "pairings.json", {})
-        self.settings: dict = {**DEFAULT_SETTINGS, **load_json(user_data_dir() / "settings.json", {})}
+        self.settings: dict = {**DEFAULT_SETTINGS, **EXTRA_SETTINGS, **load_json(user_data_dir() / "settings.json", {})}
+        self.update_info: dict | None = None
         self.waiters: dict[str, asyncio.Future] = {}
         self.notifs: list[dict] = []
         self.notif_seen: dict[str, set] = {}
@@ -252,6 +259,8 @@ def unique_path(p: Path) -> Path:
 
 
 def classify(serial: str) -> str:
+    if serial.startswith(("127.0.0.1:", "localhost:")):
+        return "local"                  # LinkDeck di Debian pada HP yang sama
     if serial in S.adb_targets:
         return S.adb_targets[serial]
     m = re.match(r"^(\d+\.\d+\.\d+\.\d+):\d+$", serial)
@@ -327,6 +336,7 @@ async def detect_tools() -> dict:
             t["scrcpy_version"] = f"{m.group(1)}.{m.group(2)}"
             t["virtual_display"] = major >= 3
             t["flex"] = major >= 4
+    t["scrcpy_build_cmd"] = bool(shutil.which("linkdeck-scrcpy-build"))   # paket linkdeck-debian (mis. di HP)
     t["novnc"] = (NOVNC_DIR / "core" / "rfb.js").exists()
     t["xterm"] = (XTERM_DIR / "xterm.js").exists()
     t["v4l2"] = sorted(glob.glob("/dev/video*")) if sys.platform.startswith("linux") else []
@@ -577,6 +587,8 @@ async def adb_probe_once() -> None:
     """
     nets = await pc_networks()
     cands: dict[str, str] = {}
+    if ON_PHONE:                         # Debian di HP: adb HP ini sendiri (setelah adb tcpip 5555)
+        cands["127.0.0.1:5555"] = "local"
     for n in nets:
         if n["bt"] and n["gateway"]:
             cands[f"{n['gateway']}:5555"] = "bt"
@@ -596,7 +608,8 @@ async def adb_probe_once() -> None:
             S.adb_targets[addr] = kind
             save_json(user_data_dir() / "adb-targets.json", S.adb_targets)
             await refresh_devices()
-            await log(f"Android tersambung otomatis lewat {'Bluetooth' if kind == 'bt' else 'Wi-Fi'} ({addr}).")
+            await log(f"Android tersambung otomatis lewat "
+                      f"{ {'bt': 'Bluetooth', 'local': 'HP ini (adb lokal)'}.get(kind, 'Wi-Fi') } ({addr}).")
     await broadcast({"type": "networks", "networks": nets})
 
 
@@ -615,6 +628,19 @@ async def adb_probe_loop() -> None:
 
 ANDROID_CLIP_JAR = "/data/local/tmp/linkdeck-clip.jar"
 CLIP_MAX = 200_000
+
+
+ON_PHONE = sys.platform.startswith("linux") and os.uname().machine in ("aarch64", "armv7l", "armv8l", "arm64")
+
+
+def server_jar() -> tuple[Path | None, str | None]:
+    """scrcpy-server untuk Mode Game & jembatan clipboard, beserta versinya.
+    Salinan bawaan LinkDeck (bin/scrcpy-server + bin/VERSION) diutamakan, sehingga fitur ini jalan
+    apa pun versi scrcpy sistem — penting untuk paket Debian di HP (arm64)."""
+    jar, ver = BIN / "scrcpy-server", BIN / "VERSION"
+    if jar.is_file() and ver.is_file():
+        return jar, ver.read_text().strip()
+    return scrcpy_server_path(), S.tools.get("scrcpy_version_full")
 
 
 def scrcpy_server_path() -> Path | None:
@@ -676,7 +702,7 @@ class AndroidClip:
             delay = min(delay * 2, 30)
 
     async def session(self) -> None:
-        jar, version = scrcpy_server_path(), S.tools.get("scrcpy_version_full")
+        jar, version = server_jar()
         if not jar or not version:
             raise RuntimeError("scrcpy-server tidak ditemukan")
         if not self.pushed:
@@ -807,8 +833,7 @@ async def android_clip_loop() -> None:
         await asyncio.sleep(3)
         try:
             want = set()
-            if S.settings.get("clip_android", True) and S.tools.get("adb") and scrcpy_server_path() \
-                    and S.tools.get("scrcpy_version_full"):
+            if S.settings.get("clip_android", True) and S.tools.get("adb") and all(server_jar()):
                 want = {d["serial"] for d in S.devices if d["state"] == "device"}
             changed = False
             for serial in list(S.android_clips):
@@ -827,8 +852,8 @@ async def android_clip_loop() -> None:
 # ================================================================ Mode Game (video di LinkDeck + pemetaan tombol)
 
 GAME_JAR = "/data/local/tmp/linkdeck-game.jar"
-GAME_BITRATE = {"usb": 12_000_000, "wifi": 6_000_000, "bt": 900_000}
-GAME_FPS = {"usb": 60, "wifi": 60, "bt": 20}
+GAME_BITRATE = {"usb": 12_000_000, "wifi": 6_000_000, "bt": 900_000, "local": 4_000_000}
+GAME_FPS = {"usb": 60, "wifi": 60, "bt": 20, "local": 30}
 
 
 class GameSession:
@@ -849,7 +874,7 @@ class GameSession:
         self.app_sent = False
 
     async def start(self) -> None:
-        jar, version = scrcpy_server_path(), S.tools.get("scrcpy_version_full")
+        jar, version = server_jar()
         if not jar or not version:
             raise ValueError("scrcpy-server tidak ditemukan.")
         c, _, e = await run("adb", "-s", self.serial, "push", str(jar), GAME_JAR, timeout=60)
@@ -895,7 +920,7 @@ class GameSession:
         if codec in (b"\x00\x00\x00\x00", b"\x00\x00\x00\x01"):
             raise ValueError("HP tidak bisa merekam layar untuk Mode Game.")
         asyncio.create_task(self._drain_control())
-        if o.get("audio", True) and S.tools.get("scrcpy") and transport != "bt":
+        if o.get("audio", True) and S.tools.get("virtual_display") and transport not in ("bt", "local"):
             sdk = await get_sdk(self.serial)
             aargs = ["scrcpy", f"--serial={self.serial}", "--no-window", "--audio-buffer=60"]
             if sdk >= 33:
@@ -1865,6 +1890,9 @@ async def watch_session(sid: str, proc: asyncio.subprocess.Process) -> None:
 def build_scrcpy_args(d: dict, label: str) -> list[str]:
     serial, mode, preset = d["serial"], d.get("mode", "virtual"), d.get("preset", "wifi")
     args = ["scrcpy", f"--serial={serial}", f"--window-title=LinkDeck – {label}"]
+    if mode == "input":
+        # keyboard & mouse laptop untuk HP tanpa menampilkan layar (UHID, butuh scrcpy 2.0+)
+        return args + ["--no-video", "--no-audio", "--keyboard=uhid", "--mouse=uhid"]
     args += [a for a in PRESETS.get(preset, PRESETS["wifi"])
              if not (mode == "camera" and a.startswith("--max-size"))]
     if mode == "camera":
@@ -1944,7 +1972,7 @@ async def start_session(d: dict) -> tuple[str, list[str]]:
         raise ValueError("Pilih perangkat Android dulu.")
     if mode == "virtual" and not S.tools.get("virtual_display"):
         raise ValueError("Layar virtual butuh scrcpy 3.0 atau lebih baru.")
-    if mode in ("mirror", "camera") and any(x["serial"] == serial and x["mode"] == mode
+    if mode in ("mirror", "camera", "input") and any(x["serial"] == serial and x["mode"] == mode
                                             for x in S.sessions.values()):
         raise ValueError("Mode ini sudah berjalan untuk perangkat ini.")
     notes = []
@@ -1963,7 +1991,8 @@ async def start_session(d: dict) -> tuple[str, list[str]]:
     if mode == "camera" and d.get("torch") and d.get("facing", "back") != "back":
         notes.append("Senter hanya tersedia di kamera belakang.")
     dev = next((x for x in S.devices if x["serial"] == serial), {})
-    label = d.get("label") or {"camera": "Kamera", "mirror": "Cermin"}.get(mode) or dev.get("model", serial)
+    label = d.get("label") or {"camera": "Kamera", "mirror": "Cermin", "input": "Keyboard & mouse"}.get(mode) \
+        or dev.get("model", serial)
     args = build_scrcpy_args(d, label)
     proc = await asyncio.create_subprocess_exec(*args, stdout=PIPE, stderr=STDOUT, creationflags=NOWIN)
     sid = secrets.token_hex(4)
@@ -1980,10 +2009,14 @@ async def start_session(d: dict) -> tuple[str, list[str]]:
 async def h_mirror_start(req: web.Request) -> web.Response:
     if not S.tools.get("scrcpy"):
         return fail("scrcpy belum terpasang.")
+    d = await req.json()
     try:
-        sid, notes = await start_session(await req.json())
+        sid, notes = await start_session(d)
     except ValueError as e:
         return fail(str(e))
+    if d.get("mode") in ("virtual", "mirror") and not d.get("app"):
+        save_json(user_data_dir() / "last-mirror.json",
+                  {k: v for k, v in d.items() if k not in ("serial", "window_x", "window_y", "fullscreen")})
     return ok(id=sid, notes=notes)
 
 
@@ -2296,7 +2329,7 @@ async def h_clipboard(req: web.Request) -> web.Response:
 
 async def h_files(req: web.Request) -> web.Response:
     reader = await req.multipart()
-    target, serial, done = "android", None, []
+    target, serial, done, dest_dir = "android", None, [], ""
     tmp_dir = SAVE_DIR / ".kirim"
     tmp_dir.mkdir(parents=True, exist_ok=True)
     async for part in reader:
@@ -2305,6 +2338,9 @@ async def h_files(req: web.Request) -> web.Response:
             continue
         if part.name == "serial":
             serial = (await part.text()).strip()
+            continue
+        if part.name == "dest":
+            dest_dir = (await part.text()).strip()
             continue
         if part.name != "file" or not part.filename:
             continue
@@ -2319,8 +2355,12 @@ async def h_files(req: web.Request) -> web.Response:
             if target == "android":
                 if not serial:
                     return fail("Pilih perangkat Android dulu.")
-                await run("adb", "-s", serial, "shell", "mkdir", "-p", ANDROID_DROP)
-                c, _, e = await run("adb", "-s", serial, "push", str(tmp), f"{ANDROID_DROP}/{name}", timeout=600)
+                folder = ANDROID_DROP
+                if dest_dir:
+                    import features
+                    folder = features.safe_phone_path(dest_dir) or ANDROID_DROP
+                await run("adb", "-s", serial, "shell", "mkdir", "-p", folder)
+                c, _, e = await run("adb", "-s", serial, "push", str(tmp), f"{folder}/{name}", timeout=1800)
                 if c:
                     return fail(f"Gagal mengirim {name}: {e.strip()[:200]}")
             else:
@@ -2334,7 +2374,11 @@ async def h_files(req: web.Request) -> web.Response:
             tmp.unlink(missing_ok=True)
     if not done:
         return fail("Tidak ada berkas yang diterima.")
-    where = ANDROID_DROP if target == "android" else "~/Downloads/LinkDeck (Debian)"
+    if target == "android":
+        import features
+        where = features.safe_phone_path(dest_dir) if dest_dir else ANDROID_DROP
+    else:
+        where = "~/Downloads/LinkDeck (Debian)"
     return ok(files=done, where=where)
 
 
@@ -2493,7 +2537,8 @@ async def on_shutdown(app: web.Application) -> None:
 
 @web.middleware
 async def guard(req: web.Request, handler):
-    if req.path.startswith("/api/") and req.headers.get("X-LinkDeck-Token") != TOKEN:
+    if req.path.startswith("/api/") and req.headers.get("X-LinkDeck-Token") != TOKEN \
+            and not (req.path == "/api/phone/files/raw" and req.query.get("t") == TOKEN):
         return fail("Token sesi tidak cocok. Muat ulang halaman.", 403)
     if req.path.startswith("/ws/") and req.query.get("t") != TOKEN:
         return web.Response(status=403)
@@ -2552,6 +2597,8 @@ def build_app() -> web.Application:
     r.add_static("/xterm", XTERM_DIR)
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
+    import features
+    features.register(r, sys.modules[__name__], app)
     return app
 
 

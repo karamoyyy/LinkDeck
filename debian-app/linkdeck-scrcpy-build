@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Bangun scrcpy (klien) dengan versi yang sama seperti server bawaan LinkDeck, langsung di Debian ini.
+# Dipakai di Debian 13 pada HP (arm64) bila scrcpy bawaan Debian terlalu lama untuk "Layar baru".
+set -euo pipefail
+LIB=/usr/lib/linkdeck
+VER=$(cat "$LIB/bin/VERSION")
+SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO="sudo"
+
+if ! apt-cache show libsdl3-dev >/dev/null 2>&1; then
+  echo "Paket libsdl3-dev tidak ditemukan. scrcpy $VER butuh SDL 3 (tersedia di Debian 13)."
+  echo "Cek versi Debian: cat /etc/debian_version"
+  exit 1
+fi
+
+echo "Membangun scrcpy $VER untuk $(dpkg --print-architecture). Butuh internet; di HP bisa 5-15 menit."
+$SUDO apt-get update
+$SUDO apt-get install -y gcc pkg-config meson ninja-build curl ca-certificates \
+  libsdl3-dev libavcodec-dev libavdevice-dev libavformat-dev libavutil-dev libswresample-dev libusb-1.0-0-dev
+
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+cd "$TMP"
+curl -fL -o src.tar.gz "https://github.com/Genymobile/scrcpy/archive/refs/tags/v$VER.tar.gz"
+tar xzf src.tar.gz
+cd "scrcpy-$VER"
+meson setup build --buildtype=release --strip -Db_lto=true -Dprebuilt_server="$LIB/bin/scrcpy-server"
+ninja -C build
+$SUDO ninja -C build install          # ke /usr/local/bin/scrcpy (didahulukan daripada /usr/bin)
+hash -r
+echo
+echo "Selesai: $(scrcpy --version 2>/dev/null | head -1)"
+echo "Tutup lalu buka ulang LinkDeck."

@@ -10,6 +10,7 @@ Paksa salah satunya dengan LINKDECK_UI=webview|chromium|browser.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import shutil
 import signal
@@ -169,9 +170,12 @@ def run_chromium() -> bool:
     profile = server.user_data_dir() / "chromium-profile"
     profile.mkdir(parents=True, exist_ok=True)
     try:
-        proc = subprocess.Popen([exe, f"--app={URL}", f"--user-data-dir={profile}",
-                                 "--window-size=1440,940", "--no-first-run",
-                                 "--no-default-browser-check", "--class=LinkDeck"])
+        args = [exe, f"--app={URL}", f"--user-data-dir={profile}", "--window-size=1440,940",
+                "--no-first-run", "--no-default-browser-check", "--class=LinkDeck"]
+        if server.ON_PHONE or (hasattr(os, "geteuid") and os.geteuid() == 0):
+            # Debian di HP (proot) / root: sandbox Chromium tidak tersedia
+            args += ["--no-sandbox", "--test-type", "--disable-dev-shm-usage"]
+        proc = subprocess.Popen(args)
     except OSError:
         return False
     started = time.time()
@@ -211,7 +215,27 @@ def open_ui() -> None:
     wait_forever()
 
 
+def send_files(paths: list[str]) -> bool:
+    """Kirim berkas ke HP lewat LinkDeck yang sedang berjalan. False bila LinkDeck belum berjalan."""
+    sess = server.user_data_dir() / "session.json"
+    try:
+        info = json.loads(sess.read_text())
+        req = urllib.request.Request(f"http://{server.HOST}:{info['port']}/api/sendfiles",
+                                     data=json.dumps({"paths": paths}).encode(), method="POST",
+                                     headers={"Content-Type": "application/json", "X-LinkDeck-Token": info["token"]})
+        with urllib.request.urlopen(req, timeout=600) as r:
+            return json.loads(r.read()).get("ok", False)
+    except Exception:
+        return False
+
+
 def main() -> None:
+    if "--send" in sys.argv:                        # klik kanan → Kirim ke → LinkDeck (HP Android)
+        paths = [os.path.abspath(p) for p in sys.argv[sys.argv.index("--send") + 1:] if os.path.exists(p)]
+        if paths and send_files(paths):
+            return
+        os.environ["LINKDECK_PENDING"] = json.dumps(paths)   # belum berjalan: buka LinkDeck, kirim saat HP siap
+        sys.argv = [sys.argv[0]]
     setup_logging()
     server.OPEN_BROWSER = False
     global SECONDARY

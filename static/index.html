@@ -484,6 +484,89 @@ details.more.dark summary{color:var(--on-glass)}
   to{opacity:1;transform:translate(-50%,-50%) scale(1);filter:none}}
 @keyframes welOut{to{opacity:0;transform:translate(-50%,-54%) scale(.96)}}
 @media (prefers-reduced-motion:reduce){.welcome,.welcome.out{animation:none}}
+
+/* ---------- tahap 1: berkas, aplikasi, media, dock, privasi, pembaruan ---------- */
+.panel.wide{width:min(760px,calc(100% - 28px))}
+.fbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.crumbs{display:flex;flex-wrap:wrap;gap:2px;flex:1;min-width:0;font-size:13.5px}
+.crumbs button{border:0;background:none;color:var(--on-glass);cursor:pointer;padding:4px 6px;border-radius:8px}
+.crumbs button:hover{background:rgba(255,255,255,.12)}
+.crumbs span{color:var(--on-glass-dim);padding:4px 0}
+.flist,.alist{list-style:none;margin:0;padding:0;display:grid;gap:4px;max-height:calc(100vh - 290px);overflow:auto}
+.frow,.arow{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.06)}
+.frow:hover,.arow:hover{background:rgba(255,255,255,.12)}
+.frow .nm{border:0;background:none;color:var(--on-glass);text-align:left;cursor:pointer;padding:0;font:inherit;min-width:0}
+.frow .nm b,.arow b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.frow small,.arow small{color:var(--on-glass-dim);font-size:12px}
+.fic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:rgba(255,255,255,.12)}
+.fic.dir{background:var(--sky);color:var(--sky-ink)}
+.fic .ico{width:17px;height:17px}
+.fact{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.fact button{border:1px solid var(--glass-line);background:rgba(255,255,255,.06);color:var(--on-glass);border-radius:999px;padding:5px 10px;font-size:12.5px;cursor:pointer}
+.fact button:hover{background:rgba(255,255,255,.16)}
+.fact button.danger:hover{background:rgba(255,138,122,.25)}
+.fact button[aria-pressed="true"]{background:var(--lilac);color:#5a1878;border-color:transparent}
+.fprev{display:grid;gap:10px;justify-items:start;padding:12px;border-radius:14px;background:rgba(0,0,0,.25)}
+.fprev img{max-width:100%;max-height:50vh;border-radius:10px}
+.fprev pre{white-space:pre-wrap;max-height:40vh;overflow:auto;margin:0;font-size:12.5px}
+.search{flex:1;min-width:160px;background:rgba(255,255,255,.12);border:1px solid var(--glass-line);border-radius:999px;padding:9px 14px;color:var(--on-glass)}
+.drop.small{padding:12px 16px;border-color:var(--glass-line);color:var(--on-glass)}
+.drop.small .ico{width:24px;height:24px}
+.drop.small.over{background:rgba(255,255,255,.12)}
+.syst{font-size:11px;padding:2px 7px;border-radius:999px;background:rgba(255,255,255,.14);margin-left:6px}
+.dock{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.dock button{display:inline-flex;align-items:center;gap:7px;border:0;border-radius:999px;padding:5px 12px 5px 5px;background:var(--mist);color:var(--text);font-size:13px;cursor:pointer}
+.dock button:hover{background:var(--chip)}
+.dock i{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--lilac);color:var(--lilac-ink);font-style:normal;font-weight:700;font-size:12px}
+.media{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--mist);margin-top:4px}
+.minfo{flex:1;min-width:0}
+.minfo b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.minfo span{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mbtn{display:flex;gap:2px}
+.mbtn button{width:32px;height:32px;border:0;border-radius:50%;background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--text)}
+.mbtn button:hover{background:var(--chip)}
+.mbtn .ico{width:17px;height:17px}
+#btnKbd[aria-pressed="true"]{background:var(--ink);color:#fff}
+.updbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 16px;border-radius:var(--r-md)}
+.updbar[hidden]{display:none}
+.updbar > div:first-child{flex:1;min-width:200px;display:grid;gap:2px}
+.updbar span{font-size:13px;color:var(--on-glass-dim)}
+.updbar code{background:rgba(0,0,0,.3);padding:6px 10px;border-radius:8px;font-size:12.5px;user-select:all}
+.updact{display:flex;gap:6px}
+.setgrp{display:grid;gap:10px;padding-top:12px;border-top:1px solid var(--glass-line)}
+.setgrp h3{margin:0;font-size:15px;font-weight:600}
+.seg.mini3{display:inline-grid;grid-template-columns:repeat(3,auto);padding:3px}
+.seg.mini3 button{padding:6px 11px;font-size:12.5px}
+.seg.mini3 button[aria-pressed="true"]{background:var(--lilac);color:var(--lilac-ink)}
+.setrow small kbd{font-family:var(--font);background:var(--glass-2);border:1px solid var(--glass-line);border-radius:6px;padding:0 5px}
+.privbtn[aria-pressed="true"]{background:var(--warn);color:#2a1d05;border-color:transparent}
+body.privacy .cliptext span,body.privacy .nlist b,body.privacy .nlist span,body.privacy #mTitle,body.privacy #mArtist{filter:blur(6px);user-select:none}
+body.privacy .cliptext span:hover{filter:none}
+
+/* ---------- tema terang ---------- */
+html[data-theme="light"]{--on-glass:#2a1f2b;--on-glass-dim:rgba(42,31,43,.68);--glass:rgba(255,255,255,.55);--glass-2:rgba(255,255,255,.75);--glass-line:rgba(60,40,70,.16)}
+html[data-theme="light"] body{background:#f3ece9}
+html[data-theme="light"] .scene{background:radial-gradient(58% 52% at 16% 18%,#ffd9a8 0%,transparent 62%),radial-gradient(42% 46% at 88% 12%,#e9cdf3 0%,transparent 64%),radial-gradient(50% 58% at 74% 96%,#ffc6a6 0%,transparent 62%),linear-gradient(162deg,#fbf3ee 0%,#f1e7ef 55%,#e9e4f1 100%)}
+html[data-theme="light"] .scene::before{background:none}
+html[data-theme="light"] .drawer .panel{background:rgba(255,255,255,.82)}
+html[data-theme="light"] .card,html[data-theme="light"] .menu{background:rgba(255,255,255,.85)}
+html[data-theme="light"] .gfield input,html[data-theme="light"] .gfield select,html[data-theme="light"] .menu select,html[data-theme="light"] .search,html[data-theme="light"] .deb-tools select{background:rgba(255,255,255,.8);color:#2a1f2b}
+html[data-theme="light"] .tool,html[data-theme="light"] .fact button,html[data-theme="light"] .frow,html[data-theme="light"] .arow,html[data-theme="light"] .found button,html[data-theme="light"] .pairrow,html[data-theme="light"] .devrow{background:rgba(255,255,255,.6)}
+html[data-theme="light"] .notifs,html[data-theme="light"] .watch{background:rgba(255,255,255,.55)}
+html[data-theme="light"] .seg:not(.light){background:rgba(60,40,70,.08)}
+html[data-theme="light"] .seg button{color:var(--on-glass-dim)}
+html[data-theme="light"] .gbar,html[data-theme="light"] .gedit{color:#fff}
+html[data-theme="light"] .lane span.on{background:rgba(255,255,255,.85)}
+html[data-theme="light"] .screen:not(.live):not(.term){background:rgba(255,255,255,.25)}
+
+html[data-theme="light"] .seg button[aria-pressed="true"]{color:#fff}
+html[data-theme="light"] .seg.mini3 button[aria-pressed="true"],html[data-theme="light"] .seg.mini button[aria-pressed="true"]{color:var(--lilac-ink)}
+html[data-theme="light"] .checkrow{color:var(--on-glass)}
+html[data-theme="light"] .gfield input::placeholder,html[data-theme="light"] .search::placeholder{color:rgba(42,31,43,.45)}
+html[data-theme="light"] .fprev{background:rgba(255,255,255,.7)}
+html[data-theme="light"] .updbar code{background:rgba(42,31,43,.08)}
+#modeSeg button{white-space:normal;line-height:1.15;overflow:visible;text-overflow:clip;padding:8px 2px}
+html[data-theme="light"] .gfield input,html[data-theme="light"] .gfield select{border-color:rgba(60,40,70,.22)}
 </style>
 </head>
 <body>
@@ -509,6 +592,19 @@ details.more.dark summary{color:var(--on-glass)}
   <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M21.2 12h-2.4M5.2 12H2.8M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7M18.5 18.5l-1.7-1.7M7.2 7.2 5.5 5.5"/></symbol>
   <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></symbol>
   <symbol id="i-sync" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5M20 4v4.5h-4.5M20 12a8 8 0 0 1-13.7 5.6L4 15.5M4 20v-4.5h4.5"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2.2h7.5A2.5 2.5 0 0 1 21 9.7v7.8a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-eyeoff" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 6a9.6 9.6 0 0 1 1.4-.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-3 3.7M6.3 7.6A16.6 16.6 0 0 0 2.5 12S6 18.5 12 18.5a9 9 0 0 0 4.2-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+  <symbol id="i-kbd" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M6.5 14h11"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M6 6v12M19 6l-9 6 9 6z"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M18 6v12M5 6l9 6-9 6z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+  <symbol id="i-volup" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4zM16 9.5a3.5 3.5 0 0 1 0 5"/><path d="M19 12h3M20.5 10.5v3"/></symbol>
+  <symbol id="i-voldown" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4zM17 12h4"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z"/></symbol>
+  <symbol id="i-up2" viewBox="0 0 24 24"><path d="M12 19V6M6 11l6-6 6 6"/></symbol>
 </svg>
 
 <div class="app">
@@ -521,6 +617,8 @@ details.more.dark summary{color:var(--on-glass)}
     <a href="#pantauan" title="Pantauan"><svg class="ico"><use href="#i-chart"/></svg><span class="sr">Pantauan</span></a>
     <button class="push" data-open="tv" title="Mode TV"><svg class="ico"><use href="#i-tv"/></svg><span class="sr">Mode TV</span></button>
     <button data-open="pair" title="Sambungkan perangkat"><svg class="ico"><use href="#i-plug"/></svg><span class="sr">Sambungkan perangkat</span></button>
+    <button data-open="files" title="Berkas HP"><svg class="ico"><use href="#i-folder"/></svg><span class="sr">Berkas HP</span></button>
+    <button data-open="apps" title="Aplikasi HP"><svg class="ico"><use href="#i-grid"/></svg><span class="sr">Aplikasi HP</span></button>
     <button data-open="help" title="Pengaturan & bantuan"><svg class="ico"><use href="#i-gear"/></svg><span class="sr">Pengaturan</span></button>
   </nav>
 
@@ -528,6 +626,7 @@ details.more.dark summary{color:var(--on-glass)}
     <header class="top glass">
       <h1>LinkDeck</h1>
       <span class="lead">HP dan PC jalan bareng, layar masing-masing tetap utuh</span>
+      <button class="pill ghost sm privbtn" id="btnPrivacy" aria-pressed="false" title="Mode privasi: sembunyikan isi clipboard dan notifikasi"><svg class="ico" style="width:16px;height:16px"><use href="#i-eye"/></svg><span>Privasi</span></button>
       <span class="kvmchip" id="kvmChip" role="status"><svg class="ico" style="width:16px;height:16px"><use href="#i-mouse"/></svg>Mouse di Debian. Ctrl+Alt+Home untuk kembali</span>
       <div class="lane" aria-label="Jalur aktif">
         <span id="laneUsb"><i class="dot"></i>Kabel</span>
@@ -539,6 +638,11 @@ details.more.dark summary{color:var(--on-glass)}
     </header>
 
     <div class="notice" id="notice" role="status"></div>
+    <div class="updbar glass" id="updBar" hidden>
+      <div><b id="updTitle">Versi baru tersedia</b><span id="updText"></span></div>
+      <code id="updCmd" hidden></code>
+      <div class="updact"><button class="pill primary sm" id="btnUpd">Perbarui</button><button class="pill ghost sm" id="btnUpdLater">Nanti</button></div>
+    </div>
 
     <section class="stage" id="panggung" aria-label="Layar">
       <!-- ANDROID -->
@@ -644,6 +748,7 @@ details.more.dark summary{color:var(--on-glass)}
             </details>
             <div class="actions">
               <button class="pill white sm" id="btnGoWireless" hidden title="HP tetap tersambung setelah kabel dicabut">Lanjut tanpa kabel</button>
+              <button class="pill white sm" id="btnKbd" title="Pakai keyboard & mouse laptop untuk HP tanpa menampilkan layar"><svg class="ico" style="width:17px;height:17px"><use href="#i-kbd"/></svg>Keyboard &amp; mouse saja</button>
               <button class="pill white sm" id="btnShot"><svg class="ico" style="width:17px;height:17px"><use href="#i-camera"/></svg>Tangkap layar</button>
               <button class="pill primary" id="btnMirror">Mulai tampilkan</button>
             </div>
@@ -656,6 +761,17 @@ details.more.dark summary{color:var(--on-glass)}
               <input id="appIn" list="appList" placeholder="mis. WhatsApp" autocomplete="off">
               <datalist id="appList"></datalist>
               <button class="pill ink sm" id="btnApp">Buka</button>
+            </div>
+          </div>
+          <div class="dock" id="dock" hidden aria-label="Aplikasi favorit"></div>
+          <div class="media" id="media" hidden>
+            <div class="minfo"><b id="mTitle">–</b><span id="mArtist"></span></div>
+            <div class="mbtn">
+              <button data-media="prev" aria-label="Sebelumnya"><svg class="ico"><use href="#i-prev"/></svg></button>
+              <button data-media="playpause" aria-label="Putar/jeda" id="mPlay"><svg class="ico"><use href="#i-play"/></svg></button>
+              <button data-media="next" aria-label="Berikutnya"><svg class="ico"><use href="#i-next"/></svg></button>
+              <button data-media="voldown" aria-label="Volume turun"><svg class="ico"><use href="#i-voldown"/></svg></button>
+              <button data-media="volup" aria-label="Volume naik"><svg class="ico"><use href="#i-volup"/></svg></button>
             </div>
           </div>
           <div class="sessions" id="sessions" aria-live="polite"></div>
@@ -941,12 +1057,73 @@ details.more.dark summary{color:var(--on-glass)}
   </div>
 </div>
 
+
+<!-- Laci: Berkas HP -->
+<div class="drawer" id="drawer-files" role="dialog" aria-modal="true" aria-labelledby="filesTitle">
+  <div class="veil" data-close></div>
+  <div class="panel glass wide">
+    <button class="pill ghost sm close" data-close aria-label="Tutup"><svg class="ico" style="width:16px;height:16px"><use href="#i-x"/></svg></button>
+    <h2 id="filesTitle">Berkas HP</h2>
+    <div class="fbar">
+      <button class="tool" id="fUp" title="Naik satu folder"><svg class="ico"><use href="#i-up2"/></svg><span>Naik</span></button>
+      <div class="crumbs" id="fCrumbs"></div>
+      <button class="tool" id="fNew"><span>+ Folder</span></button>
+      <label class="tool" id="fUpload"><span>Unggah ke sini</span><input type="file" id="fUpIn" multiple class="sr"></label>
+    </div>
+    <p class="hint" id="fHint">Unduhan disimpan di folder Downloads/LinkDeck laptop.</p>
+    <ul class="flist" id="fList"></ul>
+    <div class="fprev" id="fPrev" hidden><button class="pill ghost sm" id="fPrevClose">Tutup pratinjau</button><div id="fPrevBody"></div></div>
+  </div>
+</div>
+
+<!-- Laci: Aplikasi HP -->
+<div class="drawer" id="drawer-apps" role="dialog" aria-modal="true" aria-labelledby="appsTitle">
+  <div class="veil" data-close></div>
+  <div class="panel glass wide">
+    <button class="pill ghost sm close" data-close aria-label="Tutup"><svg class="ico" style="width:16px;height:16px"><use href="#i-x"/></svg></button>
+    <h2 id="appsTitle">Aplikasi HP</h2>
+    <div class="fbar">
+      <input class="search" id="aSearch" placeholder="Cari aplikasi" aria-label="Cari aplikasi">
+      <label class="checkrow"><input type="checkbox" id="aSys">Aplikasi sistem</label>
+      <button class="tool" id="aRefresh"><span>Muat ulang</span></button>
+    </div>
+    <label class="drop small" id="aDrop" tabindex="0"><svg class="ico" aria-hidden="true"><use href="#i-up"/></svg><div><strong>Pasang APK</strong><span>Tarik berkas .apk ke sini atau klik untuk memilih</span></div><input type="file" id="aIn" accept=".apk" multiple class="sr"></label>
+    <ul class="alist" id="aList"></ul>
+  </div>
+</div>
 <!-- Laci: pengaturan & bantuan -->
 <div class="drawer" id="drawer-help" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
   <div class="veil" data-close></div>
   <div class="panel glass">
     <button class="pill ghost sm close" data-close aria-label="Tutup"><svg class="ico" style="width:16px;height:16px"><use href="#i-x"/></svg></button>
     <h2 id="helpTitle">Pengaturan</h2>
+    <div class="setgrp">
+      <h3>Tampilan</h3>
+      <div class="setrow"><span>Tema</span><div class="seg mini3" id="setTheme"><button type="button" data-v="auto">Otomatis</button><button type="button" data-v="dark">Gelap</button><button type="button" data-v="light">Terang</button></div></div>
+      <div class="setrow"><span>Ukuran teks</span><div class="seg mini3" id="setZoom"><button type="button" data-v="1">Normal</button><button type="button" data-v="1.1">Besar</button><button type="button" data-v="1.2">Lebih besar</button></div></div>
+    </div>
+    <div class="setgrp">
+      <h3>Privasi</h3>
+      <label class="setrow"><span>Mode privasi<small>Isi clipboard dan notifikasi disamarkan.</small></span><span class="toggle light"><input type="checkbox" id="setPriv"></span></label>
+      <label class="setrow"><span>Otomatis saat presentasi<small>Menyala sendiri selama Mode TV atau layar penuh.</small></span><span class="toggle light"><input type="checkbox" id="setAutoPriv" checked></span></label>
+    </div>
+    <div class="setgrp">
+      <h3>Pembaruan</h3>
+      <label class="setrow"><span>Cek pembaruan saat dibuka</span><span class="toggle light"><input type="checkbox" id="setAutoUpd" checked></span></label>
+      <div class="setrow"><span id="updStatus">Versi ini: –</span><button class="pill ghost sm" id="btnUpdCheck">Cek sekarang</button></div>
+    </div>
+    <div class="setgrp">
+      <h3>Pintasan global</h3>
+      <label class="setrow"><span>Aktifkan<small><kbd>Ctrl Alt M</kbd> tampilkan/tutup layar Android · <kbd>Ctrl Alt K</kbd> keyboard &amp; mouse saja</small></span><span class="toggle light"><input type="checkbox" id="setHot"></span></label>
+    </div>
+    <div class="setgrp" id="grpSendTo" hidden>
+      <h3>Windows Explorer</h3>
+      <label class="setrow"><span>Menu "Kirim ke" → LinkDeck (HP Android)<small>Klik kanan berkas → Kirim ke → LinkDeck (HP Android).</small></span><span class="toggle light"><input type="checkbox" id="setSendTo"></span></label>
+    </div>
+    <div class="setgrp">
+      <h3>Bantuan</h3>
+      <div class="setrow"><span>Laporan masalah<small>Kumpulkan log jadi satu berkas (alamat IP dan nomor seri disamarkan).</small></span><button class="pill ghost sm" id="btnReport">Buat laporan</button></div>
+    </div>
     <label class="setrow"><span>Sambung otomatis<small>Debian yang pernah tersambung langsung terhubung saat terdeteksi.</small></span><span class="toggle light"><input type="checkbox" id="setAuto" checked></span></label>
     <div>
       <h3 style="margin:0 0 10px;font-weight:600;font-size:16px">Debian yang diingat</h3>
@@ -1032,8 +1209,8 @@ const st = {
 };
 window.LD = st;   // untuk diagnosa dari konsol
 const GUIDE_URL = 'https://github.com/karamoyyy/LinkDeck';   // panduan pemakaian (README di GitHub)
-const RATES = {usb:[16,60], wifi:[6,60], bt:[0.8,15]};
-const LANE = {usb:'Kabel', wifi:'Wi-Fi', bt:'Bluetooth'};
+const RATES = {usb:[16,60], wifi:[6,60], bt:[0.8,15], local:[4,30]};
+const LANE = {usb:'Kabel', wifi:'Wi-Fi', bt:'Bluetooth', local:'HP ini'};
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* ---------- util ---------- */
@@ -1081,7 +1258,9 @@ function renderTools(){
   if(!t.adb) msgs.push('<b>adb</b> belum terpasang (Android Platform Tools).');
   if(!t.scrcpy) msgs.push('<b>scrcpy</b> belum terpasang.');
   else if(!t.scrcpy_version) msgs.push('Memeriksa versi scrcpy… (bisa lebih lama saat pertama kali dibuka).');
-  else if(!t.virtual_display) msgs.push(`scrcpy ${t.scrcpy_version} belum mendukung layar virtual. Perbarui ke 4.0+.`);
+  else if(!t.virtual_display) msgs.push(t.scrcpy_build_cmd
+    ? `scrcpy ${t.scrcpy_version} terlalu lama untuk Layar baru, Cermin, dan Kamera. Jalankan <code>linkdeck-scrcpy-build</code> di terminal, lalu buka ulang LinkDeck. (Mode Game dan clipboard HP sudah bisa dipakai.)`
+    : `scrcpy ${t.scrcpy_version} belum mendukung layar virtual. Perbarui ke 4.0+.`);
   if(!t.clipboard) msgs.push('Pasang <code>pip install pyperclip</code> untuk sinkron clipboard PC.');
   $('#notice').innerHTML = msgs.join(' ');
   $('#notice').classList.toggle('show', msgs.length>0);
@@ -1117,7 +1296,7 @@ function renderDevices(){
   const btn = $('#btnMirror');
   btn.textContent = running ? 'Hentikan' : st.mode==='virtual' && st.sessions.some(s=>s.serial===cur?.serial && s.mode==='virtual') ? 'Tambah layar' : 'Mulai tampilkan';
   btn.classList.toggle('primary', !running); btn.classList.toggle('ink', !!running);
-  btn.disabled = !cur || !st.tools.scrcpy;
+  btn.disabled = !cur || !st.tools.scrcpy || !st.tools.virtual_display;
   $('#btnShot').disabled = !cur; $('#btnApp').disabled = !cur || !st.tools.scrcpy;
   $('#btnGoWireless').hidden = cur?.transport !== 'usb';
   ['usb','wifi','bt'].forEach(k=>{
@@ -1163,6 +1342,8 @@ function renderDevRows(){
   }
 }
 function renderSessions(){
+  $('#btnKbd').setAttribute('aria-pressed', st.sessions.some(x => x.serial === st.serial && x.mode === 'input'));
+  if(st.autoPriv && !st.sessions.length && !document.fullscreenElement && !document.body.classList.contains('kiosk')) autoPrivacy(false);
   if(st.mode==='camera') $('#camLive').hidden = !camRunning();
   const box = $('#sessions'); box.innerHTML='';
   for(const s of st.sessions){
@@ -1180,6 +1361,7 @@ function setMode(m){
   $$('[data-only]').forEach(el=>el.hidden = el.dataset.only!==m || (el.id==='flexWrap' && !st.tools.flex));
   $$('[data-hide]').forEach(el=>el.hidden = el.dataset.hide.split(' ').includes(m));
   if(m==='camera'){ $('#optAudio').checked = false; loadCamInfo(); }
+  if(st.settings) renderDock();
   $('#btnMirror').hidden = m==='game';
   if(m==='virtual' && $('#resChips [data-res="auto"]').getAttribute('aria-pressed')==='true'){ st.res = screenFit(); }
   $('#resBig').textContent = `${st.res[0]}×${st.res[1]}`; $('#dpiBig').textContent = `${st.res[2]} dpi`;
@@ -1297,7 +1479,7 @@ $('#btnShot').onclick = e => act(e.currentTarget, async () => {
 /* aplikasi di jendela sendiri */
 async function loadApps(force){
   if(!st.serial || (st.apps[st.serial] && !force)) return st.apps[st.serial] || [];
-  const r = await api('/api/apps',{serial:st.serial, refresh:!!force});
+  const r = await api('/api/phone/apps',{serial:st.serial, refresh:!!force});
   st.apps[st.serial] = r.apps;
   $('#appList').innerHTML = r.apps.map(a=>`<option value="${esc(a.label)}">${esc(a.pkg)}</option>`).join('');
   return r.apps;
@@ -1481,6 +1663,7 @@ $('#btnAgentPush').onclick = e => act(e.currentTarget, async () => {
 
 /* layar penuh / kiosk */
 async function fullscreenDebian(scr){
+  autoPrivacy(true);
   if(PV()){ document.body.classList.add('kiosk'); await PV().fullscreen_on(scr ? scr.native : null); return; }
   try{ await $('#screen').requestFullscreen(scr ? {screen:scr} : {}); }
   catch(e){ toast('Layar penuh ditolak: '+e.message,'warn'); }
@@ -1488,7 +1671,7 @@ async function fullscreenDebian(scr){
 $('#btnFull').onclick = () => fullscreenDebian(st.screens[+$('#debScreen').value - 1]);
 async function exitKiosk(){
   if(!document.body.classList.contains('kiosk')) return;
-  document.body.classList.remove('kiosk'); await PV()?.exit_fullscreen();
+  document.body.classList.remove('kiosk'); await PV()?.exit_fullscreen(); autoPrivacy(false);
 }
 $('#kioskExit').onclick = exitKiosk;
 
@@ -1656,6 +1839,7 @@ function renderNotifs(){
 function onNotif(items){
   st.notifs = [...items, ...st.notifs].slice(0,60);
   renderNotifs();
+  if(document.body.classList.contains('privacy')) return;   // mode privasi: jangan munculkan isi notifikasi
   for(const n of items.filter(n=>!n.quiet).slice(0,3)){
     toast(`${n.app}: ${n.title}${n.text ? ' — '+n.text : ''}`);
     if(window.Notification?.permission==='granted' && document.hidden) new Notification(n.title || n.app, {body:n.text});
@@ -1727,6 +1911,7 @@ $('#btnTv').onclick = e => act(e.currentTarget, async () => {
   }
   if(!st.serial) throw new Error('Sambungkan HP Android dulu.');
   const extra = {width:w, height:h, dpi, audio:true, fullscreen:true, flex:false, ...pos};
+  autoPrivacy(true);
   if(tvWhat==='app') await openApp($('#tvApp').value, extra);
   else { const prev = st.mode; st.mode='virtual'; try{ await startSession(extra); } finally{ st.mode=prev; } }
   $('#drawer-tv').classList.remove('open');
@@ -1734,7 +1919,7 @@ $('#btnTv').onclick = e => act(e.currentTarget, async () => {
 });
 
 /* ---------- laci ---------- */
-function openDrawer(id){ const d=$('#drawer-'+id); d.classList.add('open'); d.querySelector('.close').focus(); if(id==='tv') loadScreens(false); }
+function openDrawer(id){ const d=$('#drawer-'+id); d.classList.add('open'); d.querySelector('.close').focus(); if(id==='tv') loadScreens(false); onDrawerOpen(id); }
 $$('[data-open]').forEach(b=>b.onclick=()=>openDrawer(b.dataset.open));
 $$('.drawer').forEach(d=>d.addEventListener('click', e=>{ if(e.target.closest('[data-close]')) d.classList.remove('open'); }));
 document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ $$('.drawer.open').forEach(d=>d.classList.remove('open')); exitKiosk(); } });
@@ -1807,6 +1992,243 @@ function onStats(s){
   spark($('#gLoad'), load);
 }
 
+/* =====================================================================
+   Tahap 1: tampilan, privasi, pembaruan, berkas & aplikasi HP, media, dock
+   ===================================================================== */
+const fmtSize = n => n < 1024 ? `${n} B` : n < 1048576 ? `${(n/1024).toFixed(0)} KB` : n < 1073741824 ? `${(n/1048576).toFixed(1)} MB` : `${(n/1073741824).toFixed(2)} GB`;
+async function prefs(obj){ const r = await api('/api/prefs', obj); st.settings = r.settings; return r.settings; }
+
+/* ---- tema & ukuran teks ---- */
+function applyLook(theme, zoom){
+  const dark = theme === 'dark' || (theme !== 'light' && !matchMedia('(prefers-color-scheme: light)').matches);
+  if(dark) document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = 'light';
+  document.documentElement.style.zoom = String(zoom || 1);
+  pressOne('#setTheme', $(`#setTheme [data-v="${theme || 'auto'}"]`));
+  pressOne('#setZoom', $(`#setZoom [data-v="${String(zoom || 1)}"]`));
+  try{ localStorage.setItem('ld.look', JSON.stringify({theme, zoom})); }catch{}
+}
+try{ const l = JSON.parse(localStorage.getItem('ld.look') || '{}'); applyLook(l.theme || 'auto', l.zoom || 1); }catch{}
+matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => applyLook(st.settings.theme || 'auto', st.settings.zoom || 1));
+$('#setTheme').onclick = e => { const b = e.target.closest('[data-v]'); if(b) act(null, async () => { const s = await prefs({theme:b.dataset.v}); applyLook(s.theme, s.zoom); }); };
+$('#setZoom').onclick = e => { const b = e.target.closest('[data-v]'); if(b) act(null, async () => { const s = await prefs({zoom:+b.dataset.v}); applyLook(s.theme, s.zoom); }); };
+
+/* ---- mode privasi ---- */
+function setPrivacy(on){
+  document.body.classList.toggle('privacy', !!on);
+  $('#btnPrivacy').setAttribute('aria-pressed', !!on);
+  $('#btnPrivacy use').setAttribute('href', on ? '#i-eyeoff' : '#i-eye');
+  $('#setPriv').checked = !!on;
+}
+$('#btnPrivacy').onclick = () => act(null, async () => { st.autoPriv = false; const s = await prefs({privacy: !st.settings.privacy}); setPrivacy(s.privacy); toast(s.privacy ? 'Mode privasi menyala: isi clipboard dan notifikasi disamarkan.' : 'Mode privasi mati.'); });
+$('#setPriv').onchange = e => act(null, async () => { st.autoPriv = false; setPrivacy((await prefs({privacy:e.target.checked})).privacy); });
+$('#setAutoPriv').onchange = e => act(null, () => prefs({auto_privacy:e.target.checked}));
+function autoPrivacy(on){                 // saat presentasi (Mode TV / layar penuh)
+  if(!st.settings.auto_privacy || st.settings.privacy) return;
+  if(on && !st.autoPriv){ st.autoPriv = true; setPrivacy(true); }
+  if(!on && st.autoPriv){ st.autoPriv = false; setPrivacy(false); }
+}
+document.addEventListener('fullscreenchange', () => autoPrivacy(!!document.fullscreenElement || document.body.classList.contains('kiosk')));
+
+/* ---- pembaruan ---- */
+function onUpdate(u){
+  if(!u?.newer) return;
+  $('#updBar').hidden = false;
+  $('#updTitle').textContent = `LinkDeck ${u.latest} tersedia`;
+  $('#updText').textContent = `Versi kamu ${u.current}.` + (u.asset ? '' : ' Unduh dari halaman rilis.');
+  $('#updStatus').textContent = `Versi ini ${u.current} · terbaru ${u.latest}`;
+  st.update = u;
+}
+$('#btnUpdLater').onclick = () => $('#updBar').hidden = true;
+$('#btnUpd').onclick = e => act(e.currentTarget, async () => {
+  if(!st.update?.asset){ window.open(st.update?.url || GUIDE_URL + '/releases/latest', '_blank'); return; }
+  $('#updText').textContent = 'Mengunduh…';
+  const r = await api('/api/update/install', {});
+  if(r.action === 'open') return window.open(r.url, '_blank');
+  $('#updText').textContent = r.msg || '';
+  if(r.command){ $('#updCmd').hidden = false; $('#updCmd').textContent = r.command; }
+  toast(r.msg || 'Pembaruan siap.');
+});
+$('#btnUpdCheck').onclick = e => act(e.currentTarget, async () => {
+  const u = (await api('/api/update/check', {})).update;
+  $('#updStatus').textContent = u.newer ? `Versi ini ${u.current} · terbaru ${u.latest}` : `Versi ini ${u.current} sudah terbaru.`;
+  if(u.newer) onUpdate(u); else toast('LinkDeck sudah versi terbaru.');
+});
+$('#setAutoUpd').onchange = e => act(null, () => prefs({auto_update:e.target.checked}));
+
+/* ---- pintasan global, Kirim ke, laporan ---- */
+$('#setHot').onchange = e => act(null, async () => {
+  try{ await prefs({hotkeys:e.target.checked}); if(e.target.checked) toast('Pintasan aktif: Ctrl+Alt+M (layar Android), Ctrl+Alt+K (keyboard & mouse).'); }
+  catch(err){ e.target.checked = false; throw err; }
+});
+$('#setSendTo').onchange = e => act(null, async () => {
+  try{ await prefs({sendto:e.target.checked}); if(e.target.checked) toast('Klik kanan berkas di Explorer → Kirim ke → LinkDeck (HP Android).'); }
+  catch(err){ e.target.checked = !e.target.checked; throw err; }
+});
+$('#btnReport').onclick = e => act(e.currentTarget, async () => {
+  const r = await api('/api/report', {});
+  toast(`Laporan disimpan: ${r.path}. Lampirkan berkas itu di GitHub Issues.`);
+  window.open(r.issues, '_blank');
+});
+
+/* ---- keyboard & mouse saja ---- */
+$('#btnKbd').onclick = e => act(e.currentTarget, async () => {
+  if(!st.serial) throw new Error('Sambungkan HP Android dulu.');
+  const s = st.sessions.find(x => x.serial === st.serial && x.mode === 'input');
+  if(s) return api('/api/mirror/stop', {id:s.id});
+  await api('/api/mirror/start', {serial:st.serial, mode:'input', preset:st.preset});
+  toast('Jendela kecil terbuka: klik di dalamnya, lalu keyboard & mouse laptop mengendalikan HP. Tekan Alt kiri untuk melepas mouse.');
+});
+
+/* ---- kontrol media ---- */
+function renderMedia(m){
+  const box = $('#media');
+  box.hidden = !m;
+  if(!m) return;
+  $('#mTitle').textContent = m.title || '(tanpa judul)';
+  $('#mArtist').textContent = [m.artist, m.pkg.split('.').pop()].filter(Boolean).join(' · ');
+  $('#mPlay use').setAttribute('href', m.playing ? '#i-pause' : '#i-play');
+}
+async function pollMedia(){
+  const dev = st.devices.find(d => d.serial === st.serial && d.state === 'device');
+  if(!dev || document.hidden){ if(!dev) renderMedia(null); return; }
+  try{ renderMedia((await api('/api/media', {serial:st.serial})).media); }catch{}
+}
+setInterval(pollMedia, 8000);
+$('#media').onclick = e => { const b = e.target.closest('[data-media]'); if(b) act(null, async () => renderMedia((await api('/api/media', {serial:st.serial, action:b.dataset.media})).media)); };
+
+/* ---- dock aplikasi favorit ---- */
+function renderDock(){
+  const dock = st.settings.dock || [], box = $('#dock');
+  box.hidden = !dock.length || st.mode !== 'virtual';
+  box.innerHTML = dock.map((a, i) => `<button type="button" data-i="${i}" title="Buka ${esc(a.label)} di jendela sendiri"><i>${esc(a.label[0]?.toUpperCase() || '?')}</i>${esc(a.label)}</button>`).join('');
+}
+$('#dock').onclick = e => { const b = e.target.closest('[data-i]'); if(b) act(b, () => openApp((st.settings.dock || [])[+b.dataset.i].pkg)); };
+async function toggleDock(a){
+  const dock = [...(st.settings.dock || [])], i = dock.findIndex(x => x.pkg === a.pkg);
+  if(i >= 0) dock.splice(i, 1); else { if(dock.length >= 12) throw new Error('Dock maksimal 12 aplikasi.'); dock.push({pkg:a.pkg, label:a.label}); }
+  await prefs({dock}); renderDock(); renderApps();
+}
+
+/* ---- Berkas HP ---- */
+st.fpath = '/sdcard';
+const rawUrl = p => `/api/phone/files/raw?serial=${encodeURIComponent(st.serial)}&path=${encodeURIComponent(p)}&t=${encodeURIComponent(TOKEN)}`;
+const IMG = /\.(jpe?g|png|gif|webp|bmp)$/i, TXT = /\.(txt|log|md|json|csv|xml|ini|conf|sh|py|js|html?)$/i, VID = /\.(mp4|webm|mp3|m4a|ogg|wav)$/i;
+async function loadDir(path){
+  if(!st.serial){ $('#fList').innerHTML = '<li class="hint">Sambungkan HP Android dulu.</li>'; return; }
+  const r = await api('/api/phone/files', {serial:st.serial, path});
+  st.fpath = r.path; $('#fPrev').hidden = true;
+  const parts = r.path.split('/').filter(Boolean);
+  $('#fCrumbs').innerHTML = parts.map((p, i) => `<button type="button" data-p="/${esc(parts.slice(0, i+1).join('/'))}">${esc(p)}</button>`).join('<span>/</span>');
+  $('#fUp').disabled = r.path === '/sdcard';
+  $('#fList').innerHTML = r.items.length ? r.items.map(it => `
+    <li class="frow" data-name="${esc(it.name)}" data-dir="${it.dir}">
+      <span class="fic ${it.dir ? 'dir' : ''}"><svg class="ico"><use href="#${it.dir ? 'i-folder' : 'i-file'}"/></svg></span>
+      <button class="nm" type="button" data-a="open"><b>${esc(it.name)}</b><small>${it.dir ? 'Folder' : fmtSize(it.size)} · ${esc(it.time)}</small></button>
+      <span class="fact">${it.dir ? '' : '<button type="button" data-a="pull">Unduh</button>'}<button type="button" data-a="rename">Ganti nama</button><button type="button" class="danger" data-a="delete">Hapus</button></span>
+    </li>`).join('') : '<li class="hint">Folder kosong.</li>';
+}
+$('#fCrumbs').onclick = e => { const b = e.target.closest('[data-p]'); if(b) act(null, () => loadDir(b.dataset.p)); };
+$('#fUp').onclick = () => act(null, () => loadDir(st.fpath.replace(/\/[^/]+$/, '') || '/sdcard'));
+$('#fNew').onclick = () => act(null, async () => {
+  const name = prompt('Nama folder baru:'); if(!name?.trim()) return;
+  await api('/api/phone/files/op', {serial:st.serial, path:`${st.fpath}/${name.trim()}`, op:'mkdir'}); await loadDir(st.fpath);
+});
+$('#fUpIn').onchange = e => act(null, async () => {
+  const files = [...e.target.files]; e.target.value = ''; if(!files.length) return;
+  const fd = new FormData(); fd.append('target', 'android'); fd.append('serial', st.serial); fd.append('dest', st.fpath);
+  files.forEach(f => fd.append('file', f, f.name));
+  toast(`Mengunggah ${files.length} berkas…`);
+  const r = await api('/api/files', fd); toast(`Terkirim ke ${r.where}: ${r.files.join(', ')}`); await loadDir(st.fpath);
+});
+$('#fList').onclick = e => {
+  const b = e.target.closest('[data-a]'), row = e.target.closest('.frow'); if(!b || !row) return;
+  const name = row.dataset.name, path = `${st.fpath}/${name}`, isDir = row.dataset.dir === 'true';
+  act(b, async () => {
+    if(b.dataset.a === 'open'){
+      if(isDir) return loadDir(path);
+      const pv = $('#fPrevBody');
+      if(IMG.test(name)) pv.innerHTML = `<img alt="${esc(name)}" src="${rawUrl(path)}">`;
+      else if(VID.test(name)) pv.innerHTML = `<video controls src="${rawUrl(path)}" style="max-width:100%;max-height:50vh"></video>`;
+      else if(TXT.test(name)){ const t = await (await fetch(rawUrl(path))).text(); pv.innerHTML = `<pre>${esc(t.slice(0, 200000))}</pre>`; }
+      else { const r = await api('/api/phone/files/pull', {serial:st.serial, path}); return toast(`Tidak bisa dipratinjau, jadi diunduh: ${r.path}`); }
+      $('#fPrev').hidden = false; return;
+    }
+    if(b.dataset.a === 'pull'){ const r = await api('/api/phone/files/pull', {serial:st.serial, path}); return toast(`Diunduh ke ${r.path}`); }
+    if(b.dataset.a === 'rename'){ const n = prompt('Nama baru:', name); if(!n?.trim() || n === name) return; await api('/api/phone/files/op', {serial:st.serial, path, op:'rename', name:n.trim()}); return loadDir(st.fpath); }
+    if(b.dataset.a === 'delete'){ if(!confirm(`Hapus "${name}" dari HP? Tindakan ini tidak bisa dibatalkan.`)) return; await api('/api/phone/files/op', {serial:st.serial, path, op:'delete'}); return loadDir(st.fpath); }
+  });
+};
+$('#fPrevClose').onclick = () => { $('#fPrev').hidden = true; $('#fPrevBody').innerHTML = ''; };
+
+/* ---- Aplikasi HP ---- */
+st.allApps = [];
+async function loadAllApps(refresh){
+  if(!st.serial){ $('#aList').innerHTML = '<li class="hint">Sambungkan HP Android dulu.</li>'; return; }
+  $('#aList').innerHTML = '<li class="hint">Memuat daftar aplikasi…</li>';
+  st.allApps = (await api('/api/phone/apps', {serial:st.serial, refresh:!!refresh})).apps;
+  st.apps[st.serial] = st.allApps; renderApps();
+}
+function renderApps(){
+  if(!$('#drawer-apps').classList.contains('open')) return;
+  const q = $('#aSearch').value.trim().toLowerCase(), sys = $('#aSys').checked, dock = st.settings.dock || [];
+  const list = st.allApps.filter(a => (sys || !a.system) && (!q || a.label.toLowerCase().includes(q) || a.pkg.includes(q)));
+  $('#aList').innerHTML = list.length ? list.map(a => `
+    <li class="arow" data-pkg="${esc(a.pkg)}">
+      <span class="fic"><b style="font-size:13px">${esc(a.label[0]?.toUpperCase() || '?')}</b></span>
+      <div style="min-width:0"><b>${esc(a.label)}${a.system ? '<span class="syst">sistem</span>' : ''}</b><small>${esc(a.pkg)}</small></div>
+      <span class="fact"><button data-a="open">Buka</button><button data-a="dock" aria-pressed="${dock.some(d => d.pkg === a.pkg)}" title="Sematkan di dock">★ Dock</button><button data-a="stop">Hentikan</button><button data-a="backup">Cadangkan</button><button data-a="clear" class="danger">Hapus data</button>${a.system ? '' : '<button data-a="uninstall" class="danger">Copot</button>'}</span>
+    </li>`).join('') : '<li class="hint">Tidak ada aplikasi yang cocok.</li>';
+}
+$('#aSearch').oninput = renderApps; $('#aSys').onchange = renderApps;
+$('#aRefresh').onclick = e => act(e.currentTarget, () => loadAllApps(true));
+$('#aList').onclick = e => {
+  const b = e.target.closest('[data-a]'), row = e.target.closest('.arow'); if(!b || !row) return;
+  const a = st.allApps.find(x => x.pkg === row.dataset.pkg); if(!a) return;
+  act(b, async () => {
+    const A = b.dataset.a;
+    if(A === 'open') return openApp(a.pkg);
+    if(A === 'dock') return toggleDock(a);
+    if(A === 'clear' && !confirm(`Hapus semua data ${a.label}? Akun, pengaturan, dan isi aplikasi akan hilang.`)) return;
+    if(A === 'uninstall' && !confirm(`Copot ${a.label} dari HP?`)) return;
+    const r = await api('/api/phone/apps/action', {serial:st.serial, pkg:a.pkg, action:A});
+    toast(r.msg || 'Selesai.');
+    if(A === 'uninstall') await loadAllApps(true);
+  });
+};
+async function installApks(files){
+  files = files.filter(f => /\.apk$/i.test(f.name));
+  if(!files.length) return toast('Pilih berkas .apk.', 'warn');
+  if(!st.serial) return toast('Sambungkan HP Android dulu.', 'error');
+  const fd = new FormData(); fd.append('serial', st.serial); files.forEach(f => fd.append('file', f, f.name));
+  toast(`Memasang ${files.length} APK… (izinkan di HP bila diminta)`);
+  await act(null, async () => {
+    const r = await api('/api/phone/apps/install', fd);
+    r.results.forEach(x => toast(`${x.name}: ${x.msg}`, x.ok ? 'info' : 'error'));
+    await loadAllApps(true);
+  });
+}
+const aDrop = $('#aDrop');
+['dragenter','dragover'].forEach(ev => aDrop.addEventListener(ev, e => { e.preventDefault(); aDrop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => aDrop.addEventListener(ev, () => aDrop.classList.remove('over')));
+aDrop.addEventListener('drop', e => { e.preventDefault(); installApks([...e.dataTransfer.files]); });
+$('#aIn').onchange = e => { installApks([...e.target.files]); e.target.value = ''; };
+
+/* ---- buka laci: muat isinya ---- */
+function onDrawerOpen(id){
+  if(id === 'files') act(null, () => loadDir(st.fpath));
+  if(id === 'apps') act(null, () => loadAllApps(false));
+}
+
+/* ---- terapkan pengaturan dari server ---- */
+function applySettings(s){
+  st.settings = s;
+  applyLook(s.theme || 'auto', s.zoom || 1);
+  if(!st.autoPriv) setPrivacy(s.privacy);
+  $('#setAutoPriv').checked = s.auto_privacy; $('#setAutoUpd').checked = s.auto_update;
+  $('#setHot').checked = s.hotkeys; $('#setSendTo').checked = s.sendto;
+  renderDock();
+}
+
 /* ---------- notifikasi panduan (sekali tiap aplikasi dibuka) ---------- */
 function showWelcome(){
   const w = $('#welcome');
@@ -1836,6 +2258,10 @@ async function loadState(){
   renderTools(); setMode(st.mode); renderSessions(); renderClips(); renderDebian(); renderFound(); renderPairings(); renderNotifs();
   renderSync({...r.sync, dir:r.sync_dir}); onKvm(r.kvm); renderClipStatus(r.clip_status);
   if(r.welcome) setTimeout(showWelcome, 500);
+  applySettings(r.settings);
+  $('#grpSendTo').hidden = r.tools.platform !== 'win32';
+  $('#updStatus').textContent = `Versi ini ${r.version}`;
+  pollMedia();
   $('#guideLink').href = GUIDE_URL;
 }
 function connectEvents(){
@@ -1847,6 +2273,8 @@ function connectEvents(){
       case 'sessions': st.sessions = m.sessions; renderSessions(); break;
       case 'clip': onClip(m.item); break;
       case 'clipstatus': renderClipStatus(m.status); break;
+      case 'update': onUpdate(m.update); break;
+      case 'update_progress': $('#updText').textContent = `Mengunduh… ${m.pct}%`; break;
       case 'qrpair': onQrPair(m); break;
       case 'networks': st.networks = m.networks; renderDroidHelp(st.devices.some(d=>d.state==='device')); break;
       case 'stats': onStats(m); break;
