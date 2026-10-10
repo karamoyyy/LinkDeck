@@ -122,6 +122,63 @@ class Api:
             self._full = False
         return True
 
+    def fix_zoom(self):
+        """Kembalikan zoom tampilan ke 100% (mis. setelah cubit touchpad / Ctrl+gulir di Mode Game)."""
+        return lock_webview_zoom(self._window)
+
+
+def lock_webview_zoom(window) -> bool:
+    """WebView2 (Windows): matikan zoom Ctrl+gulir dan cubit touchpad, lalu set zoom 100%.
+    pywebview 6 selalu menyalakan IsZoomControlEnabled, sehingga cubit touchpad saat bermain
+    membuat seluruh tampilan LinkDeck membesar."""
+    form = getattr(window, "native", None)
+    wv = getattr(getattr(form, "browser", None), "webview", None)
+    if form is None or wv is None:
+        return False
+    def _do():
+        try:
+            core = wv.CoreWebView2
+            if core is not None:
+                core.Settings.IsZoomControlEnabled = False
+                try:
+                    core.Settings.IsPinchZoomEnabled = False
+                except Exception:
+                    pass                                      # runtime WebView2 lama
+            wv.ZoomFactor = 1.0
+        except Exception as e:
+            print("[zoom]", e, flush=True)
+    try:
+        from System import Func, Type                         # pythonnet (sudah dipakai pywebview di Windows)
+        if form.InvokeRequired:
+            form.Invoke(Func[Type](_do))
+        else:
+            _do()
+        return True
+    except Exception as e:
+        print("[zoom]", e, flush=True)
+        return False
+
+
+def reset_chromium_zoom(profile) -> None:
+    """Chrome menyimpan zoom per situs di profil; buang zoom untuk LinkDeck supaya tampilan selalu 100%."""
+    pref = profile / "Default" / "Preferences"
+    try:
+        data = json.loads(pref.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    levels = data.get("partition", {}).get("per_host_zoom_levels", {})
+    changed = False
+    for part in levels.values():
+        if isinstance(part, dict):
+            for host in [h for h in part if h.startswith(("127.0.0.1", "localhost"))]:
+                part.pop(host)
+                changed = True
+    if changed:
+        try:
+            pref.write_text(json.dumps(data), encoding="utf-8")
+        except OSError:
+            pass
+
 
 class Desktop:
     """Jendela, ikon tray, dan keluar. Satu objek per proses (server.DESKTOP)."""
@@ -226,6 +283,8 @@ class Desktop:
                 hidden=self.start_hidden and has_tray, minimized=self.start_hidden and not has_tray)
             api._window = self.window
             self.window.events.closing += self.on_closing
+            if sys.platform == "win32":
+                self.window.events.loaded += lambda *_: lock_webview_zoom(self.window)
             self.mode = "webview"
             if has_tray:
                 self.tray.run_in_thread()
@@ -248,8 +307,9 @@ class Desktop:
     def chromium_args(self) -> list[str]:
         profile = server.user_data_dir() / "chromium-profile"
         profile.mkdir(parents=True, exist_ok=True)
+        reset_chromium_zoom(profile)
         args = [self.exe, f"--app={URL}", f"--user-data-dir={profile}", "--window-size=1440,940",
-                "--no-first-run", "--no-default-browser-check", "--class=LinkDeck"]
+                "--no-first-run", "--no-default-browser-check", "--class=LinkDeck", "--disable-pinch"]
         if server.ON_PHONE or (hasattr(os, "geteuid") and os.geteuid() == 0):
             # Debian di HP (proot) / root: sandbox Chromium tidak tersedia
             args += ["--no-sandbox", "--test-type", "--disable-dev-shm-usage"]

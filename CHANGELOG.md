@@ -1,5 +1,24 @@
 # Riwayat perubahan
 
+## 1.13.0 — Mode Game: layar penuh bersih, bidik mouse tanpa klik, jeda rendah
+**Layar**
+- Mode Game membuat jendela LinkDeck benar-benar layar penuh (di aplikasi Windows sebelumnya bilah judul dan taskbar tetap terlihat), lalu mengukur layar setelahnya, sehingga layar game di HP pas dengan layar laptop — tidak terpotong.
+- Bila ukuran jendela berubah saat bermain, layar game di HP ikut diubah langsung (scrcpy flex display), tanpa mengulang game.
+- Bilah menu tersembunyi selama bermain; muncul dengan menempelkan mouse ke tepi atas layar atau `F1`.
+- Pesan (toast) kini tampil di atas game di bagian atas-tengah dan tidak pernah menghalangi klik; sebelumnya pesan tertutup layar game. Panduan pembuka tidak lagi bisa menutupi game.
+
+**Bidik mouse**
+- Klik layar sekali: mouse langsung memutar arah pandang tanpa menahan klik kiri (gerakan mentah, tanpa akselerasi Windows). Tahan `Alt` untuk kursor sementara, `` ` `` untuk mematikan/menyalakan. Gulir mouse juga berfungsi saat membidik.
+
+**Jeda (ping)**
+- Suara game kini diambil tanpa video (`--no-video`): sebelumnya scrcpy untuk suara ikut merekam dan mengirim video layar utama, sehingga HP mengode dua video sekaligus dan kabel adb penuh.
+- Kendali aliran: browser mengonfirmasi tiap paket video; bila tertinggal, server dan browser melompat ke frame kunci terbaru (RESET_VIDEO) alih-alih membiarkan jeda menumpuk. Soket video selalu dibaca segera sehingga jalur adb tidak macet.
+- Hanya frame terbaru yang digambar (requestAnimationFrame).
+- Pilihan **Kelancaran**: Otomatis / Lancar / Tajam. Otomatis menyesuaikan resolusi dan bitrate dengan dekoder laptop dan menurunkan resolusi sendiri bila laptop terus tertinggal.
+
+**Perbaikan: tampilan membesar sendiri setelah keluar dari game**
+- Penyebab: WebView2 di aplikasi Windows membiarkan zoom lewat cubit touchpad / `Ctrl` + gulir (pywebview selalu menyalakannya). Kini zoom dan cubit dimatikan di WebView2, `Ctrl` + gulir dan `Ctrl` +/−/0 dicegah, zoom dikembalikan ke 100% saat keluar dari game, dan mode jendela Chrome tidak lagi menyimpan zoom.
+
 ## 1.12.0 — perbaikan Mode Game, editor tombol bebas, deteksi game
 **Perbaikan: layar game tidak muncul**
 - Galat *"Dekoder video bermasalah: Unsupported configuration"* diperbaiki. Penyebabnya: dekoder selalu dipaksa memakai akselerasi perangkat keras tanpa dicek dulu, sehingga di laptop yang dekoder perangkat kerasnya tidak tersedia gambar tidak pernah tampil.

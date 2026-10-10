@@ -235,8 +235,9 @@ Bentuk jendela Cermin mengikuti bentuk layar HP, jadi bilah hitam di sisi kiri-k
 ### 3.8 Memakai Mode Game
 
 1. Pilih **Game**. Daftar **Game di HP** muncul otomatis — berisi game saja (bukan WhatsApp, kamera, dll.). Klik salah satu untuk langsung main, atau ketik nama game (mis. *Mobile Legends*) lalu klik **Main**. Kosongkan nama untuk menampilkan layar HP apa adanya. Baru memasang game? Klik **Pindai ulang**.
-2. Game terbuka layar penuh seukuran laptop. Gerakkan mouse ke **bagian atas layar** untuk memunculkan menu.
-3. **Atur tombol:** klik **Edit tombol** → pilih **Template** lalu **Pakai** (atau tambah tanda sendiri) → seret tiap tanda ke tombol di layar game → klik sebuah tanda lalu tekan tombol keyboard **atau tombol stik** penggantinya → **Simpan**. Pengaturan disimpan terpisah untuk setiap game.
+2. Jendela LinkDeck langsung **layar penuh** (tanpa bilah judul Windows dan taskbar), lalu layar game di HP dibuat persis seukuran layar laptop — tidak terpotong dan tanpa bilah hitam. Bila ukuran jendela berubah (mis. tombol **Layar penuh** dimatikan), layar game di HP ikut menyesuaikan.
+3. **Menu game tersembunyi** supaya tidak menutupi game. Untuk memunculkannya, tempelkan mouse di **tepi paling atas layar** sebentar, atau tekan `F1`. Menu hilang lagi saat mouse turun (atau `F1` lagi).
+4. **Atur tombol:** klik **Edit tombol** → pilih **Template** lalu **Pakai** (atau tambah tanda sendiri) → seret tiap tanda ke tombol di layar game → klik sebuah tanda lalu tekan tombol keyboard **atau tombol stik** penggantinya → **Simpan**. Pengaturan disimpan terpisah untuk setiap game.
 
 **Deteksi game** — LinkDeck menanyakan ke Android aplikasi mana yang menyatakan dirinya game (`appCategory="game"` atau `isGame`), lalu memeriksa tanda mesin game di dalam APK (Unity, Unreal, Cocos, Godot), dan sebagai cadangan mengenali nama penerbit game terkenal. Untuk itu LinkDeck mengirim berkas kecil ke `/data/local/tmp` di HP dan menjalankannya lewat adb — tidak ada aplikasi yang dipasang. Peluncur/penguat game bawaan HP (Game Launcher, Game Turbo, dll.) tidak ikut ditampilkan.
 
@@ -247,6 +248,16 @@ Bentuk jendela Cermin mengikuti bentuk layar HP, jadi bilah hitam di sisi kiri-k
 - `Ctrl` + panah menggeser tanda terpilih sedikit demi sedikit (`Ctrl + Shift` + panah = lebih jauh); `Delete` menghapusnya.
 - `Shift`, `Ctrl`, atau `Alt` bisa dijadikan tombol: tekan sendirian lalu lepas.
 
+**Mengarahkan pandangan dengan mouse (game tembak / battle royale)** — bila game punya tanda **Bidik mouse** (ada di template **Dasar**, **Battle royale**, dan **Aksi / RPG**):
+- **Klik layar sekali**: kursor hilang dan gerakan mouse langsung memutar arah pandang — tidak perlu menahan klik. Klik kiri = tombol yang dipetakan ke **Klik kiri** (mis. tembak), klik kanan = **Klik kanan** (mis. teropong).
+- **Tahan `Alt`** untuk memunculkan kursor sebentar (mis. mengambil barang atau menekan tombol menu di game); lepas `Alt` untuk kembali membidik.
+- Tekan `` ` `` (bisa diganti di **Edit tombol**) untuk mematikan bidik mouse, misalnya saat di lobi; klik di layar lalu menjadi ketukan biasa. Tekan `` ` `` lagi untuk menyalakannya.
+- `Esc` juga melepas mouse; klik layar lagi untuk lanjut membidik.
+
+**Kelancaran** (di panel Game) — **Otomatis** (bawaan) menyesuaikan resolusi dan bitrate dengan kemampuan laptop: bila tidak ada dekoder video perangkat keras, game dijalankan di 1280 piksel (sisi panjang). Bila laptop masih tertinggal, resolusi diturunkan sendiri ke 1280 lalu 960 piksel tanpa mengulang game. **Lancar** selalu memakai 1280 piksel; **Tajam** memakai resolusi tertinggi untuk laptop yang kuat.
+
+**Jeda (ping) rendah** — video yang tertunda tidak pernah dibiarkan menumpuk: bila laptop sempat tertinggal, LinkDeck melompat ke gambar terbaru (HP diminta mengirim frame kunci baru) sehingga gerakan tetap terasa seketika. Suara game diambil tanpa merekam layar kedua, jadi kabel hanya membawa satu aliran video.
+
 **Pemutar video otomatis** — LinkDeck memilih dekoder video yang benar-benar didukung laptop: perangkat keras (**HW**), otomatis (**auto**), lalu perangkat lunak (**SW**). Bila dekoder gagal di tengah permainan, dekoder berikutnya langsung dipakai dan HP diminta mengirim gambar baru. Bila peramban tidak bisa memutar videonya sama sekali, video didekode oleh LinkDeck di laptop (**JPEG**): gambar tetap tampil, tetapi lebih berat untuk CPU. Dekoder yang dipakai tampil di bilah atas, mis. `60 fps · 1368×768 · HW`.
 
 | Jenis tanda | Cara kerja |
@@ -254,7 +265,7 @@ Bentuk jendela Cermin mengikuti bentuk layar HP, jadi bilah hitam di sisi kiri-k
 | **Joystick WASD** | W/A/S/D atau **stik kiri** gamepad menggeser jari di lingkaran joystick (bisa diganti **Pakai panah**). **Ukuran** lingkaran bisa diatur. Satu per game |
 | **Tombol** | Tombol keyboard atau tombol stik = ketukan di titik itu. Bisa juga **Klik kiri** / **Klik kanan** (aktif saat bidik mouse menyala) |
 | **Tombol geser** | Untuk skill berarah (MOBA). **Tahan** tombolnya → jari menempel di tombol skill; arahkan dengan **posisi mouse dari tengah layar** atau **stik kanan**; **lepas** untuk memakai skill. **Ukuran** = jangkauan geser (lingkaran titik-titik tampil saat mengedit/ditahan) |
-| **Bidik mouse** | Tekan tombolnya (bawaan `` ` ``) untuk mengunci mouse: gerakan mouse menggeser kamera/bidikan. **Stik kanan** gamepad juga membidik tanpa mengunci mouse. Tekan lagi atau `Esc` untuk melepas. Satu per game |
+| **Bidik mouse** | Klik layar sekali (atau tekan tombolnya, bawaan `` ` ``) untuk mengunci mouse: gerakan mouse memutar kamera/bidikan tanpa menahan klik. Tahan `Alt` untuk kursor sementara; `` ` `` atau `Esc` untuk melepas. **Stik kanan** gamepad juga membidik. **Posisi** tanda = titik awal jari geser (taruh di area kosong kanan layar). Satu per game |
 
 **Kepekaan bidik** (klik tanda bidik saat mengedit):
 - **Kepekaan** — kecepatan dasar.
@@ -563,6 +574,8 @@ Di **Mode Game**:
 | Pintasan | Fungsi |
 |---|---|
 | `Esc` | Tombol Kembali Android (atau melepas bidik mouse) |
+| `F1` | Munculkan/sembunyikan menu Mode Game |
+| Tahan `Alt` | Kursor muncul sementara saat bidik mouse aktif |
 | Tahan `Esc` | Keluar dari layar penuh (Windows, Chrome/Edge) |
 | `` ` `` (bisa diganti) | Mengunci/melepas mouse untuk bidik |
 | `Ctrl` + panah (saat **Edit tombol**) | Menggeser tanda terpilih sedikit (`Ctrl + Shift` + panah = lebih jauh) |
@@ -594,6 +607,8 @@ Lainnya:
 | Senter tidak menyala | Senter hanya ada di kamera **belakang** |
 | Gambar Android tampil, tetapi klik/ketik/Mode Game tidak berfungsi | Nyalakan **Debugging USB (Setelan keamanan)** (Xiaomi/Redmi/POCO) atau **Nonaktifkan pemantauan izin** (sebagian Oppo/Realme) di Opsi pengembang, lalu restart HP |
 | Audio ke PC tidak keluar (Android 11) | Buka kunci layar HP, lalu mulai ulang tampilan |
+| Mode Game terasa lag / patah-patah | Pakai kabel atau Wi-Fi 5 GHz. Di panel Game pilih **Kelancaran: Lancar**. Lihat angka `fps` di info atas: di bawah ±30 berarti laptop kewalahan (tutup aplikasi berat lain). Perbarui LinkDeck ke 1.13.0 atau lebih baru — versi lama ikut merekam layar kedua untuk suara dan membiarkan jeda menumpuk |
+| Tampilan LinkDeck tiba-tiba membesar (setelah Mode Game) | Diperbaiki di 1.13.0: cubit touchpad dan `Ctrl` + gulir tidak lagi memperbesar aplikasi, dan zoom dikembalikan ke 100% saat keluar dari game. Bila masih terjadi di versi lama, tutup lalu buka lagi LinkDeck |
 | Mode Game layar hitam / *"Dekoder video bermasalah"* | Mulai 1.12.0 LinkDeck berganti dekoder sendiri dan memakai pemutar cadangan bila perlu. Bila tetap hitam: klik **Keluar**, lalu **Main** lagi; pastikan HP tidak terkunci. Game yang memblokir rekaman layar (mis. aplikasi bank) memang tampil hitam |
 | Bilah atas Mode Game menulis **JPEG** dan terasa berat | Peramban tidak bisa memutar video H.264. Windows: perbarui *Microsoft Edge WebView2 Runtime*; Windows edisi N: pasang *Media Feature Pack*. Linux: buka LinkDeck lewat Google Chrome |
 | Game tidak ada di daftar **Game di HP** | Klik **Pindai ulang**. Game yang tidak menandai dirinya sebagai game tetap bisa dibuka dengan mengetik namanya lalu **Main** |

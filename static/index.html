@@ -228,7 +228,11 @@ button,input,select,textarea{font:inherit;color:inherit}
 .keys kbd{font-family:var(--font);background:var(--glass-2);border:1px solid var(--glass-line);border-radius:7px;padding:2px 8px;color:var(--on-glass);font-size:12.5px;white-space:nowrap}
 
 /* toast */
-.toasts{position:fixed;right:18px;bottom:18px;display:grid;gap:8px;z-index:30;width:min(380px,calc(100% - 36px))}
+.toasts{position:fixed;right:18px;bottom:18px;display:grid;gap:8px;z-index:80;width:min(380px,calc(100% - 36px));pointer-events:none}
+.toasts > *{pointer-events:auto}
+/* saat bermain: pesan di atas-tengah, agak transparan, dan tidak pernah menghalangi klik */
+.game:not([hidden]) ~ .toasts{top:46px;bottom:auto;left:50%;right:auto;transform:translateX(-50%);opacity:.9}
+.game:not([hidden]) ~ .toasts > *{pointer-events:none}
 .toast{overflow-wrap:anywhere;padding:12px 16px;border-radius:var(--r-md);background:rgba(29,32,48,.88);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid var(--ink-line);font-size:14px;color:#fff;display:flex;gap:10px;align-items:flex-start;animation:pop .25s ease-out}
 .toast i{width:8px;height:8px;border-radius:50%;margin-top:7px;flex:none;background:var(--ok)}
 .toast.warn i{background:var(--warn)} .toast.error i{background:var(--bad)}
@@ -263,6 +267,7 @@ body.kiosk #kioskExit{display:inline-flex;position:fixed;top:14px;right:14px;z-i
 .sess button .ico{width:13px;height:13px}
 .applaunch{display:flex;gap:8px}
 .gamesbox{margin-top:12px;display:grid;gap:8px}
+.gqrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;font-size:13.5px;font-weight:500}
 .gamesbox[hidden]{display:none}
 .gamesbox .ghd{display:flex;align-items:center;gap:6px;font-size:13.5px}
 .gamesbox .ghd small{color:var(--muted,#7b7590);font-weight:500}
@@ -528,6 +533,7 @@ details.more.dark summary{color:var(--on-glass)}
 @media (prefers-reduced-motion:reduce){.welcome,.welcome.out{animation:none}}
 
 html.i18n-wait body{visibility:hidden}
+html{touch-action:pan-x pan-y}
 
 /* ---------- panduan awal (pertama kali dibuka) ---------- */
 .wiz{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:16px}
@@ -855,6 +861,8 @@ html[data-theme="light"] .status i{box-shadow:0 0 0 1px rgba(0,0,0,.12)}
               <div class="gamegrid" id="gameGrid" role="list" aria-live="polite"></div>
               <p class="hint" id="gamesNote" hidden style="margin:0"></p>
             </div>
+            <div class="gqrow"><span>Kelancaran</span><div class="seg mini3" id="gameQ" role="group" aria-label="Kelancaran Mode Game">
+              <button type="button" data-v="auto">Otomatis</button><button type="button" data-v="smooth">Lancar</button><button type="button" data-v="sharp">Tajam</button></div></div>
             <p class="hint" style="margin-top:8px">Kosongkan nama untuk menampilkan layar HP apa adanya. Tombol bisa diatur lewat <b>Edit tombol</b> setelah game terbuka.</p>
           </div>
           <div data-for="mirror" hidden>
@@ -1618,6 +1626,14 @@ async function setLang(lang){
 }
 try{ if(localStorage.getItem('ld.lang') === 'en'){ document.documentElement.classList.add('i18n-wait'); setTimeout(() => document.documentElement.classList.remove('i18n-wait'), 2500); } }catch{}
 
+/* ---------- tampilan selalu 100%: Ctrl+gulir, cubit touchpad, dan Ctrl +/-/0 tidak memperbesar aplikasi ---------- */
+addEventListener('wheel', e => { if(e.ctrlKey) e.preventDefault(); }, {passive:false, capture:true});
+addEventListener('keydown', e => {
+  if((e.ctrlKey || e.metaKey) && ['Equal', 'Minus', 'Digit0', 'NumpadAdd', 'NumpadSubtract', 'Numpad0'].includes(e.code)) e.preventDefault();
+}, true);
+for(const t of ['gesturestart', 'gesturechange']) addEventListener(t, e => e.preventDefault(), {passive:false});   // Safari/macOS
+window.addEventListener('pywebviewready', () => { try{ window.pywebview.api.fix_zoom?.(); }catch{} });
+
 /* ---------- util ---------- */
 function toast(msg, level='info', img){
   const el = document.createElement('div');
@@ -1936,6 +1952,7 @@ function renderGames(loading){
   $('#gameDl').innerHTML = games.map(g => `<option value="${esc(g.label)}"></option>`).join('');
 }
 $('#btnGamesScan').onclick = () => loadGames(true);
+$('#gameQ').onclick = e => { const b = e.target.closest('[data-v]'); if(b) act(null, async () => { pressOne('#gameQ', b); await prefs({game_q:b.dataset.v}); }); };
 
 async function openApp(name, extra={}){
   if(!name.trim()) throw new Error('Ketik nama aplikasinya dulu.');
@@ -2855,6 +2872,7 @@ function applySettings(s){
   $('#setTray').checked = s.tray !== false;
   pressOne('#setLang', $(`#setLang [data-v="${pickLang(s)}"]`));
   $('#setCompanion').checked = s.companion !== false;
+  pressOne('#gameQ', $(`#gameQ [data-v="${s.game_q || 'auto'}"]`));
   pressOne('#setMicTarget', $(`#setMicTarget [data-v="${s.mic_target || 'virtual'}"]`));
   $('#setMicClean').checked = s.mic_clean !== false; $('#setMicMon').checked = !!s.mic_monitor;
   applyLook(s.theme || 'auto', s.zoom || 1);
@@ -3274,7 +3292,10 @@ async function decoderCandidates(codec){
   G.cands = list; G.candFor = codec; G.candIdx = 0;
   return list;
 }
-function closeDecoder(){ const d = G.dec; G.dec = null; try{ if(d && d.state !== 'closed') d.close(); }catch{} }
+function closeDecoder(){
+  const d = G.dec; G.dec = null; try{ if(d && d.state !== 'closed') d.close(); }catch{}
+  if(G.pendFrame){ G.pendFrame.close(); G.pendFrame = null; }
+}
 function sizeCanvas(w, h){
   const cv = $('#gCanvas');
   if(!w || !h || (cv.width === w && cv.height === h)) return;
@@ -3286,7 +3307,7 @@ function fitCanvas(){                                    // video memenuhi layar
   const cv = $('#gCanvas'), st2 = $('#gStage').getBoundingClientRect();
   if(!cv.width || !cv.height || !st2.width || !st2.height) return;
   const k = Math.min(st2.width / cv.width, st2.height / cv.height);
-  cv.style.width = Math.floor(cv.width * k) + 'px'; cv.style.height = Math.floor(cv.height * k) + 'px';
+  cv.style.width = Math.round(cv.width * k) + 'px'; cv.style.height = Math.round(cv.height * k) + 'px';
   layoutKeys();
 }
 function configureDecoder(){
@@ -3298,9 +3319,16 @@ function configureDecoder(){
   const dec = new VideoDecoder({
     output: frame => {
       if(G.dec !== dec){ frame.close(); return; }
-      sizeCanvas(frame.displayWidth, frame.displayHeight);
-      ctx.drawImage(frame, 0, 0); frame.close(); G.frames++; G.decOut++;
-      if(G.decOut === 1) $('#gMsg').hidden = true;
+      G.decOut++;
+      if(G.pendFrame) G.pendFrame.close();                 // hanya frame terbaru yang digambar
+      G.pendFrame = frame;
+      if(!G.raf) G.raf = requestAnimationFrame(() => {
+        G.raf = 0;
+        const f = G.pendFrame; G.pendFrame = null; if(!f) return;
+        sizeCanvas(f.displayWidth, f.displayHeight);
+        ctx.drawImage(f, 0, 0); f.close(); G.frames++;
+        if(G.frames === 1) $('#gMsg').hidden = true;
+      });
     },
     error: e => { if(G.dec === dec) decoderFailed(e.message); }
   });
@@ -3362,6 +3390,10 @@ function feedVideo(buf){
   if(!G.dec || G.dec.state !== 'configured') return;
   const u = new Uint8Array(buf), key = u[0] === 3;
   if(!key && !G.gotKey) return;                           // tunggu frame kunci pertama
+  if(!key && G.dec.decodeQueueSize > 4 && G.decOut){      // laptop tertinggal: buang antrean, lompat ke frame kunci baru
+    G.drops = (G.drops || 0) + 1;
+    configureDecoder(); requestKey(); adaptQuality(); return;
+  }
   let data = u.subarray(9);
   if(key){
     G.gotKey = true; if(!G.keyAt) G.keyAt = performance.now();
@@ -3379,6 +3411,9 @@ function onGameData(buf){
     layoutKeys(); return;
   }
   if(kind === 5){ drawJpeg(u.subarray(1)); return; }
+  if(kind >= 2 && kind <= 4 && G.ws?.readyState === 1){       // konfirmasi ke server: jeda tidak boleh menumpuk
+    G.rx = (G.rx || 0) + 1; G.ws.send(`{"type":"ack","n":${G.rx}}`);
+  }
   if(G.jpeg) return;
   if(kind === 2){ G.config = u.slice(9); G.pending = []; setupDecoder(codecFromConfig(G.config)); return; }
   if(G.picking){ if(G.pending.length < 300) G.pending.push(buf); return; }
@@ -3392,11 +3427,30 @@ function decoderWatchdog(){
 function gmsg(t){ $('#gMsg').textContent = t; $('#gMsg').hidden = !t; }
 
 /* ---- ukuran layar game = ukuran layar laptop (tanpa bilah hitam) ---- */
+/* kualitas Mode Game: resolusi/fps/bitrate disesuaikan dengan kemampuan dekoder laptop supaya tidak lag */
+function gameQuality(){
+  const lane = st.devices.find(d=>d.serial===st.serial)?.transport || 'usb';
+  const laneLong = {usb:2400, wifi:1920, bt:960}[lane] || 1920;
+  const pref = st.settings?.game_q || 'auto';
+  let q;
+  if(G.jpeg) q = {maxLong:960, fps:30, bitrate:3e6, name:'jpeg'};                 // dekode di laptop: seringan mungkin
+  else if(pref === 'smooth' || (pref === 'auto' && !G.hwOk)) q = {maxLong:1280, fps:60, bitrate:6e6, name:'smooth'};
+  else if(pref === 'sharp') q = {maxLong:laneLong, fps:60, bitrate:12e6, name:'sharp'};
+  else q = {maxLong:1920, fps:60, bitrate:10e6, name:'auto'};
+  q.maxLong = Math.min(q.maxLong, laneLong, G.autoMax || Infinity);
+  return q;
+}
+async function probeHardware(){                         // dekoder perangkat keras H.264 benar-benar ada?
+  if(!('VideoDecoder' in window)) return false;
+  try{
+    const r = await VideoDecoder.isConfigSupported({codec:'avc1.640028', codedWidth:1280, codedHeight:720, hardwareAcceleration:'prefer-hardware'});
+    return !!r.supported;
+  }catch{ return false; }
+}
 function gameDisplaySize(){
   const dpr = window.devicePixelRatio || 1;
   let w = Math.round(innerWidth * dpr), h = Math.round(innerHeight * dpr);
-  const lane = st.devices.find(d=>d.serial===st.serial)?.transport || 'usb';
-  const maxLong = {usb:2400, wifi:1920, bt:960}[lane] || 1920;
+  const maxLong = gameQuality().maxLong;
   const k = Math.min(1, maxLong / Math.max(w, h));
   w = Math.round(w * k / 8) * 8; h = Math.round(h * k / 8) * 8;
   const dpi = Math.max(120, Math.min(480, Math.round(h * 160 / 720)));
@@ -3413,59 +3467,119 @@ async function startGame(){
   }
   Object.assign(G, {app:name, key:(name || 'layar-hp').toLowerCase(), frames:0, lastFps:0, jpeg:false, jpegWanted:false,
     jpegErr:false, jpegBusy:false, jpegNext:null, cands:null, candFor:null, candIdx:0, picking:false, pending:[],
-    decErr:'', decLabel:'', keyReq:0, config:null});
+    decErr:'', decLabel:'', keyReq:0, config:null, drops:0, rx:0, autoMax:0, dropTimes:[], adaptAt:0, lookPaused:false, altFree:false, lookToast:false, mode: name ? 'virtual' : 'mirror'});
+  if(!$('#welcome').hidden) $('#welClose').click();        // jangan sampai menutupi game
   $('#game').hidden = false; $('#gTitle').textContent = name || 'Layar HP';
   gmsg('Membuka game… layar dibuat seukuran laptop.');
-  try{ await $('#game').requestFullscreen(); await new Promise(r=>setTimeout(r, 250)); }catch{}
-  lockEsc();
-  const size = gameDisplaySize();
+  G.hwOk = await probeHardware();
+  if(!('VideoDecoder' in window)) useJpeg('WebCodecs tidak tersedia');
+  await enterGameFullscreen();                           // ukur layar SETELAH benar-benar layar penuh
+  const size = gameDisplaySize(), q = gameQuality();
   G.size = [size.width, size.height]; sizeCanvas(size.width, size.height);   // tanda tombol langsung bisa diatur
   await loadKeymap();
-  if(!('VideoDecoder' in window)) useJpeg('WebCodecs tidak tersedia');
-  const r = await api('/api/game/start', {serial:st.serial, mode: name ? 'virtual' : 'mirror', app, ...size, audio:$('#optAudio').checked});
+  const r = await api('/api/game/start', {serial:st.serial, mode:G.mode, app, ...size, audio:$('#optAudio').checked,
+    fps:q.fps, bitrate:q.bitrate, max_long:q.maxLong});
   G.id = r.id;
   const ws = new WebSocket(WS('/ws/game?id=' + r.id)); ws.binaryType = 'arraybuffer'; G.ws = ws;
   ws.onopen = () => { if(G.jpegWanted){ G.jpegWanted = false; ws.send(JSON.stringify({type:'jpeg'})); } };
   ws.onmessage = ev => onGameData(ev.data);
   ws.onclose = () => { if(G.ws === ws){ gmsg('Sambungan game terputus. Klik Keluar lalu main lagi.'); } };
-  toast('Gerakkan mouse ke bagian atas layar untuk membuka menu game (Edit tombol, Keluar).');
+  toast('Menu game tersembunyi supaya layar bersih: tempelkan mouse ke tepi atas layar, atau tekan F1.');
+  if(G.map.some(m => m.type === 'aim'))
+    setTimeout(() => toast('Klik layar sekali: mouse langsung menggerakkan arah pandang tanpa menahan klik. Tahan Alt untuk memunculkan kursor, tekan ` untuk mematikan/menyalakan bidik mouse.'), 1200);
   G.statTimer = setInterval(() => {
     const fps = G.frames - G.lastFps;
     $('#gStat').textContent = `${fps} fps · ${G.size[0]}×${G.size[1]}${G.decLabel ? ' · ' + G.decLabel : ''}`;
     G.lastFps = G.frames; renderHud(fps); decoderWatchdog();
   }, 1000);
   startPad(); renderHud(0);
-  bumpBar();
+  showBar(2000);
 }
 function lockEsc(){
   // Esc dipakai sebagai tombol Kembali Android; keluar layar penuh = tahan Esc (WebView2/Chrome/Edge)
   try{ if(document.fullscreenElement) navigator.keyboard?.lock?.(['Escape']).catch(()=>{}); }catch{}
 }
-async function stopGame(){
+function waitResize(before, ms){
+  return new Promise(res => {
+    const t0 = performance.now();
+    (function chk(){
+      if(innerWidth !== before[0] || innerHeight !== before[1] || performance.now() - t0 > ms) setTimeout(res, 150);
+      else requestAnimationFrame(chk);
+    })();
+  });
+}
+async function enterGameFullscreen(){
+  const before = [innerWidth, innerHeight];
+  if(PV()?.fullscreen_on){                                // aplikasi LinkDeck (WebView2): jendela benar-benar layar penuh
+    try{ G.pvFull = !!(await PV().fullscreen_on(null)); }catch{ G.pvFull = false; }
+  }
+  if(!G.pvFull){ try{ await $('#game').requestFullscreen(); }catch{} }
+  await waitResize(before, 1200);
+  lockEsc();
+}
+async function exitGameFullscreen(){
   try{ navigator.keyboard?.unlock?.(); }catch{}
+  if(G.pvFull){ G.pvFull = false; try{ await PV().exit_fullscreen(); }catch{} }
+  if(document.fullscreenElement) await document.exitFullscreen().catch(()=>{});
+}
+async function stopGame(){
   releaseAll();
   const ws = G.ws; G.ws = null; ws?.close();
   if(G.id) api('/api/game/stop', {id:G.id}).catch(()=>{});
-  G.id = null; clearInterval(G.statTimer);
+  G.id = null; clearInterval(G.statTimer); clearTimeout(G.resizeT);
   closeDecoder(); G.config = null; G.jpeg = false; G.pending = []; G.jpegNext = null;
   if(document.pointerLockElement) document.exitPointerLock();
-  if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
   setEditing(false);
   $('#game').hidden = true;
+  await exitGameFullscreen();
+  try{ await PV()?.fix_zoom?.(); }catch{}                 // tampilan kembali 100% (jaga-jaga bila sempat ter-zoom)
+}
+/* Kelancaran Otomatis: bila laptop berulang kali tertinggal, resolusi game diturunkan langsung (tanpa mengulang game) */
+function adaptQuality(){
+  const now = performance.now();
+  G.dropTimes = (G.dropTimes || []).filter(t => now - t < 8000).concat(now);
+  if(G.dropTimes.length < 3 || G.mode !== 'virtual' || (st.settings?.game_q || 'auto') !== 'auto') return;
+  const steps = [1280, 960], cur = Math.max(G.size[0], G.size[1]);
+  const next = steps.find(v => v < cur - 16);
+  if(!next || now - (G.adaptAt || 0) < 6000) return;
+  G.adaptAt = now; G.dropTimes = []; G.autoMax = next;
+  syncDisplaySize();
+  const s2 = gameDisplaySize();
+  toast(`Laptop kewalahan memutar video game, jadi resolusi diturunkan ke ${s2.width}×${s2.height} supaya lancar. Pilih Kelancaran: Tajam bila ingin gambar paling tajam.`, 'warn');
+}
+/* ukuran jendela berubah (mis. layar penuh dinyalakan/dimatikan): layar game di HP ikut, tanpa terpotong */
+function syncDisplaySize(){
+  if(!G.ws || G.mode !== 'virtual' || G.ws.readyState !== 1) return;
+  const s2 = gameDisplaySize();
+  if(Math.abs(s2.width - G.size[0]) < 16 && Math.abs(s2.height - G.size[1]) < 16) return;
+  G.ws.send(JSON.stringify({type:'resize', width:s2.width, height:s2.height}));
 }
 $('#btnGame').onclick = e => act(e.currentTarget, async () => { if(!st.serial) throw new Error('Sambungkan HP Android dulu.'); try{ await startGame(); }catch(err){ await stopGame(); throw err; } });
 $('#gameApp').addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); $('#btnGame').click(); } });
 $('#gameApp').addEventListener('focus', () => loadApps().catch(()=>{}));
 $('#gExit').onclick = stopGame;
-$('#gFull').onclick = () => document.fullscreenElement ? document.exitFullscreen() : $('#game').requestFullscreen().then(lockEsc).catch(()=>{});
+$('#gFull').onclick = () => (G.pvFull || document.fullscreenElement) ? exitGameFullscreen() : enterGameFullscreen();
 $('#gShow').onclick = () => { const on = $('#gShow').getAttribute('aria-pressed') !== 'true'; $('#gShow').setAttribute('aria-pressed', on); $('#gKeys').classList.toggle('hidden', !on); };
 
-/* bilah atas menghilang sendiri saat bermain */
-function bumpBar(){
-  $('#game').classList.remove('hidebar'); clearTimeout(G.hideTimer);
-  if(!G.editing) G.hideTimer = setTimeout(() => $('#game').classList.add('hidebar'), 2500);
+/* bilah menu tersembunyi saat bermain supaya tidak menutupi game.
+   Muncul bila mouse ditempel di tepi atas layar ±0,3 detik, atau tekan F1; hilang lagi saat mouse turun. */
+function showBar(ms){
+  const g = $('#game'); g.classList.remove('hidebar'); clearTimeout(G.hideTimer);
+  if(!G.editing && ms) G.hideTimer = setTimeout(() => g.classList.add('hidebar'), ms);
 }
-$('#game').addEventListener('mousemove', e => { if(e.clientY < 70 && !G.locked) bumpBar(); });
+function hideBar(){ if(G.editing) return; clearTimeout(G.hideTimer); $('#game').classList.add('hidebar'); }
+const bumpBar = () => showBar(2500);
+$('#game').addEventListener('mousemove', e => {
+  if(G.locked || G.editing) return;
+  const shown = !$('#game').classList.contains('hidebar');
+  if(e.clientY <= 4){
+    if(!shown && !G.edgeT) G.edgeT = setTimeout(() => { G.edgeT = null; showBar(0); }, 300);
+  } else {
+    clearTimeout(G.edgeT); G.edgeT = null;
+    if(shown && e.clientY > 90 && !G.hideTimer2) G.hideTimer2 = setTimeout(() => { G.hideTimer2 = null; hideBar(); }, 600);
+    if(shown && e.clientY <= 90){ clearTimeout(G.hideTimer2); G.hideTimer2 = null; clearTimeout(G.hideTimer); }
+  }
+});
 
 /* ---- posisi layar video & tanda tombol ---- */
 function videoRect(){
@@ -3494,7 +3608,11 @@ function layoutKeys(){
     box.append(el);
   });
 }
-new ResizeObserver(() => { if(!$('#game').hidden) fitCanvas(); }).observe($('#gStage'));
+new ResizeObserver(() => {
+  if($('#game').hidden) return;
+  fitCanvas();
+  clearTimeout(G.resizeT); G.resizeT = setTimeout(syncDisplaySize, 600);
+}).observe($('#gStage'));
 
 /* ---- penyimpanan tombol per game ---- */
 async function loadKeymap(){
@@ -3786,8 +3904,18 @@ window.addEventListener('keydown', e => {
     return;
   }
   if(e.code === 'Escape' && !G.locked){ e.preventDefault(); gsend(msgKey(DOWN, 4)); gsend(msgKey(UP, 4)); return; }  // tombol Kembali
+  if(e.code === 'F1'){ e.preventDefault(); $('#game').classList.contains('hidebar') ? showBar(0) : hideBar(); return; }
   const aim = G.map.find(m => m.type === 'aim');
-  if(aim && e.code === aim.key && !e.repeat){ e.preventDefault(); G.locked ? document.exitPointerLock() : $('#gStage').requestPointerLock(); return; }
+  if(aim && e.code === aim.key && !e.repeat){                // bidik mouse nyala/mati
+    e.preventDefault();
+    if(G.locked){ G.lookPaused = true; lookOff(); } else { G.lookPaused = false; lookOn(); }
+    return;
+  }
+  if(aim && e.code === 'AltLeft' && !altMapped()){           // tahan Alt = kursor muncul sebentar (klik menu)
+    e.preventDefault();
+    if(!e.repeat && G.locked){ G.altFree = true; lookOff(); }
+    return;
+  }
   if(isJoyKey(e.code)){ e.preventDefault(); if(!e.repeat){ G.pressed.add(e.code); joyUpdate(); } return; }
   if(e.repeat && G.map.some(m => (m.type === 'tap' || m.type === 'swipe') && m.key === e.code)){ e.preventDefault(); return; }
   if(pressTap(e.code, true) | pressSwipe(e.code, true)){ e.preventDefault(); return; }
@@ -3795,6 +3923,11 @@ window.addEventListener('keydown', e => {
   if(kc){ e.preventDefault(); gsend(msgKey(DOWN, kc, metaOf(e))); }
 });
 window.addEventListener('keyup', e => {
+  if(!$('#game').hidden && !G.editing && e.code === 'AltLeft' && G.altFree){
+    G.altFree = false; e.preventDefault();
+    if(!G.lookPaused) lookOn();                             // dilepas script tadi, jadi boleh dikunci lagi tanpa klik
+    return;
+  }
   if(!$('#game').hidden && G.editing){                      // Shift/Ctrl/Alt ditekan sendirian = dipetakan
     const it = G.map[G.sel];
     if(it && G.modKey === e.code && ['tap', 'aim', 'swipe'].includes(it.type)){ it.key = e.code; renderSel(); layoutKeys(); }
@@ -3812,7 +3945,11 @@ window.addEventListener('blur', () => { if(!$('#game').hidden) releaseAll(); });
 function norm(e){ const r = videoRect().abs; return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; }
 $('#gCanvas').addEventListener('pointerdown', e => {
   if(G.editing || G.locked) return;
-  e.preventDefault(); $('#gCanvas').setPointerCapture(e.pointerId);
+  e.preventDefault();
+  if(e.button === 0 && e.pointerType === 'mouse' && !G.lookPaused && !G.altFree && G.map.some(m => m.type === 'aim')){
+    lookOn(); return;                                       // klik sekali: mouse langsung jadi arah pandang (tanpa tahan klik)
+  }
+  $('#gCanvas').setPointerCapture(e.pointerId);
   if(e.button !== 0) return;
   const [x, y] = norm(e); G.mouseDown = true; touch(DOWN, PID.mouse, x, y);
 });
@@ -3824,13 +3961,30 @@ $('#gCanvas').addEventListener('pointermove', e => {
 });
 $('#gCanvas').addEventListener('pointerup', e => { if(G.mouseDown && !G.locked){ const [x, y] = norm(e); G.mouseDown = false; touch(UP, PID.mouse, x, y); } });
 $('#gCanvas').addEventListener('contextmenu', e => e.preventDefault());
-$('#gCanvas').addEventListener('wheel', e => { if(G.editing) return; e.preventDefault(); const [x, y] = norm(e); gsend(msgScroll(x * G.size[0], y * G.size[1], -Math.sign(e.deltaY))); }, {passive:false});
+$('#gStage').addEventListener('wheel', e => {
+  e.preventDefault();                                       // juga mencegah zoom tampilan (Ctrl+gulir / cubit touchpad)
+  if(G.editing || e.ctrlKey) return;
+  const [x, y] = G.locked ? (G.mpos || [0.5, 0.5]) : norm(e);
+  gsend(msgScroll(x * G.size[0], y * G.size[1], -Math.sign(e.deltaY)));
+}, {passive:false});
 
 /* bidik mouse (pointer lock): gerakan mouse = menggeser jari di area bidik */
+function lookOn(){
+  const el = $('#gStage');
+  try{
+    const p = el.requestPointerLock({unadjustedMovement:true});    // gerakan mentah, tanpa akselerasi Windows
+    if(p?.catch) p.catch(() => { try{ el.requestPointerLock()?.catch?.(() => {}); }catch{} });
+  }catch{ try{ el.requestPointerLock(); }catch{} }
+}
+function lookOff(){ if(document.pointerLockElement) document.exitPointerLock(); }
+const altMapped = () => G.map.some(m => (m.type === 'tap' || m.type === 'swipe' || m.type === 'aim') && m.key === 'AltLeft');
 document.addEventListener('pointerlockchange', () => {
   G.locked = document.pointerLockElement === $('#gStage');
   const aim = G.map.find(m => m.type === 'aim');
-  if(G.locked && aim){ G.aim = {x:aim.x, y:aim.y}; touch(DOWN, PID.aim, aim.x, aim.y); toast(`Bidik mouse aktif. Tekan ${keyName(aim.key)} atau Esc untuk melepas.`); }
+  if(G.locked && aim){
+    G.aim = {x:aim.x, y:aim.y}; touch(DOWN, PID.aim, aim.x, aim.y);
+    if(!G.lookToast){ G.lookToast = true; toast(`Bidik mouse aktif. Tekan ${keyName(aim.key)} atau Esc untuk melepas.`); }   // sekali saja
+  }
   if(!G.locked && G.aim){ touch(UP, PID.aim, G.aim.x, G.aim.y); G.aim = null; }
 });
 document.addEventListener('mousemove', e => {

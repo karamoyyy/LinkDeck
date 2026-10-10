@@ -722,9 +722,10 @@ async def h_prefs(req):
         except Exception as e:
             msg = f"Jalan otomatis tidak bisa diubah: {e}"
     for k in ("theme", "zoom", "privacy", "auto_privacy", "auto_update", "dock", "onboarded", "tray", "lang",
-              "companion", "mic_target", "mic_clean", "mic_monitor", "wiz_what"):
+              "companion", "mic_target", "mic_clean", "mic_monitor", "wiz_what", "game_q"):
         if k in d:
-            if (k == "lang" and d[k] not in ("", "id", "en")) or (k == "wiz_what" and d[k] not in ("android", "debian", "both")):
+            if (k == "lang" and d[k] not in ("", "id", "en")) or (k == "wiz_what" and d[k] not in ("android", "debian", "both")) \
+                    or (k == "game_q" and d[k] not in ("auto", "smooth", "sharp")):
                 continue
             core.S.settings[k] = d[k]
     core.save_json(core.user_data_dir() / "settings.json", core.S.settings)

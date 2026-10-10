@@ -132,7 +132,7 @@ DEFAULT_SETTINGS = {"autoconnect": True, "sync": True, "notif": True, "clip_andr
 EXTRA_SETTINGS = {"theme": "auto", "zoom": 1, "privacy": False, "auto_privacy": True, "auto_update": True,
                   "hotkeys": False, "sendto": False, "dock": [], "onboarded": False, "tray": True, "lang": "",
                   "mic_target": "virtual", "mic_clean": True, "mic_monitor": False, "companion": True,
-                  "wiz_what": "android"}
+                  "wiz_what": "android", "game_q": "auto"}
 DESKTOP = None          # app.Desktop: jendela & ikon tray (None bila dijalankan lewat python server.py)
 
 
@@ -880,6 +880,7 @@ async def android_clip_loop() -> None:
 GAME_JAR = "/data/local/tmp/linkdeck-game.jar"
 GAME_BITRATE = {"usb": 12_000_000, "wifi": 6_000_000, "bt": 900_000, "local": 4_000_000}
 GAME_FPS = {"usb": 60, "wifi": 60, "bt": 20, "local": 30}
+GAME_MAX_INFLIGHT = 6        # paket video terkirim yang belum dikonfirmasi browser (±100 ms pada 60 fps)
 
 
 class GameSession:
@@ -906,6 +907,10 @@ class GameSession:
         self.jloop: asyncio.AbstractEventLoop | None = None
         self.jsending = False
         self.jneed_key = True
+        self.flex = False
+        self.dropped = 0
+        self.sent = 0                # paket video (konfigurasi/frame) yang dikirim ke browser
+        self.acked = -1              # jumlah yang sudah diterima browser (-1 = browser tidak mengirim konfirmasi)
 
     async def start(self) -> None:
         jar, version = server_jar()
@@ -921,17 +926,27 @@ class GameSession:
         self.port = int(out.strip())
         o = self.opts
         transport = next((d["transport"] for d in S.devices if d["serial"] == self.serial), "usb")
+        # kualitas dari browser (disesuaikan dengan kemampuan dekoder laptop), dibatasi per jalur
+        rate = GAME_BITRATE.get(transport, GAME_BITRATE["wifi"])
+        if isinstance(o.get("bitrate"), (int, float)) and o["bitrate"] > 0:
+            rate = int(max(1_000_000, min(rate, o["bitrate"])))
+        fps = GAME_FPS.get(transport, 60)
+        if isinstance(o.get("fps"), (int, float)) and o["fps"] > 0:
+            fps = int(max(15, min(fps, o["fps"])))
+        self.flex = False
         args = [f"scid={scid}", "log_level=warn", "video=true", "audio=false", "control=true",
                 "tunnel_forward=true", "send_device_meta=false", "video_codec=h264",
-                f"video_bit_rate={GAME_BITRATE.get(transport, GAME_BITRATE['wifi'])}",
-                f"max_fps={GAME_FPS.get(transport, 60)}", "clipboard_autosync=false", "power_on=true"]
+                f"video_bit_rate={rate}", f"max_fps={fps}", "clipboard_autosync=false", "power_on=true"]
         if o.get("mode", "virtual") == "virtual":
             w = max(320, min(7680, int(o.get("width", 1920)))) // 8 * 8
             h = max(240, min(4320, int(o.get("height", 1080)))) // 8 * 8
             dpi = max(80, min(640, int(o.get("dpi", 220))))
             args.append(f"new_display={w}x{h}/{dpi}")
+            if int(version.split(".")[0] or 0) >= 4:
+                args.append("flex_display=true")             # layar game ikut ukuran jendela (RESIZE_DISPLAY)
+                self.flex = True
         else:
-            args.append("max_size=1920")
+            args.append(f"max_size={max(480, min(1920, int(o.get('max_long', 1920))))}")
         cmd = f"CLASSPATH={GAME_JAR} app_process / com.genymobile.scrcpy.Server {version} " + " ".join(args)
         self.proc = await asyncio.create_subprocess_exec("adb", "-s", self.serial, "shell", cmd,
                                                          stdout=PIPE, stderr=STDOUT, creationflags=NOWIN)
@@ -956,7 +971,9 @@ class GameSession:
         asyncio.create_task(self._drain_control())
         if o.get("audio", True) and S.tools.get("virtual_display") and transport not in ("bt", "local"):
             sdk = await get_sdk(self.serial)
-            aargs = ["scrcpy", f"--serial={self.serial}", "--no-window", "--audio-buffer=60"]
+            # hanya suara: tanpa --no-video, scrcpy ikut merekam & mengirim video layar utama (beban ganda di kabel)
+            aargs = ["scrcpy", f"--serial={self.serial}", "--no-window", "--no-video", "--no-control",
+                     "--audio-buffer=50"]
             if sdk >= 33:
                 aargs.append("--audio-source=playback")
             if sdk >= 30:
@@ -995,27 +1012,62 @@ class GameSession:
     async def pump(self, ws: web.WebSocketResponse) -> None:
         """Baca paket video scrcpy dan teruskan ke browser.
         Format pesan ke browser: [jenis u8] + isi
-          1 = ukuran layar (lebar u32, tinggi u32) | 2 = konfigurasi (SPS/PPS) | 3 = frame kunci | 4 = frame biasa"""
+          1 = ukuran layar (lebar u32, tinggi u32) | 2 = konfigurasi (SPS/PPS) | 3 = frame kunci | 4 = frame biasa
+
+        Soket video selalu dibaca secepatnya. Bila browser tertinggal, frame biasa dilewati sampai frame kunci
+        berikutnya (diminta seketika lewat RESET_VIDEO), sehingga jeda tidak menumpuk dan jalur adb tidak macet."""
         r = self.video_r
+        q: asyncio.Queue = asyncio.Queue()
+        sender = asyncio.create_task(self._send_loop(ws, q))
+        skipping, last_reset = False, 0.0
+        try:
+            while True:
+                head = await r.readexactly(12)
+                if head[0] & 0x80:                             # meta sesi: ukuran berubah
+                    w, h = int.from_bytes(head[4:8], "big"), int.from_bytes(head[8:12], "big")
+                    self.size = (w, h)
+                    q.put_nowait(b"\x01" + head[4:12])
+                    if not self.app_sent and self.opts.get("app"):
+                        self.app_sent = True
+                        await self.start_app(self.opts["app"])
+                    continue
+                flags = int.from_bytes(head[0:8], "big")
+                n = int.from_bytes(head[8:12], "big")
+                data = await r.readexactly(n)
+                kind = 2 if flags & (1 << 62) else (3 if flags & (1 << 61) else 4)
+                if self.jpeg:
+                    self._jpeg_feed(kind, data)
+                    continue
+                behind = q.qsize() > GAME_MAX_INFLIGHT or (self.acked >= 0 and self.sent - self.acked > GAME_MAX_INFLIGHT)
+                if kind != 4:
+                    skipping = False
+                elif skipping:
+                    continue
+                elif behind:                                     # browser tertinggal: lewati sampai frame kunci
+                    skipping = True
+                    self.dropped += 1
+                    if time.monotonic() - last_reset > 0.8:
+                        last_reset = time.monotonic()
+                        await self.send_control(bytes([17]))    # RESET_VIDEO: frame kunci baru seketika
+                    continue
+                pts = (flags & ((1 << 61) - 1)).to_bytes(8, "big")
+                self.sent += 1
+                q.put_nowait(bytes([kind]) + pts + data)
+        finally:
+            sender.cancel()
+
+    @staticmethod
+    async def _send_loop(ws: web.WebSocketResponse, q: asyncio.Queue) -> None:
         while True:
-            head = await r.readexactly(12)
-            if head[0] & 0x80:                                 # meta sesi: ukuran berubah
-                w, h = int.from_bytes(head[4:8], "big"), int.from_bytes(head[8:12], "big")
-                self.size = (w, h)
-                await ws.send_bytes(b"\x01" + head[4:12])
-                if not self.app_sent and self.opts.get("app"):
-                    self.app_sent = True
-                    await self.start_app(self.opts["app"])
-                continue
-            flags = int.from_bytes(head[0:8], "big")
-            n = int.from_bytes(head[8:12], "big")
-            data = await r.readexactly(n)
-            kind = 2 if flags & (1 << 62) else (3 if flags & (1 << 61) else 4)
-            if self.jpeg:
-                self._jpeg_feed(kind, data)
-                continue
-            pts = (flags & ((1 << 61) - 1)).to_bytes(8, "big")
-            await ws.send_bytes(bytes([kind]) + pts + data)
+            await ws.send_bytes(await q.get())
+
+    async def resize(self, width: int, height: int) -> None:
+        """Ubah ukuran layar virtual game (scrcpy 4+, flex display), mis. setelah layar penuh."""
+        if not self.flex:
+            return
+        w = max(320, min(4096, int(width))) // 8 * 8
+        h = max(240, min(4096, int(height))) // 8 * 8
+        await self.send_control(bytes([21]) + w.to_bytes(2, "big") + h.to_bytes(2, "big"))
 
     # ---------- cadangan JPEG (dekode di laptop)
     async def enable_jpeg(self, ws: web.WebSocketResponse) -> str | None:
@@ -1143,6 +1195,10 @@ async def ws_game(req: web.Request) -> web.StreamResponse:
                 d = json.loads(m.data)
                 if d.get("type") == "app" and d.get("name"):
                     await g.start_app(d["name"])
+                elif d.get("type") == "ack":
+                    g.acked = int(d.get("n", 0))
+                elif d.get("type") == "resize":
+                    await g.resize(d.get("width", 0), d.get("height", 0))
                 elif d.get("type") == "jpeg":
                     err = await g.enable_jpeg(ws)
                     await ws.send_str(json.dumps({"type": "jpeg", "ok": err is None, "error": err}))
