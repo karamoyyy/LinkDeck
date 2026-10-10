@@ -162,13 +162,16 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 /* bawah */
 .lower{display:grid;grid-template-columns:1.15fr 1fr;gap:18px}
-.clip{background:var(--ink);border-radius:var(--r-xl);padding:22px;display:flex;flex-direction:column;gap:14px;min-height:330px}
+.clip{background:var(--ink);color:#f2f3f8;border-radius:var(--r-xl);padding:22px;display:flex;flex-direction:column;gap:14px;min-height:330px}
 .clip h2,.files h2{margin:0;font-size:24px;font-weight:600;letter-spacing:-.01em;line-height:1.15}
 .clip .muted{color:#a9acc0;font-size:14px;margin:0}
 .compose{display:flex;gap:8px}
 .compose textarea{flex:1;resize:none;height:46px;background:var(--ink-2);border:1px solid var(--ink-line);border-radius:14px;padding:12px 14px;color:#fff;font-size:14px}
 .cliplist{list-style:none;margin:0;padding:0;display:grid;gap:2px;max-height:300px;overflow:auto;border-top:1px solid var(--ink-line)}
-.cliplist li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 2px;border-bottom:1px solid var(--ink-line)}
+.cliplist li{display:flex;gap:12px;align-items:center;padding:11px 2px;border-bottom:1px solid var(--ink-line)}
+.cliplist li .cliptext{flex:1;min-width:0}
+.cliplist li .src{flex:none}
+.cliplist .pill.ghost{color:#f2f3f8;border:1px solid var(--ink-line);background:transparent}
 .src{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--lilac);color:var(--lilac-ink)}
 .src.debian{background:var(--sky);color:var(--sky-ink)}
 .cliptext{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -280,8 +283,25 @@ body.kiosk #kioskExit{display:inline-flex;position:fixed;top:14px;right:14px;z-i
 .notifs{background:var(--glass);border:1px solid var(--glass-line);-webkit-backdrop-filter:blur(26px) saturate(1.35);backdrop-filter:blur(26px) saturate(1.35);border-radius:var(--r-xl);padding:22px;display:flex;flex-direction:column;gap:12px;min-height:330px}
 .notifs h2{margin:0;font-size:24px;font-weight:600}
 .nlist{list-style:none;margin:0;padding:0;display:grid;gap:8px;max-height:330px;overflow:auto}
-.nlist li button{width:100%;text-align:left;border:0;cursor:pointer;display:grid;grid-template-columns:36px minmax(0,1fr);gap:10px;align-items:center;padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.1);color:var(--on-glass)}
-.nlist li button:hover{background:rgba(255,255,255,.18)}
+.nlist li{display:grid;gap:6px;position:relative}
+.nlist .nav{display:grid;place-items:center;color:var(--ink);font-size:15px;overflow:visible}
+.nlist li.canx button.nmain{padding-right:44px}
+.nlist li button.nmain{width:100%;text-align:left;border:0;cursor:pointer;display:grid;grid-template-columns:36px minmax(0,1fr);gap:10px;align-items:center;padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.1);color:var(--on-glass)}
+.nlist li button.nmain:hover{background:rgba(255,255,255,.18)}
+.nlist .nmsgs{display:grid;gap:1px}
+.nlist .nmsgs em{font-style:normal;font-weight:600}
+.nacts{display:flex;flex-wrap:wrap;gap:6px;padding-left:46px}
+.nacts .pill{padding:5px 12px;font-size:12.5px}
+.nlist .nx{position:absolute;top:8px;right:8px;width:30px;height:30px;padding:0;border-radius:50%;opacity:.7}
+.nlist .nx:hover,.nlist .nx:focus-visible{opacity:1}
+.nreply{display:flex;gap:6px;padding-left:46px}
+.nreply input{flex:1;min-width:0;border:1px solid var(--glass-line);border-radius:999px;padding:7px 14px;background:rgba(255,255,255,.14);color:var(--on-glass);font:inherit;font-size:13px}
+.nreply input:focus{outline:2px solid var(--lilac);outline-offset:1px}
+.nreply .pill{padding:6px 12px;font-size:12.5px}
+.compbar{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.1);font-size:13px;line-height:1.4;color:var(--on-glass)}
+.compbar .pill{margin-left:auto;flex:none}
+.nlive{flex:none;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:rgba(120,220,160,.28)}
+.chg{color:var(--ok);font-weight:600}
 .nav{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-weight:600;color:var(--ink);background:var(--sky)}
 .nlist b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nlist span{display:block;font-size:13px;color:var(--on-glass-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -485,6 +505,59 @@ details.more.dark summary{color:var(--on-glass)}
 @keyframes welOut{to{opacity:0;transform:translate(-50%,-54%) scale(.96)}}
 @media (prefers-reduced-motion:reduce){.welcome,.welcome.out{animation:none}}
 
+html.i18n-wait body{visibility:hidden}
+
+/* ---------- panduan awal (pertama kali dibuka) ---------- */
+.wiz{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:16px}
+.wiz[hidden]{display:none}
+.wiz-veil{position:absolute;inset:0;background:rgba(10,6,14,.5);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.wiz-card{position:relative;width:min(580px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:22px 26px 20px;border-radius:var(--r-xl);
+  background:rgba(48,34,42,.74);border:1px solid var(--glass-line);color:var(--on-glass);display:grid;gap:16px;
+  -webkit-backdrop-filter:blur(28px) saturate(1.4);backdrop-filter:blur(28px) saturate(1.4);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 24px 60px rgba(0,0,0,.4);animation:wizIn .5s cubic-bezier(.2,.9,.25,1.12) both}
+@keyframes wizIn{from{opacity:0;transform:translateY(16px) scale(.96);filter:blur(6px)}}
+.wiz section{display:grid;gap:14px;animation:wizStep .32s ease both}
+.wiz section[hidden]{display:none}
+@keyframes wizStep{from{opacity:0;transform:translateX(14px)}}
+.wiz h2{margin:0;font-size:24px;font-weight:600;line-height:1.25}
+.wiz h2:focus{outline:none}
+.wiz .lead{margin:0;color:var(--on-glass-dim);line-height:1.5;font-size:14.5px}
+.wiz-top{display:flex;align-items:center;gap:10px}
+.wiz-dots{display:flex;gap:6px;align-items:center}
+.wiz-dots i{width:8px;height:8px;border-radius:99px;background:rgba(255,255,255,.25);transition:width .25s,background .25s}
+.wiz-dots i.on{background:var(--lilac);width:22px}
+.wiz-top .pill{margin-left:auto}
+.wrow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:14px}
+.wchoices{display:grid;gap:10px}
+.wchoices button{text-align:left;border:1px solid var(--glass-line);border-radius:16px;padding:13px 16px;background:rgba(255,255,255,.08);
+  color:var(--on-glass);cursor:pointer;display:grid;gap:3px;font:inherit;transition:background .2s,border-color .2s}
+.wchoices button:hover{background:rgba(255,255,255,.14)}
+.wchoices button[aria-pressed="true"]{border-color:var(--lilac);background:rgba(236,198,245,.18);box-shadow:inset 0 0 0 1px var(--lilac)}
+.wchoices b{font-weight:600}
+.wchoices span{font-size:13px;color:var(--on-glass-dim)}
+.wcheck{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.wcheck li{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.08);font-size:14px}
+.wcheck .st{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;background:rgba(255,255,255,.18)}
+.wcheck li.ok .st{background:var(--ok);color:#10301f}
+.wcheck li.warn .st{background:var(--warn);color:#3a2500}
+.wcheck li.bad .st{background:var(--bad);color:#3a0d08}
+.wcheck li.wait .st::after{content:"";width:9px;height:9px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:wspin 1s linear infinite}
+@keyframes wspin{to{transform:rotate(360deg)}}
+.wcheck small{display:block;color:var(--on-glass-dim);font-size:12.5px;margin-top:2px;line-height:1.4}
+.wcheck .pill{padding:6px 12px;font-size:12.5px}
+.wsteps{margin:0;padding-left:20px;display:grid;gap:6px;font-size:14px;line-height:1.45}
+.wbtns{display:flex;flex-wrap:wrap;gap:8px}
+.wiz-nav{display:flex;gap:10px;justify-content:flex-end;align-items:center}
+.wiz-nav .wnote{margin-right:auto;font-size:12.5px;color:var(--on-glass-dim)}
+.wiz a{color:var(--lilac);font-weight:600}
+html[data-theme="light"] .wiz-card{background:rgba(255,255,255,.88)}
+html[data-theme="light"] .wchoices button,html[data-theme="light"] .wcheck li{background:rgba(255,255,255,.7)}
+html[data-theme="light"] .wchoices button[aria-pressed="true"]{background:rgba(236,198,245,.35)}
+html[data-theme="light"] .wiz-dots i{background:rgba(60,40,70,.18)}
+html[data-theme="light"] .wiz-dots i.on{background:var(--lilac-ink)}
+html[data-theme="light"] .wiz a{color:var(--lilac-ink)}
+@media (prefers-reduced-motion:reduce){.wiz-card,.wiz section{animation:none}}
+
 /* ---------- tahap 1: berkas, aplikasi, media, dock, privasi, pembaruan ---------- */
 .panel.wide{width:min(760px,calc(100% - 28px))}
 .fbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -553,6 +626,11 @@ html[data-theme="light"] .card,html[data-theme="light"] .menu{background:rgba(25
 html[data-theme="light"] .gfield input,html[data-theme="light"] .gfield select,html[data-theme="light"] .menu select,html[data-theme="light"] .search,html[data-theme="light"] .deb-tools select{background:rgba(255,255,255,.8);color:#2a1f2b}
 html[data-theme="light"] .tool,html[data-theme="light"] .fact button,html[data-theme="light"] .frow,html[data-theme="light"] .arow,html[data-theme="light"] .found button,html[data-theme="light"] .pairrow,html[data-theme="light"] .devrow{background:rgba(255,255,255,.6)}
 html[data-theme="light"] .notifs,html[data-theme="light"] .watch{background:rgba(255,255,255,.55)}
+html[data-theme="light"] .notifs .hint,html[data-theme="light"] .nlist span,html[data-theme="light"] .nlist small{color:var(--on-glass-dim)}
+html[data-theme="light"] .nreply input{background:rgba(255,255,255,.8)}
+html[data-theme="light"] .nlist li button.nmain,html[data-theme="light"] .compbar{background:rgba(255,255,255,.6)}
+html[data-theme="light"] .nlive{background:rgba(40,150,90,.18);color:#1d5a3a}
+html[data-theme="light"] .chg{color:#1f7a45}
 html[data-theme="light"] .seg:not(.light){background:rgba(60,40,70,.08)}
 html[data-theme="light"] .seg button{color:var(--on-glass-dim)}
 html[data-theme="light"] .gbar,html[data-theme="light"] .gedit{color:#fff}
@@ -567,6 +645,66 @@ html[data-theme="light"] .fprev{background:rgba(255,255,255,.7)}
 html[data-theme="light"] .updbar code{background:rgba(42,31,43,.08)}
 #modeSeg button{white-space:normal;line-height:1.15;overflow:visible;text-overflow:clip;padding:8px 2px}
 html[data-theme="light"] .gfield input,html[data-theme="light"] .gfield select{border-color:rgba(60,40,70,.22)}
+
+.clipthumb{width:44px;height:44px;object-fit:cover;border-radius:8px;flex:none;background:var(--ink-2)}
+.clipbtns{display:flex;gap:6px;align-items:center;flex:none}
+
+
+/* ---------- Alat Debian ---------- */
+.seg.big3{grid-template-columns:repeat(3,1fr)}
+.seg.big3 button{padding:10px 8px;font-size:14.5px}
+.aptlog{display:grid;gap:6px;padding:12px;border-radius:14px;background:rgba(0,0,0,.3)}
+.aptlog pre{margin:0;max-height:220px;overflow:auto;font-size:12px;line-height:1.45;white-space:pre-wrap;color:var(--on-glass-dim)}
+.badge-ok{font-size:11px;padding:2px 7px;border-radius:999px;background:var(--ok);color:#073b1d;margin-left:6px;font-weight:600}
+.sysgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.sysc{padding:12px;border-radius:14px;background:rgba(255,255,255,.07);display:grid;gap:6px}
+.sysc small{color:var(--on-glass-dim);font-size:12px}
+.sysc b{font-size:20px;font-variant-numeric:tabular-nums}
+.sysc b span{font-size:12px;font-weight:500;color:var(--on-glass-dim);margin-left:4px}
+.bar{height:6px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--lilac);border-radius:inherit}
+.bar i.hot{background:var(--warn)}
+.ptable{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.ptable th{text-align:left;font-weight:500;color:var(--on-glass-dim);padding:6px 8px;font-size:12px;position:sticky;top:0}
+.ptable td{padding:6px 8px;border-top:1px solid var(--glass-line);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ptable td small{display:block;color:var(--on-glass-dim);font-size:11.5px;overflow:hidden;text-overflow:ellipsis}
+[data-dtpane="sys"]{display:grid;gap:12px}
+[data-dtpane="sys"][hidden]{display:none}
+.ptwrap{max-height:calc(100vh - 440px);min-height:160px;overflow:auto;border-radius:12px}
+.ptable th{background:var(--glass-2)}
+[data-dtpane="files"],[data-dtpane="apps"]{display:grid;gap:10px}
+[data-dtpane="files"][hidden],[data-dtpane="apps"][hidden]{display:none}
+html[data-theme="light"] .sysc{background:rgba(255,255,255,.6)}
+html[data-theme="light"] .aptlog{background:rgba(255,255,255,.6)}
+html[data-theme="light"] .bar{background:rgba(60,40,70,.12)}
+
+.ghud{position:absolute;left:50%;transform:translateX(-50%);top:12px;z-index:2;display:flex;gap:10px;padding:5px 10px;border-radius:10px;
+  background:rgba(0,0,0,.5);color:#fff;font:600 12px var(--font);font-variant-numeric:tabular-nums;pointer-events:none}
+.ghud[hidden]{display:none}
+.ghud .hot{color:#ffb4a8}
+.game:not(.hidebar) .ghud{top:62px}
+.gk.swipe{border-color:#9fe3ff}
+.gk.swipe::before{content:"";position:absolute;left:50%;top:50%;width:var(--rng);height:var(--rng);transform:translate(-50%,-50%);
+  border:1.5px dotted rgba(159,227,255,.8);border-radius:50%;opacity:0;pointer-events:none;transition:opacity .15s}
+.editing .gk.swipe::before,.gk.swipe.down::before{opacity:1}
+.gk.swipe.down{background:rgba(159,227,255,.45)}
+.gtpl{display:flex;gap:6px;align-items:flex-end}
+.gtpl .gfield{flex:1;margin:0}
+.gtpl select{width:100%}
+.gedit .range b{min-width:30px;text-align:right;font-variant-numeric:tabular-nums}
+
+.gedit .gfield{color:rgba(255,255,255,.75);font-size:12.5px;display:grid;gap:4px}
+.gedit select{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:7px 10px;font:inherit;font-size:13px}
+.gedit select option{color:#1d2030;background:#fff}
+.gedit{max-height:calc(100% - 80px);overflow:auto}
+
+html[data-theme="light"] .gedit .gfield select,.game .gedit .gfield select{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.25)}
+html[data-theme="light"] .lock{color:#1f7a46}
+html[data-theme="light"] .status i{box-shadow:0 0 0 1px rgba(0,0,0,.12)}
+
+#btnMic[aria-pressed="true"]{background:var(--ink);color:#fff}
+.seg.mini3.two{grid-template-columns:repeat(2,auto)}
+.checkrow.camweb{margin-top:10px;font-size:13.5px}
 </style>
 </head>
 <body>
@@ -604,6 +742,7 @@ html[data-theme="light"] .gfield input,html[data-theme="light"] .gfield select{b
   <symbol id="i-volup" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4zM16 9.5a3.5 3.5 0 0 1 0 5"/><path d="M19 12h3M20.5 10.5v3"/></symbol>
   <symbol id="i-voldown" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4zM17 12h4"/></symbol>
   <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></symbol>
   <symbol id="i-up2" viewBox="0 0 24 24"><path d="M12 19V6M6 11l6-6 6 6"/></symbol>
 </svg>
 
@@ -708,6 +847,7 @@ html[data-theme="light"] .gfield input,html[data-theme="light"] .gfield select{b
               <label class="toggle" id="torchWrap" title="Senter hanya ada di kamera belakang"><input type="checkbox" id="optTorch">Senter</label>
               <label class="range">Zoom <input type="range" id="optZoom" min="1" max="4" step="0.1" value="1" aria-describedby="zoomRange"><b id="zoomVal">1.0×</b></label>
             </div>
+            <label class="checkrow camweb" id="webcamWrap" hidden><input type="checkbox" id="optWebcam">Jadikan webcam untuk Zoom/Meet (lewat OBS Virtual Camera, tanpa jendela)</label>
             <label class="field" id="v4l2Wrap" hidden style="margin-top:10px">Jadikan webcam untuk aplikasi meeting
               <select id="optV4l2"><option value="">Tidak, cukup tampilkan</option></select>
             </label>
@@ -749,6 +889,7 @@ html[data-theme="light"] .gfield input,html[data-theme="light"] .gfield select{b
             <div class="actions">
               <button class="pill white sm" id="btnGoWireless" hidden title="HP tetap tersambung setelah kabel dicabut">Lanjut tanpa kabel</button>
               <button class="pill white sm" id="btnKbd" title="Pakai keyboard & mouse laptop untuk HP tanpa menampilkan layar"><svg class="ico" style="width:17px;height:17px"><use href="#i-kbd"/></svg>Keyboard &amp; mouse saja</button>
+              <button class="pill white sm" id="btnMic" title="Pakai mikrofon HP sebagai mikrofon laptop (Zoom, Meet, Discord)"><svg class="ico" style="width:17px;height:17px"><use href="#i-mic"/></svg>Mikrofon HP</button>
               <button class="pill white sm" id="btnShot"><svg class="ico" style="width:17px;height:17px"><use href="#i-camera"/></svg>Tangkap layar</button>
               <button class="pill primary" id="btnMirror">Mulai tampilkan</button>
             </div>
@@ -795,6 +936,7 @@ html[data-theme="light"] .gfield input,html[data-theme="light"] .gfield select{b
             <button class="tool" id="btnSound" aria-pressed="false" title="Suara Debian ke PC"><svg class="ico"><use href="#i-sound"/></svg><span>Suara</span></button>
             <button class="tool" id="btnKvm" aria-pressed="false" title="Geser kursor ke tepi layar PC untuk mengontrol Debian"><svg class="ico"><use href="#i-mouse"/></svg><span>Satu mouse</span></button>
             <button class="tool" id="btnFull" title="Layar penuh"><svg class="ico"><use href="#i-full"/></svg><span>Layar penuh</span></button>
+            <button class="tool" id="btnDebTools" title="Berkas, aplikasi, dan pemantau sistem Debian"><svg class="ico"><use href="#i-grid"/></svg><span>Alat</span></button>
             <div class="menuwrap">
               <button class="tool" id="btnMore" aria-expanded="false" aria-controls="moreMenu" title="Pengaturan tampilan"><svg class="ico"><use href="#i-gear"/></svg><span>Lainnya</span></button>
               <div class="menu glass" id="moreMenu" hidden>
@@ -865,7 +1007,8 @@ html[data-theme="light"] .gfield input,html[data-theme="light"] .gfield select{b
     <section class="lower">
       <div class="clip" id="clipboard">
         <div class="row"><h2>Clipboard bersama</h2>
-          <label class="toggle light" style="margin-left:auto;color:#c8cad8" title="Pantau clipboard HP Android meski tidak ada jendela Android yang terbuka"><input type="checkbox" id="setClipAndroid" checked>Android</label></div>
+          <label class="toggle light" style="margin-left:auto;color:#c8cad8" title="Pantau clipboard HP Android meski tidak ada jendela Android yang terbuka"><input type="checkbox" id="setClipAndroid" checked>Android</label>
+          <label class="toggle light" style="color:#c8cad8" title="Salin gambar dan berkas antara laptop dan Debian"><input type="checkbox" id="setClipRich" checked>Gambar &amp; berkas</label></div>
         <p class="muted">Salin di mana saja (PC, HP Android, atau Debian), tempel di perangkat lain.</p>
         <div class="cliplinks" id="clipLinks" aria-live="polite"></div>
         <p class="cliperr" id="clipErr" hidden></p>
@@ -881,6 +1024,7 @@ html[data-theme="light"] .gfield input,html[data-theme="light"] .gfield select{b
         <div class="row"><h2>Notifikasi HP</h2>
           <label class="toggle light" style="margin-left:auto;color:var(--on-glass-dim)"><input type="checkbox" id="setNotif" checked>Aktif</label></div>
         <p class="hint" style="color:var(--on-glass-dim)">Ketuk notifikasi untuk membuka aplikasinya di jendela sendiri.</p>
+        <div class="compbar" id="compBar" hidden></div>
         <ul class="nlist" id="nList" aria-live="polite"></ul>
       </div>
 
@@ -1091,6 +1235,54 @@ html[data-theme="light"] .gfield input,html[data-theme="light"] .gfield select{b
     <ul class="alist" id="aList"></ul>
   </div>
 </div>
+
+<!-- Laci: Alat Debian -->
+<div class="drawer" id="drawer-debtools" role="dialog" aria-modal="true" aria-labelledby="dtTitle">
+  <div class="veil" data-close></div>
+  <div class="panel glass wide">
+    <button class="pill ghost sm close" data-close aria-label="Tutup"><svg class="ico" style="width:16px;height:16px"><use href="#i-x"/></svg></button>
+    <h2 id="dtTitle">Alat Debian</h2>
+    <div class="seg big3" id="dtSeg" role="tablist" aria-label="Alat Debian">
+      <button type="button" data-dt="files" aria-pressed="true">Berkas</button>
+      <button type="button" data-dt="apps">Aplikasi</button>
+      <button type="button" data-dt="sys">Sistem</button>
+    </div>
+
+    <div data-dtpane="files">
+      <div class="fbar">
+        <button class="tool" id="dfUp" title="Naik satu folder"><svg class="ico"><use href="#i-up2"/></svg><span>Naik</span></button>
+        <button class="tool" id="dfHome" title="Folder rumah"><span>~ Rumah</span></button>
+        <div class="crumbs" id="dfCrumbs"></div>
+        <button class="tool" id="dfNew"><span>+ Folder</span></button>
+        <label class="tool" id="dfUpload"><span>Unggah ke sini</span><input type="file" id="dfUpIn" multiple class="sr"></label>
+      </div>
+      <div class="fbar"><label class="checkrow"><input type="checkbox" id="dfHidden">Tampilkan berkas tersembunyi</label><span class="hint" id="dfRo" hidden>Hanya baca: di luar folder rumah</span></div>
+      <ul class="flist" id="dfList"></ul>
+      <div class="fprev" id="dfPrev" hidden><button class="pill ghost sm" id="dfPrevClose">Tutup pratinjau</button><div id="dfPrevBody"></div></div>
+    </div>
+
+    <div data-dtpane="apps" hidden>
+      <div class="fbar">
+        <input class="search" id="dsQ" placeholder="Cari aplikasi, mis. vlc, gimp, libreoffice" aria-label="Cari paket Debian">
+        <button class="tool" id="dsGo"><span>Cari</span></button>
+        <button class="tool" id="dsUpdate" title="apt update"><span>Perbarui daftar paket</span></button>
+      </div>
+      <label class="gfield" id="dsPwWrap" hidden>Sandi sudo (untuk memasang/mencopot; tidak disimpan)
+        <input type="password" id="dsPw" autocomplete="off" placeholder="sandi pengguna Debian">
+      </label>
+      <div class="aptlog" id="dsLogBox" hidden><b id="dsLogTitle">Memasang…</b><pre id="dsLog"></pre></div>
+      <p class="hint" id="dsHint">Aplikasi populer:</p>
+      <ul class="alist" id="dsList"></ul>
+    </div>
+
+    <div data-dtpane="sys" hidden>
+      <div class="sysgrid" id="sysCards"></div>
+      <div class="fbar"><input class="search" id="spQ" placeholder="Cari proses" aria-label="Cari proses"><label class="checkrow"><input type="checkbox" id="spMine" checked>Hanya milik saya</label></div>
+      <div class="ptwrap"><table class="ptable"><thead><tr><th>Proses</th><th>PID</th><th>Pengguna</th><th>CPU</th><th>RAM</th><th></th></tr></thead><tbody id="spBody"></tbody></table></div>
+      <p class="hint" id="sysNote">Diperbarui tiap 3 detik selama tab ini terbuka.</p>
+    </div>
+  </div>
+</div>
 <!-- Laci: pengaturan & bantuan -->
 <div class="drawer" id="drawer-help" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
   <div class="veil" data-close></div>
@@ -1100,6 +1292,7 @@ html[data-theme="light"] .gfield input,html[data-theme="light"] .gfield select{b
     <div class="setgrp">
       <h3>Tampilan</h3>
       <div class="setrow"><span>Tema</span><div class="seg mini3" id="setTheme"><button type="button" data-v="auto">Otomatis</button><button type="button" data-v="dark">Gelap</button><button type="button" data-v="light">Terang</button></div></div>
+      <div class="setrow"><span>Bahasa / Language</span><div class="seg mini3 two" id="setLang"><button type="button" data-v="id">Indonesia</button><button type="button" data-v="en">English</button></div></div>
       <div class="setrow"><span>Ukuran teks</span><div class="seg mini3" id="setZoom"><button type="button" data-v="1">Normal</button><button type="button" data-v="1.1">Besar</button><button type="button" data-v="1.2">Lebih besar</button></div></div>
     </div>
     <div class="setgrp">
@@ -1115,6 +1308,25 @@ html[data-theme="light"] .gfield input,html[data-theme="light"] .gfield select{b
     <div class="setgrp">
       <h3>Pintasan global</h3>
       <label class="setrow"><span>Aktifkan<small><kbd>Ctrl Alt M</kbd> tampilkan/tutup layar Android · <kbd>Ctrl Alt K</kbd> keyboard &amp; mouse saja</small></span><span class="toggle light"><input type="checkbox" id="setHot"></span></label>
+    </div>
+    <div class="setgrp" id="grpMic">
+      <h3>Mikrofon HP</h3>
+      <div class="setrow"><span>Tujuan suara</span><div class="seg mini3 two" id="setMicTarget"><button type="button" data-v="virtual">Mikrofon virtual</button><button type="button" data-v="speaker">Speaker laptop</button></div></div>
+      <label class="setrow"><span>Peredam bising &amp; gema<small>Memakai pengolahan suara HP untuk panggilan.</small></span><span class="toggle light"><input type="checkbox" id="setMicClean" checked></span></label>
+      <label class="setrow"><span>Dengarkan juga di speaker laptop<small>Untuk mengecek suara; bisa menimbulkan gema saat meeting.</small></span><span class="toggle light"><input type="checkbox" id="setMicMon"></span></label>
+      <p class="hint" id="micInfo"></p>
+    </div>
+    <div class="setgrp" id="grpComp">
+      <h3>Aplikasi pendamping Android</h3>
+      <label class="setrow"><span>Pakai aplikasi pendamping<small>Notifikasi seketika, balas pesan dari laptop, dan status pengisian baterai. Lewat adb, tanpa internet.</small></span><span class="toggle light"><input type="checkbox" id="setCompanion" checked></span></label>
+      <div class="setrow"><span id="compInfo">Sambungkan HP Android dulu.</span><button class="pill ghost sm" id="btnCompSet">Pasang di HP</button></div>
+    </div>
+    <div class="setgrp" id="grpApp">
+      <h3>Aplikasi</h3>
+      <label class="setrow" id="rowTray"><span>Tetap berjalan di tray saat jendela ditutup<small id="trayNote">Klik ikon LinkDeck di tray untuk membuka lagi.</small></span><span class="toggle light"><input type="checkbox" id="setTray" checked></span></label>
+      <label class="setrow" id="rowAuto"><span>Jalankan saat komputer menyala<small>LinkDeck mulai diam-diam di tray, siap menyambung HP.</small></span><span class="toggle light"><input type="checkbox" id="setAutostart"></span></label>
+      <div class="setrow"><span>Panduan awal<small>Ulangi langkah-langkah pertama kali pakai.</small></span><button class="pill ghost sm" id="btnWizard">Buka panduan</button></div>
+      <div class="setrow"><span>Keluar dari LinkDeck<small>Menutup jendela, ikon tray, dan semua sambungan.</small></span><button class="pill ghost sm" id="btnQuit">Keluar</button></div>
     </div>
     <div class="setgrp" id="grpSendTo" hidden>
       <h3>Windows Explorer</h3>
@@ -1150,6 +1362,7 @@ html[data-theme="light"] .gfield input,html[data-theme="light"] .gfield select{b
     <b id="gTitle">Mode Game</b><span class="gstat" id="gStat">Menyiapkan…</span>
     <div class="gtools">
       <button class="tool" id="gShow" aria-pressed="true" title="Tampilkan tanda tombol di layar"><span>Tanda tombol</span></button>
+      <button class="tool" id="gHudBtn" aria-pressed="true" title="Tampilkan FPS, ping, suhu, dan baterai HP"><span>Info</span></button>
       <button class="tool" id="gEdit" title="Atur posisi dan tombol keyboard"><span>Edit tombol</span></button>
       <button class="tool" id="gFull" title="Layar penuh"><svg class="ico"><use href="#i-full"/></svg><span>Layar penuh</span></button>
       <button class="tool danger" id="gExit" title="Keluar dari Mode Game"><svg class="ico"><use href="#i-x"/></svg><span>Keluar</span></button>
@@ -1159,20 +1372,35 @@ html[data-theme="light"] .gfield input,html[data-theme="light"] .gfield select{b
     <canvas id="gCanvas"></canvas>
     <div class="gkeys" id="gKeys"></div>
     <div class="gmsg" id="gMsg" hidden></div>
+    <div class="ghud" id="gHud" aria-live="off"></div>
   </div>
   <div class="gedit glass" id="gEditor" hidden>
     <b>Edit tombol</b>
-    <p>Seret tanda ke posisinya. Klik sebuah tanda lalu tekan tombol keyboard untuk menggantinya.</p>
+    <p>Seret tanda ke posisinya. Klik sebuah tanda lalu tekan tombol keyboard <b>atau tombol stik</b> untuk menggantinya.</p>
     <div class="gadd">
       <button class="pill white sm" data-add="joy">+ Joystick WASD</button>
       <button class="pill white sm" data-add="tap">+ Tombol</button>
+      <button class="pill white sm" data-add="swipe">+ Tombol geser</button>
       <button class="pill white sm" data-add="aim">+ Bidik mouse</button>
-      <button class="pill white sm" data-add="template">Template dasar</button>
     </div>
+    <div class="gtpl">
+      <label class="gfield">Template
+        <select id="gTpl">
+          <option value="basic">Dasar</option>
+          <option value="moba">MOBA (mis. Mobile Legends)</option>
+          <option value="br">Battle royale (mis. PUBG Mobile, Free Fire)</option>
+          <option value="rpg">Aksi / RPG (mis. Genshin Impact)</option>
+        </select>
+      </label>
+      <button class="pill white sm" id="gTplGo">Pakai</button>
+    </div>
+    <div class="gadd"><button class="pill white sm" id="gExport">Salin kode</button><button class="pill white sm" id="gImport">Tempel kode</button></div>
     <div class="gsel" id="gSel" hidden>
       <span id="gSelInfo"></span>
       <label class="range" id="gRadWrap" hidden>Ukuran <input type="range" id="gRad" min="0.04" max="0.25" step="0.01"></label>
-      <label class="range" id="gSensWrap" hidden>Kepekaan <input type="range" id="gSens" min="0.2" max="4" step="0.1"></label>
+      <label class="range" id="gSensWrap" hidden>Kepekaan <input type="range" id="gSens" min="0.2" max="4" step="0.1"><b id="gSensV"></b></label>
+      <label class="range" id="gAccWrap" hidden>Akselerasi <input type="range" id="gAcc" min="0" max="2" step="0.1"><b id="gAccV"></b></label>
+      <label class="range" id="gZsWrap" hidden>Saat membidik (tahan klik kanan) <input type="range" id="gZs" min="0.1" max="4" step="0.1"><b id="gZsV"></b></label>
       <div class="gadd">
         <button class="pill white sm" id="gMouseL" hidden>Klik kiri</button>
         <button class="pill white sm" id="gMouseR" hidden>Klik kanan</button>
@@ -1190,6 +1418,62 @@ html[data-theme="light"] .gfield input,html[data-theme="light"] .gfield select{b
   </button>
   <p>Untuk cara memakainya, harap baca panduan di link di bawah ini</p>
   <a id="welLink" target="_blank" rel="noopener noreferrer"></a>
+</div>
+
+<div class="wiz" id="wizard" role="dialog" aria-modal="true" aria-labelledby="wizT0" hidden>
+  <div class="wiz-veil"></div>
+  <div class="wiz-card">
+    <div class="wiz-top"><span class="wiz-dots" id="wizDots" aria-hidden="true"></span><span class="sr" id="wizPos"></span>
+      <button class="pill ghost sm" id="wizSkip" type="button">Lewati panduan</button></div>
+    <section data-wstep="start">
+      <h2 id="wizT0">Selamat datang di LinkDeck</h2>
+      <p class="lead">Satu aplikasi untuk memakai HP Android dan Debian 13 di HP dari laptop, monitor, atau TV: cermin layar, layar baru, kamera, Mode Game, clipboard, berkas, dan notifikasi.</p>
+      <div class="wrow"><span>Bahasa / Language</span><div class="seg mini3 two" id="wizLang"><button type="button" data-v="id">Bahasa Indonesia</button><button type="button" data-v="en">English</button></div></div>
+      <div class="wrow"><span>Tema</span><div class="seg mini3" id="wizTheme"><button type="button" data-v="auto">Otomatis</button><button type="button" data-v="dark">Gelap</button><button type="button" data-v="light">Terang</button></div></div>
+    </section>
+    <section data-wstep="what" hidden>
+      <h2>Apa yang mau kamu sambungkan?</h2>
+      <p class="lead">Pilihan ini hanya menentukan langkah panduan. Semua fitur tetap bisa dipakai kapan saja.</p>
+      <div class="wchoices" id="wizWhat" role="group" aria-label="Perangkat">
+        <button type="button" data-v="android" aria-pressed="true"><b>HP Android</b><span>Cermin layar, layar baru, kamera, Mode Game, notifikasi, clipboard. Lewat kabel, Wi-Fi, atau Bluetooth.</span></button>
+        <button type="button" data-v="debian" aria-pressed="false"><b>Debian 13 XFCE di HP</b><span>Desktop Debian dari HP tampil di layar laptop/monitor, plus clipboard dan berkas.</span></button>
+        <button type="button" data-v="both" aria-pressed="false"><b>Keduanya</b><span>Android dan Debian sekaligus.</span></button>
+      </div>
+    </section>
+    <section data-wstep="android" hidden>
+      <h2>Sambungkan HP Android</h2>
+      <ol class="wsteps">
+        <li>Di HP: <b>Setelan → Tentang ponsel</b>, ketuk <b>Nomor build</b> 7 kali sampai muncul "Anda sekarang developer".</li>
+        <li>Buka <b>Opsi pengembang</b>, nyalakan <b>Debugging USB</b>.</li>
+        <li>Colok kabel USB ke laptop, lalu ketuk <b>Izinkan</b> di HP (centang "Selalu izinkan dari komputer ini").</li>
+      </ol>
+      <ul class="wcheck" id="wizAndroid" aria-live="polite"></ul>
+      <div class="wbtns"><button class="pill ghost sm" type="button" data-wpair="android:wifi">Tanpa kabel: Wi-Fi / kode QR</button><button class="pill ghost sm" type="button" data-wpair="android:bt">Lewat Bluetooth</button></div>
+    </section>
+    <section data-wstep="debian" hidden>
+      <h2>Sambungkan Debian 13 di HP</h2>
+      <ol class="wsteps">
+        <li>Di Debian HP, pasang agen LinkDeck (paket <b>linkdeck-agent</b>) lalu jalankan <b>linkdeck-start</b>. Perintah lengkapnya ada di tombol di bawah.</li>
+        <li>Hubungkan HP dan laptop lewat kabel USB (tethering), Wi-Fi yang sama, hotspot, atau tethering Bluetooth.</li>
+        <li>Debian muncul otomatis di LinkDeck. Klik <b>Sambungkan</b> lalu masukkan kode yang tampil di HP.</li>
+      </ol>
+      <ul class="wcheck" id="wizDebian" aria-live="polite"></ul>
+      <div class="wbtns"><button class="pill ghost sm" type="button" data-wpair="debian:usb">Cara pasang agen &amp; sambungkan</button></div>
+    </section>
+    <section data-wstep="done" hidden>
+      <h2>Siap dipakai</h2>
+      <ul class="wsteps">
+        <li><b>Mode Android</b> di atas: pilih Cermin, Layar baru, Kamera, atau Mode Game, lalu Mulai.</li>
+        <li>Klik notifikasi HP untuk membuka aplikasinya di jendela sendiri. Dengan <b>LinkDeck Pendamping</b>, pesan bisa dibalas dari laptop.</li>
+        <li>Tutup jendela: LinkDeck tetap berjalan di tray. Atur di <b>Pengaturan → Aplikasi</b>.</li>
+        <li>Panduan ini bisa dibuka lagi dari <b>Pengaturan → Aplikasi → Panduan awal</b>.</li>
+      </ul>
+      <p class="lead">Panduan lengkap: <a id="wizGuide" target="_blank" rel="noopener noreferrer"></a></p>
+    </section>
+    <div class="wiz-nav"><span class="wnote" id="wizNote"></span>
+      <button class="pill ghost" id="wizBack" type="button">Kembali</button>
+      <button class="pill lilac" id="wizNext" type="button">Lanjut</button></div>
+  </div>
 </div>
 
 <button class="pill ghost sm" id="kioskExit">Keluar layar penuh</button>
@@ -1212,6 +1496,97 @@ const GUIDE_URL = 'https://github.com/karamoyyy/LinkDeck';   // panduan pemakaia
 const RATES = {usb:[16,60], wifi:[6,60], bt:[0.8,15], local:[4,30]};
 const LANE = {usb:'Kabel', wifi:'Wi-Fi', bt:'Bluetooth', local:'HP ini'};
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- bahasa: UI aslinya Indonesia; Inggris lewat kamus /i18n/en.js ---------- */
+let LANG = 'id', DICT = null;
+const I18N_ATTRS = ['title', 'placeholder', 'aria-label', 'alt'];
+const I18N_SKIP = '[translate="no"],#term,.xterm,script,style';
+const normWS = s => s.replace(/\s+/g, ' ').trim();
+function curLang(){ return LANG; }
+function trPart(x){ if(x == null) return ''; const v = DICT.text[normWS(x)]; return v != null ? v : x; }
+function trStr(raw){
+  if(!DICT || !raw) return null;
+  const k = normWS(raw); if(!k || !/[A-Za-z]/.test(k)) return null;
+  const v = DICT.text[k]; if(v != null) return v;
+  for(const [re, rep] of DICT.patterns){
+    const m = k.match(re); if(!m) continue;
+    return typeof rep === 'function' ? rep(...m) : rep.replace(/\$(\d)/g, (_, i) => trPart(m[+i]));
+  }
+  // "Label: pesan" atau gabungan beberapa pesan ("PC: … · Pixel 8: …"): terjemahkan per bagian
+  const segs = k.split(' · ');
+  if(segs.length > 1 || /^[^:]{1,40}: \S/.test(k)){
+    let changed = false;
+    const parts = segs.map(seg => {
+      const lm = seg.match(/^([^:]{1,40}): (.+)$/);
+      const t = lm ? trStr(lm[2]) : segs.length > 1 ? trStr(seg) : null;   // selalu bagian yang lebih pendek
+      if(t == null) return seg;
+      changed = true; return lm ? `${trPart(lm[1])}: ${t}` : t;
+    });
+    if(changed) return parts.join(' · ');
+  }
+  return null;
+}
+function trRich(el){
+  const k = normWS(el.innerHTML); if(k.length > 1200) return false;
+  let v = DICT.rich[k];
+  if(v == null) for(const [re, rep] of DICT.richPatterns){ const m = k.match(re); if(m){ v = rep.replace(/\$(\d)/g, (_, i) => m[+i]); break; } }
+  if(v == null) return false;
+  el.innerHTML = v; return true;
+}
+const RICH_TAGS = new Set(['B','STRONG','EM','KBD','CODE','BR','A','U']);
+function trNode(root){
+  if(!DICT || !root) return;
+  if(root.nodeType === 3){ trText(root); return; }
+  if(root.nodeType !== 1 || root.closest(I18N_SKIP)) return;
+  const els = [root, ...root.querySelectorAll('*')];
+  for(const el of els){
+    if(el.closest(I18N_SKIP)) continue;
+    for(const a of I18N_ATTRS){ const v = el.getAttribute(a); if(v){ const t = trStr(v); if(t != null && t !== v) el.setAttribute(a, t); } }
+    if([...el.children].some(c => RICH_TAGS.has(c.tagName))) trRich(el);
+  }
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes = []; let n; while((n = w.nextNode())) nodes.push(n);
+  nodes.forEach(trText);
+}
+function trText(n){
+  const p = n.parentElement; if(!p || p.closest(I18N_SKIP)) return;
+  const t = trStr(n.data); if(t == null) return;
+  const lead = n.data.match(/^\s*/)[0], trail = n.data.match(/\s*$/)[0];
+  const v = lead + t + trail; if(v !== n.data) n.data = v;
+}
+async function startI18n(lang){
+  LANG = lang === 'en' ? 'en' : 'id';
+  document.documentElement.lang = LANG;
+  try{ localStorage.setItem('ld.lang', LANG); }catch{}
+  if(LANG !== 'en' || DICT){ document.documentElement.classList.remove('i18n-wait'); return; }
+  try{
+    const m = await import('/i18n/en.js');
+    DICT = {text:m.text, rich:m.rich, patterns:m.patterns, richPatterns:m.richPatterns || []};
+    trNode(document.body);
+    new MutationObserver(recs => {
+      for(const r of recs){
+        if(r.type === 'childList') r.addedNodes.forEach(trNode);
+        else if(r.type === 'characterData') trText(r.target);
+        else if(r.type === 'attributes' && r.target.nodeType === 1 && !r.target.closest(I18N_SKIP)){
+          const v = r.target.getAttribute(r.attributeName), t = v && trStr(v); if(t != null && t !== v) r.target.setAttribute(r.attributeName, t);
+        }
+      }
+    }).observe(document.body, {childList:true, subtree:true, characterData:true, attributes:true, attributeFilter:I18N_ATTRS});
+    for(const f of ['confirm', 'prompt', 'alert']){ const o = window[f].bind(window); window[f] = (msg, ...rest) => o(trStr(String(msg ?? '')) ?? msg, ...rest); }
+  }catch(e){ console.warn('i18n:', e); }
+  document.documentElement.classList.remove('i18n-wait');
+}
+function pickLang(s){
+  if(s.lang === 'en' || s.lang === 'id') return s.lang;
+  // belum pernah memilih: pengguna lama tetap Indonesia; pemasangan baru mengikuti bahasa sistem
+  return !s.onboarded && !/^(id|ms)\b/i.test(navigator.language || '') ? 'en' : 'id';
+}
+async function setLang(lang){
+  await prefs({lang});
+  try{ localStorage.setItem('ld.lang', lang); }catch{}
+  location.reload();
+}
+try{ if(localStorage.getItem('ld.lang') === 'en'){ document.documentElement.classList.add('i18n-wait'); setTimeout(() => document.documentElement.classList.remove('i18n-wait'), 2500); } }catch{}
 
 /* ---------- util ---------- */
 function toast(msg, level='info', img){
@@ -1247,7 +1622,8 @@ function spark(svg, vals){
   const pts = vals.map((v,i)=>`${(i/(vals.length-1)*w).toFixed(1)},${(h-3-(v-min)/span*(h-6)).toFixed(1)}`).join(' ');
   svg.innerHTML = `<polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
 }
-const ago = t => { const s=Math.round(Date.now()/1000-t); return s<60?'baru saja':s<3600?`${Math.floor(s/60)} mnt lalu`:`${Math.floor(s/3600)} jam lalu`; };
+const ago = t => { const s=Math.round(Date.now()/1000-t), en = LANG === 'en';
+  return s<60 ? (en ? 'just now' : 'baru saja') : s<3600 ? `${Math.floor(s/60)} ${en ? 'min ago' : 'mnt lalu'}` : `${Math.floor(s/3600)} ${en ? 'h ago' : 'jam lalu'}`; };
 const pressOne = (box, el) => $$(`${box} button, ${box} [aria-pressed]`).forEach(b=>b.setAttribute('aria-pressed', b===el));
 const shown = new Set();
 function toastOnce(key,msg,lv){ if(shown.has(key)) return; shown.add(key); toast(msg,lv); }
@@ -1262,7 +1638,7 @@ function renderTools(){
     ? `scrcpy ${t.scrcpy_version} terlalu lama untuk Layar baru, Cermin, dan Kamera. Jalankan <code>linkdeck-scrcpy-build</code> di terminal, lalu buka ulang LinkDeck. (Mode Game dan clipboard HP sudah bisa dipakai.)`
     : `scrcpy ${t.scrcpy_version} belum mendukung layar virtual. Perbarui ke 4.0+.`);
   if(!t.clipboard) msgs.push('Pasang <code>pip install pyperclip</code> untuk sinkron clipboard PC.');
-  $('#notice').innerHTML = msgs.join(' ');
+  $('#notice').innerHTML = msgs.map(m => `<span>${m}</span>`).join(' ');   // satu span per pesan (agar bisa diterjemahkan)
   $('#notice').classList.toggle('show', msgs.length>0);
   $('#btnTiger').hidden = !t.vncviewer;
   $('#flexWrap').hidden = !t.flex || st.mode!=='virtual';
@@ -1271,7 +1647,8 @@ function renderTools(){
   $('#optV4l2').innerHTML = '<option value="">Tidak, cukup tampilkan</option>' + v4.map(d=>`<option>${esc(d)}</option>`).join('');
   $('#camHint').textContent = v4.length ? 'Butuh Android 12 ke atas. Webcam virtual memakai modul v4l2loopback.'
     : t.platform==='linux' ? 'Butuh Android 12 ke atas. Untuk dipakai sebagai webcam, pasang v4l2loopback.'
-    : 'Butuh Android 12 ke atas. Untuk Zoom/Meet, rekam jendela kamera ini dengan OBS Virtual Camera.';
+    : 'Butuh Android 12 ke atas. Webcam untuk Zoom/Meet butuh OBS Studio 30+ terpasang (berisi OBS Virtual Camera).';
+  $('#webcamWrap').hidden = !t.platform || t.platform.startsWith('linux');
 }
 
 /* ---------- Android ---------- */
@@ -1343,6 +1720,7 @@ function renderDevRows(){
 }
 function renderSessions(){
   $('#btnKbd').setAttribute('aria-pressed', st.sessions.some(x => x.serial === st.serial && x.mode === 'input'));
+  $('#btnMic').setAttribute('aria-pressed', st.sessions.some(x => x.serial === st.serial && x.mode === 'mic'));
   if(st.autoPriv && !st.sessions.length && !document.fullscreenElement && !document.body.classList.contains('kiosk')) autoPrivacy(false);
   if(st.mode==='camera') $('#camLive').hidden = !camRunning();
   const box = $('#sessions'); box.innerHTML='';
@@ -1446,6 +1824,7 @@ async function startSession(extra={}){
     keep_active:$('#optKeep').checked, flex:$('#optFlex').checked, gamepad:$('#optPad').checked,
     screen_off:$('#optOff').checked, facing:st.facing, camera_size:st.camSize,
     torch:$('#optTorch').checked, zoom:+$('#optZoom').value, v4l2:$('#optV4l2').value, audio_dup:$('#optDup').checked,
+    webcam: st.mode === 'camera' && $('#optWebcam').checked,
     label: st.mode==='virtual' ? dev?.model : undefined,
     ...screenPos('#optScreen'), ...extra
   });
@@ -1693,7 +2072,7 @@ async function openTerm(){
     const ws = new WebSocket(WS('/ws/term')); ws.binaryType='arraybuffer'; st.termWs = ws;
     ws.onopen = () => { st.fit.fit(); sendSize(); st.term.focus(); };
     ws.onmessage = ev => st.term.write(typeof ev.data==='string' ? ev.data : new Uint8Array(ev.data));
-    ws.onclose = () => { st.term.write('\r\n\x1b[2m[terminal tertutup — klik Terminal lagi untuk membuka]\x1b[0m\r\n'); st.termWs=null; };
+    ws.onclose = () => { st.term.write(LANG === 'en' ? '\r\n\x1b[2m[terminal closed — click Terminal again to open it]\x1b[0m\r\n' : '\r\n\x1b[2m[terminal tertutup — klik Terminal lagi untuk membuka]\x1b[0m\r\n'); st.termWs=null; };
   }
   setTimeout(()=>{ st.fit.fit(); st.term.focus(); }, 50);
 }
@@ -1767,17 +2146,25 @@ function renderClips(){
   for(const c of st.clips){
     const li = document.createElement('li');
     const name = {debian:'Debian', android:'HP', pc:'PC'}[c.src] || 'PC';
-    li.innerHTML = `<span class="src ${esc(c.src)}" title="${esc(c.label||name)}">${name}</span><div class="cliptext"><span></span><small>${c.label ? esc(c.label)+' · ' : ''}${ago(c.t)}</small></div><button class="pill lilac">Salin lagi</button>`;
+    const kind = c.kind || 'text';
+    const thumb = kind === 'image' ? `<img class="clipthumb" alt="" loading="lazy" src="/api/clip/image?id=${encodeURIComponent(c.id)}&t=${encodeURIComponent(TOKEN)}" onerror="this.remove()">` : '';
+    const extra = kind === 'files' ? '<button class="pill ghost sm" data-a="reveal">Buka folder</button>' : '';
+    li.innerHTML = `<span class="src ${esc(c.src)}" title="${esc(c.label||name)}">${name}</span>${thumb}<div class="cliptext" translate="no"><span></span><small>${c.label ? esc(c.label)+' · ' : ''}${ago(c.t)}</small></div><span class="clipbtns">${extra}<button class="pill lilac" data-a="again">Salin lagi</button></span>`;
     li.querySelector('.cliptext span').textContent = c.text.replace(/\s+/g,' ');
-    li.querySelector('.cliptext').title = c.text.slice(0,600);
-    li.querySelector('button').onclick = e => act(e.currentTarget, async()=>{ const r = await api('/api/clipboard',{text:c.text}); toast(sentTo(r)); });
+    li.querySelector('.cliptext').title = kind === 'files' ? (c.files||[]).join('\n') : c.text.slice(0,600);
+    li.querySelector('[data-a="again"]').onclick = e => act(e.currentTarget, async()=>{
+      if(kind === 'text'){ const r = await api('/api/clipboard',{text:c.text}); return toast(sentTo(r)); }
+      const r = await api('/api/clip/again', {id:c.id});
+      toast(`${kind === 'image' ? 'Gambar' : 'Berkas'} tersalin di PC${r.debian ? ' dan Debian' : ''}.`);
+    });
+    li.querySelector('[data-a="reveal"]')?.addEventListener('click', e => act(e.currentTarget, async () => { const r = await api('/api/clip/reveal', {id:c.id}); toast(`Folder dibuka: ${r.path}`); }));
     ul.append(li);
   }
 }
 function onClip(item){
   st.clips = [item, ...st.clips.filter(c=>c.id!==item.id)].slice(0,40);
   renderClips();
-  if(item.src!=='debian' && st.rfb && !st.debian?.agent) st.rfb.clipboardPasteFrom(item.text);
+  if(item.src!=='debian' && (item.kind||'text')==='text' && st.rfb && !st.debian?.agent) st.rfb.clipboardPasteFrom(item.text);
 }
 $('#btnClip').onclick = e => act(e.currentTarget, async () => {
   const text = $('#clipIn').value; if(!text.trim()) return;
@@ -1794,6 +2181,9 @@ function renderClipStatus(cs){
   if(!cs) return;
   st.clipStatus = cs;
   $('#setClipAndroid').checked = cs.enabled;
+  $('#setClipRich').checked = cs.rich !== false;
+  $('#setClipRich').closest('label').title = !cs.rich_pc ? 'Gambar & berkas belum didukung di sistem ini (macOS: hanya teks)'
+    : st.debian && !cs.rich_debian ? 'Perbarui agen Debian ke 1.10.0 agar gambar & berkas ikut tersalin' : 'Salin gambar dan berkas antara laptop dan Debian';
   const chip = (on, label, title) => `<span class="clink ${on?'on':''}" title="${esc(title||'')}"><i></i>${esc(label)}</span>`;
   let html = chip(cs.pc, 'PC', cs.pc ? 'Clipboard PC terpantau' : 'pyperclip/xclip belum ada');
   if(!cs.enabled) html += chip(false, 'Android mati', 'Nyalakan sakelar Android untuk memantau clipboard HP');
@@ -1818,33 +2208,160 @@ async function clipTest(){
   toast(`Uji clipboard — ${parts.join(' · ')}. Coba tempel di HP atau Debian.`, r.pc ? 'info' : 'error');
 }
 $('#setClipAndroid').onchange = e => act(null, () => setSetting('clip_android', e.target.checked));
+$('#setClipRich').onchange = e => act(null, () => setSetting('clip_rich', e.target.checked));
 
 /* ---------- notifikasi ---------- */
 function renderNotifs(){
-  const ul = $('#nList'); ul.innerHTML='';
+  const ul = $('#nList');
+  const typing = st.reply && ul.contains(document.activeElement) && document.activeElement.matches('.nreply input');
+  ul.innerHTML='';
+  renderCompBar();
   if(!st.notifs.length){ ul.innerHTML = `<li class="hint" style="color:var(--on-glass-dim)">${st.devices.length ? 'Belum ada notifikasi baru.' : 'Sambungkan HP Android untuk melihat notifikasinya.'}</li>`; return; }
   for(const n of st.notifs.slice(0,30)){
     const li = document.createElement('li');
-    li.innerHTML = `<button><span class="nav">${esc((n.app||'?')[0].toUpperCase())}</span><div><b>${esc(n.title||n.app)}</b><span>${esc(n.text)}</span><small>${esc(n.app)} · ${ago(n.t)}</small></div></button>`;
-    li.querySelector('button').onclick = e => act(e.currentTarget, async()=>{
+    const msgs = (n.messages||[]).slice(-3);
+    const body = msgs.length > 1
+      ? `<span class="nmsgs" translate="no">${msgs.map(m=>`<span>${m.from?`<em>${esc(m.from)}:</em> `:''}${esc(m.text)}</span>`).join('')}</span>`
+      : `<span translate="no">${esc(n.text)}</span>`;
+    li.innerHTML = `<button class="nmain"><span class="nav">${esc((n.app||'?')[0].toUpperCase())}</span><div><b translate="no">${esc(n.title||n.conversation||n.app)}</b>${body}<small>${esc(n.app)} · ${ago(n.t)}</small></div></button>`;
+    li.querySelector('.nmain').onclick = e => act(e.currentTarget, async()=>{
       st.serial = n.serial;
       const prev = st.mode; st.mode='virtual';
       const [fw, fh, fd] = screenFit();
       try{ await startSession({app:n.pkg, label:n.app, width:fw, height:fh, dpi:fd}); } finally{ st.mode = prev; }
       toast(`${n.app} dibuka di jendela sendiri.`);
     });
+    if(n.live && n.actions?.length){
+      const bar = document.createElement('div'); bar.className = 'nacts';
+      for(const a of n.actions){
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'pill ghost sm'; b.textContent = a.title;
+        b.onclick = () => a.reply ? openReply(n, a)
+          : act(b, async()=>{ await api('/api/notif/act', {serial:n.serial, key:n.key, op:'action', action:a.i}); toast(`"${a.title}" dijalankan di HP.`); });
+        bar.append(b);
+      }
+      li.append(bar);
+    }
+    if(n.live && n.clearable){
+      li.classList.add('canx');
+      const x = document.createElement('button'); x.type = 'button'; x.className = 'pill ghost sm nx';
+      x.title = 'Tutup notifikasi ini di HP'; x.setAttribute('aria-label', `Tutup notifikasi ${n.app} di HP`);
+      x.innerHTML = '<svg class="ico" style="width:14px;height:14px"><use href="#i-x"/></svg>';
+      x.onclick = () => act(x, () => api('/api/notif/act', {serial:n.serial, key:n.key, op:'dismiss'}));
+      li.append(x);
+    }
+    if(st.reply && st.reply.serial === n.serial && st.reply.key === n.key) li.append(replyForm(n, typing || st.reply.focus));
     ul.append(li);
   }
 }
-function onNotif(items){
-  st.notifs = [...items, ...st.notifs].slice(0,60);
+function openReply(n, a){
+  st.reply = {serial:n.serial, key:n.key, action:a.i, hint:a.hint || `Balas ${n.title || n.app}`, text:'', focus:true};
   renderNotifs();
+}
+function replyForm(n, focus){
+  const f = document.createElement('form'); f.className = 'nreply';
+  f.innerHTML = `<label class="sr" for="nrIn">Balasan untuk ${esc(n.title||n.app)}</label><input id="nrIn" maxlength="4000" autocomplete="off" enterkeyhint="send"><button class="pill lilac sm">Kirim</button><button type="button" class="pill ghost sm">Batal</button>`;
+  const inp = f.querySelector('input');
+  inp.placeholder = st.reply.hint; inp.value = st.reply.text || '';
+  inp.oninput = () => { st.reply.text = inp.value; };
+  inp.onfocus = () => { if(st.reply) st.reply.focus = true; };
+  inp.onblur = () => { if(st.reply) st.reply.focus = false; };
+  inp.onkeydown = e => { if(e.key === 'Escape'){ e.stopPropagation(); st.reply = null; renderNotifs(); } };
+  f.querySelector('[type=button]').onclick = () => { st.reply = null; renderNotifs(); };
+  f.onsubmit = e => {
+    e.preventDefault();
+    const text = inp.value.trim(); if(!text){ inp.focus(); return; }
+    act(f.querySelector('.lilac'), async()=>{
+      await api('/api/notif/act', {serial:n.serial, key:n.key, op:'reply', action:st.reply.action, text});
+      st.reply = null; renderNotifs(); toast(`Balasan terkirim ke ${n.title || n.app}.`);
+    });
+  };
+  if(focus) setTimeout(() => { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); });
+  return f;
+}
+function toastNotifs(items){
   if(document.body.classList.contains('privacy')) return;   // mode privasi: jangan munculkan isi notifikasi
   for(const n of items.filter(n=>!n.quiet).slice(0,3)){
     toast(`${n.app}: ${n.title}${n.text ? ' — '+n.text : ''}`);
     if(window.Notification?.permission==='granted' && document.hidden) new Notification(n.title || n.app, {body:n.text});
   }
 }
+function onNotif(items){
+  st.notifs = [...items, ...st.notifs].slice(0,60);
+  renderNotifs();
+  toastNotifs(items);
+}
+function onNotifSync(m){
+  st.notifs = st.notifs.filter(x => x.serial !== m.serial).concat(m.items).sort((a,b) => b.t - a.t).slice(0,60);
+  if(st.reply && st.reply.serial === m.serial && !m.items.some(x => x.key === st.reply.key)) st.reply = null;
+  renderNotifs();
+}
+function onNotifUpsert(m){
+  const it = m.item, i = st.notifs.findIndex(x => x.serial === it.serial && x.key === it.key);
+  if(i >= 0) st.notifs.splice(i, 1);
+  if(m.fresh || i < 0) st.notifs.unshift(it); else st.notifs.splice(i, 0, it);
+  st.notifs = st.notifs.slice(0,60);
+  renderNotifs();
+  if(m.fresh) toastNotifs([it]);
+}
+function onNotifGone(m){
+  st.notifs = st.notifs.filter(x => !(x.serial === m.serial && x.key === m.key));
+  if(st.reply && st.reply.serial === m.serial && st.reply.key === m.key) st.reply = null;
+  renderNotifs();
+}
+
+/* ---------- aplikasi pendamping Android ---------- */
+async function installCompanion(btn){
+  const serial = st.serial;
+  if(!serial) throw new Error('Sambungkan HP Android dulu.');
+  toast('Memasang LinkDeck Pendamping di HP…');
+  const r = await api('/api/companion/install', {serial});
+  st.companion = {...(st.companion||{}), [serial]: r.status};
+  renderCompBar();
+  toast(r.granted ? 'LinkDeck Pendamping terpasang. Notifikasi kini seketika dan bisa dibalas dari sini.'
+                  : 'LinkDeck Pendamping terpasang. Nyalakan akses notifikasinya: buka aplikasi itu di HP lalu ketuk tombolnya.', r.granted ? 'info' : 'warn');
+}
+function compText(c, dev){
+  if(!dev) return ['Sambungkan HP Android dulu.', null];
+  if(!c) return ['Memeriksa HP…', null];
+  if(c.connected && c.full && c.listening) return [`Aktif${c.version ? ' (versi '+c.version+')' : ''}: notifikasi seketika dan bisa dibalas.`, 'update'];
+  if(c.installed && (c.state === 'off' || (c.connected && !c.listening))) return ['Terpasang, tetapi akses notifikasinya mati.', 'grant'];
+  if(c.installed) return ['Terpasang. Menyambung…', 'update'];
+  if(c.installed === false) return ['Belum terpasang di HP ini.', 'install'];
+  return ['Memeriksa HP…', null];
+}
+function renderCompBar(){
+  const el = $('#compBar'); if(!el) return;
+  const dev = st.devices.find(d => d.serial === st.serial && d.state === 'device');
+  const c = st.companion?.[st.serial];
+  const [txt, kind] = compText(c, dev);
+  $('#compInfo').textContent = txt;
+  const sb = $('#btnCompSet');
+  sb.hidden = !kind; sb.textContent = kind === 'grant' ? 'Nyalakan akses' : kind === 'update' ? 'Pasang ulang' : 'Pasang di HP';
+  if(!dev || !c || st.settings.companion === false || !st.settings.notif){ el.hidden = true; return; }
+  el.hidden = false;
+  if(kind === 'update' && c.connected){
+    el.innerHTML = '<span class="nlive">● Seketika</span><span>Aplikasi pendamping aktif: balas pesan langsung dari sini.</span>';
+  } else if(kind === 'grant'){
+    el.innerHTML = '<span>Akses notifikasi untuk LinkDeck Pendamping masih mati.</span><button class="pill lilac sm" type="button">Nyalakan</button>';
+    el.querySelector('button').onclick = e => act(e.currentTarget, grantCompanion);
+  } else if(kind === 'install'){
+    el.innerHTML = '<span>Pasang <b>LinkDeck Pendamping</b> di HP untuk notifikasi seketika, membalas pesan dari laptop, dan status pengisian baterai.</span><button class="pill lilac sm" type="button">Pasang</button>';
+    el.querySelector('button').onclick = e => act(e.currentTarget, () => installCompanion(e.currentTarget));
+  } else el.hidden = true;
+}
+async function grantCompanion(){
+  const r = await api('/api/companion/grant', {serial:st.serial});
+  toast(r.granted ? 'Akses notifikasi dinyalakan.' : 'HP menolak. Buka LinkDeck Pendamping di HP lalu nyalakan aksesnya sendiri.', r.granted ? 'info' : 'warn');
+}
+async function loadCompanion(){
+  try{ const r = await api('/api/companion/status', {}); st.companion = r.devices; renderCompBar(); }catch{}
+}
+$('#btnCompSet').onclick = e => act(e.currentTarget, () => {
+  const [, kind] = compText(st.companion?.[st.serial], st.devices.find(d => d.serial === st.serial && d.state === 'device'));
+  return kind === 'grant' ? grantCompanion() : installCompanion(e.currentTarget);
+});
+$('#setLang').onclick = e => { const b = e.target.closest('[data-v]'); if(b && b.dataset.v !== LANG) act(null, () => setLang(b.dataset.v)); };
+$('#setCompanion').onchange = e => act(null, async () => { await prefs({companion:e.target.checked}); renderCompBar(); });
 setInterval(() => { renderClips(); renderNotifs(); }, 60000);
 
 /* ---------- berkas, tautan, sinkron ---------- */
@@ -1980,8 +2497,16 @@ $('#connForm').onsubmit = e => { e.preventDefault(); const f=e.target; act(f.que
 
 /* ---------- pantauan ---------- */
 function onStats(s){
-  const d = s.devices?.[st.serial], bat = d?.bat || [], lat = d?.lat || [];
-  $('#sBat').innerHTML = bat.length ? `${bat.at(-1)}<small>%${d.temp?` ${d.temp}°C`:''}</small>` : '–';
+  st.lastStats = s;
+  const d = s.devices?.[st.serial], lat = d?.lat || [];
+  // baterai dari adb/aplikasi pendamping; bila HP hanya tersambung ke Debian (tanpa adb), dari agen Debian
+  const db = s.debian?.battery, fromDeb = !d?.bat?.length && db && db.level != null;
+  const bat = fromDeb ? (s.debian.bat_hist || [db.level]) : (d?.bat || []);
+  const b = fromDeb ? db : (d || {});
+  const plugName = {usb:'USB', ac:'pengisi daya', wireless:'nirkabel', dock:'dok'}[b.plugged] || '';
+  const chg = b.charging ? `<span class="chg" title="Sedang diisi${plugName ? ' lewat '+plugName : ''}"> ⚡</span>` : '';
+  $('#sBat').innerHTML = bat.length ? `${bat.at(-1)}<small>%${chg}${b.temp!=null?` ${b.temp}°C`:''}${fromDeb?' · Debian':''}</small>` : '–';
+  $('#sBat').title = bat.length ? `Baterai HP ${bat.at(-1)}%${b.charging ? ', sedang diisi'+(plugName ? ' ('+plugName+')' : '') : ''}${b.via==='companion' ? ' · langsung dari aplikasi pendamping' : fromDeb ? ' · dibaca agen Debian (tanpa adb)' : ''}` : '';
   $('#sLat').innerHTML = lat.length ? `${lat.at(-1)}<small>ms</small>` : '–';
   spark($('#gBat'), bat); spark($('#gLat'), lat);
   const v = s.vnc || [], kb = v.at(-1) ?? 0;
@@ -2071,6 +2596,23 @@ $('#btnReport').onclick = e => act(e.currentTarget, async () => {
 });
 
 /* ---- keyboard & mouse saja ---- */
+/* ---- mikrofon HP ---- */
+async function loadMicInfo(){
+  try{ st.mic = await api('/api/mic/info', {}); }catch{ return; }
+  const m = st.mic, app = {linux:'"Mikrofon HP (LinkDeck)"', win32:'"CABLE Output"', darwin:'"BlackHole 2ch"'}[m.platform] || '';
+  $('#micInfo').textContent = m.ready ? `Siap. Di Zoom/Meet/Discord pilih mikrofon ${app}. Butuh Android 11 ke atas.` : (m.error || m.guide);
+}
+$('#setMicTarget').onclick = e => { const b = e.target.closest('[data-v]'); if(b) act(null, async () => { await prefs({mic_target:b.dataset.v}); pressOne('#setMicTarget', b); }); };
+$('#setMicClean').onchange = e => act(null, () => prefs({mic_clean:e.target.checked}));
+$('#setMicMon').onchange = e => act(null, () => prefs({mic_monitor:e.target.checked}));
+$('#btnMic').onclick = e => act(e.currentTarget, async () => {
+  if(!st.serial) throw new Error('Sambungkan HP Android dulu.');
+  const s = st.sessions.find(x => x.serial === st.serial && x.mode === 'mic');
+  if(s){ await api('/api/mirror/stop', {id:s.id}); return toast('Mikrofon HP dimatikan.'); }
+  const r = await api('/api/mic/start', {serial:st.serial, target:st.settings.mic_target || 'virtual',
+    clean:st.settings.mic_clean !== false, monitor:!!st.settings.mic_monitor});
+  (r.notes || []).forEach(n => toast(n));
+});
 $('#btnKbd').onclick = e => act(e.currentTarget, async () => {
   if(!st.serial) throw new Error('Sambungkan HP Android dulu.');
   const s = st.sessions.find(x => x.serial === st.serial && x.mode === 'input');
@@ -2123,7 +2665,7 @@ async function loadDir(path){
   $('#fList').innerHTML = r.items.length ? r.items.map(it => `
     <li class="frow" data-name="${esc(it.name)}" data-dir="${it.dir}">
       <span class="fic ${it.dir ? 'dir' : ''}"><svg class="ico"><use href="#${it.dir ? 'i-folder' : 'i-file'}"/></svg></span>
-      <button class="nm" type="button" data-a="open"><b>${esc(it.name)}</b><small>${it.dir ? 'Folder' : fmtSize(it.size)} · ${esc(it.time)}</small></button>
+      <button class="nm" type="button" data-a="open"><b translate="no">${esc(it.name)}</b><small>${it.dir ? 'Folder' : fmtSize(it.size)} · ${esc(it.time)}</small></button>
       <span class="fact">${it.dir ? '' : '<button type="button" data-a="pull">Unduh</button>'}<button type="button" data-a="rename">Ganti nama</button><button type="button" class="danger" data-a="delete">Hapus</button></span>
     </li>`).join('') : '<li class="hint">Folder kosong.</li>';
 }
@@ -2220,8 +2762,34 @@ function onDrawerOpen(id){
 }
 
 /* ---- terapkan pengaturan dari server ---- */
+async function loadDesktop(){
+  try{ st.desktop = await api('/api/app/info', {}); }catch{ st.desktop = {app:false, tray:false, autostart:false, autostart_ok:false}; }
+  const d = st.desktop;
+  $('#setAutostart').checked = !!d.autostart;
+  $('#rowAuto').hidden = !d.autostart_ok || !d.app;
+  $('#rowTray').hidden = !d.app || (!d.tray && d.mode !== 'webview');
+  $('#trayNote').textContent = d.tray ? (d.tray_menu ? 'Klik ikon LinkDeck di tray untuk membuka lagi atau keluar.' : 'Klik ikon LinkDeck di tray untuk membuka lagi.')
+    : 'Ikon tray tidak tersedia di sistem ini; menutup jendela akan keluar dari LinkDeck.';
+  $('#setTray').disabled = !d.tray;
+}
+$('#setTray').onchange = e => act(null, () => prefs({tray:e.target.checked}));
+$('#setAutostart').onchange = e => act(null, async () => {
+  try{ await prefs({autostart:e.target.checked}); toast(e.target.checked ? 'LinkDeck akan berjalan otomatis di tray saat kamu masuk ke komputer.' : 'Jalan otomatis dimatikan.'); }
+  catch(err){ e.target.checked = !e.target.checked; throw err; }
+  loadDesktop();
+});
+$('#btnQuit').onclick = e => act(e.currentTarget, async () => {
+  if(!confirm('Keluar dari LinkDeck? Semua tampilan Android dan sambungan Debian akan ditutup.')) return;
+  await api('/api/app/quit', {});
+  document.body.innerHTML = '<p style="font:16px system-ui;padding:40px;color:#fff">LinkDeck sudah ditutup. Jendela ini boleh ditutup.</p>';
+});
 function applySettings(s){
   st.settings = s;
+  $('#setTray').checked = s.tray !== false;
+  pressOne('#setLang', $(`#setLang [data-v="${pickLang(s)}"]`));
+  $('#setCompanion').checked = s.companion !== false;
+  pressOne('#setMicTarget', $(`#setMicTarget [data-v="${s.mic_target || 'virtual'}"]`));
+  $('#setMicClean').checked = s.mic_clean !== false; $('#setMicMon').checked = !!s.mic_monitor;
   applyLook(s.theme || 'auto', s.zoom || 1);
   if(!st.autoPriv) setPrivacy(s.privacy);
   $('#setAutoPriv').checked = s.auto_privacy; $('#setAutoUpd').checked = s.auto_update;
@@ -2229,7 +2797,259 @@ function applySettings(s){
   renderDock();
 }
 
+/* =====================================================================
+   Tahap 2: Alat Debian (berkas, toko aplikasi, pemantau sistem)
+   ===================================================================== */
+const DT = { tab:'files', path:'~', items:[], writable:false, busy:false, sysTimer:null, procs:[] };
+const fmtDur = s => { if(s == null) return '–'; s = Math.round(s); const d = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60);
+  return d ? `${d} hari ${h} jam` : h ? `${h} jam ${m} mnt` : `${m} mnt`; };
+
+function openDebTools(tab){
+  openDrawer('debtools');
+  if(tab) $(`#dtSeg [data-dt="${tab}"]`).click(); else showDtTab(DT.tab);
+}
+$('#btnDebTools').onclick = () => openDebTools();
+$('#dtSeg').onclick = e => { const b = e.target.closest('[data-dt]'); if(b) showDtTab(b.dataset.dt); };
+function showDtTab(tab){
+  DT.tab = tab;
+  pressOne('#dtSeg', $(`#dtSeg [data-dt="${tab}"]`));
+  $$('[data-dtpane]').forEach(p => p.hidden = p.dataset.dtpane !== tab);
+  clearInterval(DT.sysTimer); DT.sysTimer = null;
+  if(tab === 'files') act(null, () => loadDebDir(DT.path));
+  if(tab === 'apps' && !$('#dsList').children.length) act(null, () => searchPkgs(''));
+  if(tab === 'sys'){ act(null, loadSys); DT.sysTimer = setInterval(() => {
+    if(!$('#drawer-debtools').classList.contains('open') || DT.tab !== 'sys' || document.hidden){ if(!$('#drawer-debtools').classList.contains('open')){ clearInterval(DT.sysTimer); DT.sysTimer = null; } return; }
+    loadSys().catch(() => {});
+  }, 3000); }
+}
+
+/* ---- berkas Debian ---- */
+const debRaw = p => `/api/deb/fs/raw?path=${encodeURIComponent(p)}&t=${encodeURIComponent(TOKEN)}`;
+const joinPath = (dir, name) => dir.replace(/\/$/, '') + '/' + name;
+async function loadDebDir(path){
+  const r = await api('/api/deb/fs', {path});
+  DT.path = r.path; DT.items = r.items; DT.writable = r.writable; DT.home = r.home;
+  $('#dfPrev').hidden = true; renderDebDir();
+}
+function renderDebDir(){
+  const parts = DT.path.split('/').filter(Boolean);
+  $('#dfCrumbs').innerHTML = `<button type="button" data-p="/">/</button>` + parts.map((p, i) => `<button type="button" data-p="/${esc(parts.slice(0, i+1).join('/'))}">${esc(p)}</button>`).join('<span>/</span>');
+  $('#dfUp').disabled = DT.path === '/';
+  $('#dfRo').hidden = DT.writable; $('#dfNew').hidden = $('#dfUpload').hidden = !DT.writable;
+  const items = DT.items.filter(it => $('#dfHidden').checked || !it.hidden);
+  $('#dfList').innerHTML = items.length ? items.map(it => `
+    <li class="frow" data-name="${esc(it.name)}" data-dir="${it.dir}">
+      <span class="fic ${it.dir ? 'dir' : ''}"><svg class="ico"><use href="#${it.dir ? 'i-folder' : 'i-file'}"/></svg></span>
+      <button class="nm" type="button" data-a="open"><b translate="no">${esc(it.name)}</b><small>${it.dir ? 'Folder' : fmtSize(it.size)}${it.time ? ' · ' + esc(it.time) : ''}${it.link ? ' · tautan' : ''}</small></button>
+      <span class="fact">${it.dir ? '' : '<button type="button" data-a="pull">Unduh</button>'}${DT.writable ? '<button type="button" data-a="rename">Ganti nama</button><button type="button" class="danger" data-a="delete">Hapus</button>' : ''}</span>
+    </li>`).join('') : '<li class="hint">Folder kosong.</li>';
+}
+$('#dfHidden').onchange = renderDebDir;
+$('#dfCrumbs').onclick = e => { const b = e.target.closest('[data-p]'); if(b) act(null, () => loadDebDir(b.dataset.p)); };
+$('#dfUp').onclick = () => act(null, () => loadDebDir(DT.path.replace(/\/[^/]+\/?$/, '') || '/'));
+$('#dfHome').onclick = () => act(null, () => loadDebDir('~'));
+$('#dfNew').onclick = () => act(null, async () => {
+  const name = prompt('Nama folder baru:'); if(!name?.trim()) return;
+  await api('/api/deb/fs/op', {op:'mkdir', path:joinPath(DT.path, name.trim())}); await loadDebDir(DT.path);
+});
+$('#dfUpIn').onchange = e => act(null, async () => {
+  const files = [...e.target.files]; e.target.value = ''; if(!files.length) return;
+  const fd = new FormData(); fd.append('dir', DT.path); files.forEach(f => fd.append('file', f, f.name));
+  toast(`Mengunggah ${files.length} berkas ke Debian…`);
+  const r = await api('/api/deb/fs/upload', fd); toast(`Terkirim ke ${DT.path}: ${r.files.join(', ')}`); await loadDebDir(DT.path);
+});
+$('#dfList').onclick = e => {
+  const b = e.target.closest('[data-a]'), row = e.target.closest('.frow'); if(!b || !row) return;
+  const name = row.dataset.name, path = joinPath(DT.path, name), isDir = row.dataset.dir === 'true';
+  act(b, async () => {
+    if(b.dataset.a === 'open'){
+      if(isDir) return loadDebDir(path);
+      const pv = $('#dfPrevBody');
+      if(IMG.test(name)) pv.innerHTML = `<img alt="${esc(name)}" src="${debRaw(path)}">`;
+      else if(VID.test(name)) pv.innerHTML = `<video controls src="${debRaw(path)}" style="max-width:100%;max-height:50vh"></video>`;
+      else if(TXT.test(name) || !/\.[a-z0-9]{1,5}$/i.test(name)){ const res = await fetch(debRaw(path)); if(!res.ok) throw new Error(await res.text()); const t = await res.text(); pv.innerHTML = `<pre>${esc(t.slice(0, 200000))}</pre>`; }
+      else { const r = await api('/api/deb/fs/pull', {path}); return toast(`Tidak bisa dipratinjau, jadi diunduh: ${r.path}`); }
+      $('#dfPrev').hidden = false; return;
+    }
+    if(b.dataset.a === 'pull'){ const r = await api('/api/deb/fs/pull', {path}); return toast(`Diunduh ke ${r.path}`); }
+    if(b.dataset.a === 'rename'){ const n = prompt('Nama baru:', name); if(!n?.trim() || n === name) return; await api('/api/deb/fs/op', {op:'rename', path, name:n.trim()}); return loadDebDir(DT.path); }
+    if(b.dataset.a === 'delete'){ if(!confirm(`Hapus "${name}" dari Debian? Tindakan ini tidak bisa dibatalkan.`)) return; await api('/api/deb/fs/op', {op:'delete', path}); return loadDebDir(DT.path); }
+  });
+};
+$('#dfPrevClose').onclick = () => { $('#dfPrev').hidden = true; $('#dfPrevBody').innerHTML = ''; };
+
+/* ---- toko aplikasi Debian ---- */
+async function searchPkgs(q){
+  $('#dsHint').textContent = q ? `Mencari "${q}"…` : 'Memuat aplikasi populer…';
+  const r = await api('/api/deb/apt/search', {q});
+  DT.root = r.root; $('#dsPwWrap').hidden = !!r.root;
+  $('#dsHint').textContent = q ? `${r.items.length} paket cocok dengan "${q}".` : 'Aplikasi populer:';
+  $('#dsList').innerHTML = r.items.length ? r.items.map(it => `
+    <li class="arow" data-pkg="${esc(it.pkg)}">
+      <span class="fic"><b style="font-size:13px">${esc(it.pkg[0].toUpperCase())}</b></span>
+      <div style="min-width:0"><b>${esc(it.pkg)}${it.installed ? '<span class="badge-ok">terpasang</span>' : ''}</b><small>${esc(it.desc)}</small></div>
+      <span class="fact">${it.installed ? '<button data-a="remove" class="danger">Copot</button>' : '<button data-a="install">Pasang</button>'}</span>
+    </li>`).join('') : `<li class="hint">${q ? 'Tidak ada paket yang cocok. Coba kata lain, atau klik "Perbarui daftar paket".' : 'Daftar paket kosong. Klik "Perbarui daftar paket" dulu.'}</li>`;
+}
+$('#dsGo').onclick = e => act(e.currentTarget, () => searchPkgs($('#dsQ').value.trim()));
+$('#dsQ').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); $('#dsGo').click(); } });
+async function runApt(action, pkg){
+  if(DT.busy) throw new Error('Masih ada pemasangan yang berjalan.');
+  if(!DT.root && !$('#dsPw').value){ $('#dsPw').focus(); throw new Error('Isi sandi sudo dulu (pengguna Debian ini bukan root).'); }
+  if(action === 'remove' && !confirm(`Copot ${pkg} dari Debian?`)) return;
+  DT.busy = true; $$('#dsList button, #dsUpdate').forEach(b => b.disabled = true);
+  $('#dsLogBox').hidden = false; $('#dsLog').textContent = '';
+  $('#dsLogTitle').textContent = action === 'update' ? 'Memperbarui daftar paket…' : `${action === 'install' ? 'Memasang' : 'Mencopot'} ${pkg}…`;
+  try{ await api('/api/deb/apt/run', {action, pkg, password:$('#dsPw').value}); }
+  catch(err){ aptFinished(); throw err; }
+}
+function aptFinished(){ DT.busy = false; $$('#dsList button, #dsUpdate').forEach(b => b.disabled = false); }
+function onAptLog(m){
+  const pre = $('#dsLog'); pre.textContent += m.line + '\n';
+  if(pre.textContent.length > 60000) pre.textContent = pre.textContent.slice(-40000);
+  pre.scrollTop = pre.scrollHeight;
+}
+function onAptDone(m){
+  aptFinished();
+  const what = m.action === 'update' ? 'Daftar paket' : m.pkg;
+  $('#dsLogTitle').textContent = m.ok ? `${what} selesai ${m.action === 'remove' ? 'dicopot' : m.action === 'update' ? 'diperbarui' : 'dipasang'}.` : `Gagal: ${m.msg || 'lihat keluaran di bawah'}`;
+  toast(m.ok ? $('#dsLogTitle').textContent : `${what}: ${m.msg || 'gagal, lihat keluaran apt di Alat Debian'}`, m.ok ? 'info' : 'error');
+  if(m.ok && $('#drawer-debtools').classList.contains('open')) searchPkgs($('#dsQ').value.trim()).catch(() => {});
+}
+$('#dsList').onclick = e => { const b = e.target.closest('[data-a]'), row = e.target.closest('.arow'); if(b && row) act(b, () => runApt(b.dataset.a, row.dataset.pkg)); };
+$('#dsUpdate').onclick = e => act(e.currentTarget, () => runApt('update', ''));
+
+/* ---- pemantau sistem ---- */
+function barCard(label, pct, value, sub){
+  const p = pct == null ? null : Math.max(0, Math.min(100, pct));
+  return `<div class="sysc"><small>${esc(label)}</small><b>${value}${sub ? `<span>${esc(sub)}</span>` : ''}</b>${p == null ? '' : `<div class="bar"><i class="${p > 85 ? 'hot' : ''}" style="width:${p}%"></i></div>`}</div>`;
+}
+async function loadSys(){
+  const r = await api('/api/deb/sys', {});
+  const m = r.mem || {}, used = m.total && m.avail != null ? m.total - m.avail : null;
+  const swapUsed = m.swap_total ? m.swap_total - (m.swap_free || 0) : 0;
+  let html = barCard('CPU', r.cpu, r.cpu != null ? `${r.cpu}%` : '–', `${r.cores} inti`);
+  html += barCard('RAM', used != null ? 100 * used / m.total : null, used != null ? fmtSize(used) : '–', m.total ? `dari ${fmtSize(m.total)}` : '');
+  if(m.swap_total) html += barCard('Swap', 100 * swapUsed / m.swap_total, fmtSize(swapUsed), `dari ${fmtSize(m.swap_total)}`);
+  for(const d of r.disks || []) html += barCard(d.label, 100 * d.used / d.total, fmtSize(d.free), 'kosong');
+  html += barCard('Menyala', null, fmtDur(r.uptime), r.load ? `beban ${r.load[0].toFixed(2)}` : '');
+  $('#sysCards').innerHTML = html;
+  DT.procs = r.procs || []; DT.me = r.me;
+  if(!$('.ptwrap').matches(':hover')) renderProcs();       // jangan ganti baris saat kursor di atas tabel
+  $('#sysNote').textContent = `${r.count} proses · diperbarui tiap 3 detik selama tab ini terbuka.`;
+}
+function renderProcs(){
+  const q = $('#spQ').value.trim().toLowerCase(), mine = $('#spMine').checked;
+  const list = DT.procs.filter(p => (!mine || p.mine) && (!q || p.name.toLowerCase().includes(q) || p.cmd.toLowerCase().includes(q))).slice(0, 80);
+  $('#spBody').innerHTML = list.map(p => `<tr data-pid="${p.pid}" data-name="${esc(p.name)}">
+    <td><b>${esc(p.name)}</b><small title="${esc(p.cmd)}">${esc(p.cmd)}</small></td><td>${p.pid}</td><td>${esc(p.user)}</td>
+    <td>${p.cpu.toFixed(1)}%</td><td>${fmtSize(p.mem)}</td>
+    <td>${p.mine ? '<span class="fact"><button data-a="term">Hentikan</button><button data-a="kill" class="danger" title="Paksa berhenti (SIGKILL)">Paksa</button></span>' : ''}</td></tr>`).join('')
+    || '<tr><td colspan="6" class="hint">Tidak ada proses yang cocok.</td></tr>';
+}
+$('#spQ').oninput = renderProcs; $('#spMine').onchange = renderProcs;
+$('#spBody').onclick = e => {
+  const b = e.target.closest('[data-a]'), tr = e.target.closest('tr'); if(!b || !tr) return;
+  const force = b.dataset.a === 'kill';
+  if(!confirm(`${force ? 'Paksa hentikan' : 'Hentikan'} ${tr.dataset.name} (PID ${tr.dataset.pid})? Pekerjaan yang belum disimpan di aplikasi itu bisa hilang.`)) return;
+  act(b, async () => { await api('/api/deb/sys/kill', {pid:+tr.dataset.pid, force}); toast(`${tr.dataset.name} dihentikan.`); await loadSys(); });
+};
+
 /* ---------- notifikasi panduan (sekali tiap aplikasi dibuka) ---------- */
+/* ---------- panduan awal ---------- */
+const W = {step:0, what:'android', timer:null, resume:false};
+function wizSteps(){ return ['start', 'what', ...(W.what !== 'debian' ? ['android'] : []), ...(W.what !== 'android' ? ['debian'] : []), 'done']; }
+function openWizard(){
+  const w = $('#wizard');
+  W.step = 0; W.what = st.settings.wiz_what || 'android';
+  pressOne('#wizWhat', $(`#wizWhat [data-v="${W.what}"]`));
+  pressOne('#wizTheme', $(`#wizTheme [data-v="${st.settings.theme || 'auto'}"]`));
+  pressOne('#wizLang', $(`#wizLang [data-v="${curLang()}"]`));
+  $('#wizGuide').href = GUIDE_URL; $('#wizGuide').textContent = GUIDE_URL.replace(/^https?:\/\//, '');
+  w.hidden = false; showWizStep();
+  clearInterval(W.timer); W.timer = setInterval(wizRefresh, 1000);
+}
+function showWizStep(){
+  const steps = wizSteps(), name = steps[W.step];
+  $$('#wizard [data-wstep]').forEach(sec => sec.hidden = sec.dataset.wstep !== name);
+  $('#wizDots').innerHTML = steps.map((_, i) => `<i class="${i === W.step ? 'on' : ''}"></i>`).join('');
+  $('#wizPos').textContent = `Langkah ${W.step + 1} dari ${steps.length}`;
+  $('#wizBack').hidden = W.step === 0;
+  $('#wizNext').textContent = name === 'done' ? 'Mulai pakai' : 'Lanjut';
+  $('#wizard').setAttribute('aria-labelledby', 'wizT0');
+  const h = $(`#wizard [data-wstep="${name}"] h2`); h.id = h.id || `wizT-${name}`; $('#wizard').setAttribute('aria-labelledby', h.id);
+  h.tabIndex = -1; h.focus({preventScroll:true});
+  wizRefresh();
+}
+function wizItem(state, title, note='', btn=''){
+  const mark = {ok:'✓', warn:'!', bad:'×'}[state] || '';
+  return `<li class="${state}"><span class="st" aria-hidden="true">${mark}</span><div>${title}${note ? `<small>${note}</small>` : ''}</div>${btn}</li>`;
+}
+function wizRefresh(){
+  const w = $('#wizard'); if(w.hidden) return;
+  const name = wizSteps()[W.step];
+  let note = '';
+  if(name === 'android'){
+    const t = st.tools || {}, devs = st.devices || [];
+    const dev = devs.find(d => d.state === 'device'), unauth = devs.find(d => d.state === 'unauthorized');
+    const c = dev ? st.companion?.[dev.serial] : null;
+    const rows = [
+      t.adb ? wizItem('ok', 'adb siap') : wizItem('bad', 'adb tidak ditemukan', 'Pasang ulang LinkDeck, atau pasang paket adb.'),
+      t.scrcpy ? wizItem('ok', 'scrcpy siap') : wizItem('bad', 'scrcpy tidak ditemukan', 'Dibutuhkan untuk layar, kamera, dan Mode Game.'),
+      dev ? wizItem('ok', `HP tersambung: ${esc(dev.model)}`, {usb:'Lewat kabel USB', wifi:'Lewat Wi-Fi', bt:'Lewat Bluetooth', local:'Lewat jaringan lokal'}[dev.transport] || '')
+        : unauth ? wizItem('warn', 'HP terdeteksi, menunggu izin', 'Ketuk Izinkan di layar HP. Kalau tidak muncul, cabut-colok kabelnya.')
+        : wizItem('wait', 'Menunggu HP…', 'Ikuti langkah di atas. Daftar ini diperbarui sendiri.'),
+    ];
+    if(dev){
+      rows.push(c?.connected ? wizItem('ok', 'LinkDeck Pendamping aktif', 'Notifikasi seketika dan bisa dibalas dari laptop.')
+        : c?.installed ? wizItem('warn', 'LinkDeck Pendamping terpasang', 'Akses notifikasinya belum menyala.', '<button class="pill ghost sm" type="button" data-wact="grant">Nyalakan</button>')
+        : wizItem('', 'LinkDeck Pendamping (opsional)', 'Untuk membalas notifikasi dari laptop dan status pengisian baterai.', '<button class="pill ghost sm" type="button" data-wact="install">Pasang</button>'));
+    }
+    $('#wizAndroid').innerHTML = rows.join('');
+    note = dev ? '' : 'Bisa dilewati dan disambungkan nanti.';
+  } else if(name === 'debian'){
+    const found = (st.discovered || []).length;
+    $('#wizDebian').innerHTML = [
+      st.debian ? wizItem('ok', `Debian tersambung${st.debian.host ? ': ' + esc(st.debian.host) : ''}`)
+        : found ? wizItem('warn', `Debian ditemukan (${found})`, 'Klik Sambungkan di kartu Debian, lalu masukkan kode dari HP.')
+        : wizItem('wait', 'Mencari Debian di kabel, Wi-Fi, dan Bluetooth…', 'Pastikan linkdeck-start sudah jalan di Debian HP.'),
+    ].join('');
+    note = st.debian ? '' : 'Bisa dilewati dan disambungkan nanti.';
+  }
+  $('#wizNote').textContent = note;
+}
+async function closeWizard(){
+  clearInterval(W.timer); W.timer = null;
+  $('#wizard').hidden = true;
+  if(!st.settings.onboarded) await prefs({onboarded:true, wiz_what:W.what}).catch(()=>{});
+}
+$('#wizNext').onclick = () => { if(W.step >= wizSteps().length - 1) closeWizard(); else { W.step++; showWizStep(); } };
+$('#wizBack').onclick = () => { if(W.step > 0){ W.step--; showWizStep(); } };
+$('#wizSkip').onclick = () => closeWizard();
+$('#wizWhat').onclick = e => { const b = e.target.closest('[data-v]'); if(!b) return; W.what = b.dataset.v; pressOne('#wizWhat', b); showWizStep(); };
+$('#wizTheme').onclick = e => { const b = e.target.closest('[data-v]'); if(!b) return; pressOne('#wizTheme', b); $(`#setTheme [data-v="${b.dataset.v}"]`).click(); };
+$('#wizLang').onclick = e => { const b = e.target.closest('[data-v]'); if(!b) return; pressOne('#wizLang', b); setLang(b.dataset.v); };
+$('#wizard').addEventListener('click', e => {
+  const p = e.target.closest('[data-wpair]');
+  if(p){ const [dev, tab] = p.dataset.wpair.split(':'); W.resume = true; $('#wizard').hidden = true; openPair(dev, tab); return; }
+  const a = e.target.closest('[data-wact]');
+  if(a) act(a, async () => { const dev = st.devices.find(d => d.state === 'device'); if(dev) st.serial = st.serial || dev.serial;
+    if(a.dataset.wact === 'grant') await grantCompanion(); else await installCompanion(a); wizRefresh(); });
+});
+$('#wizard').addEventListener('keydown', e => {
+  if(e.key === 'Escape'){ e.stopPropagation(); closeWizard(); return; }
+  if(e.key !== 'Tab') return;
+  const f = [...$('#wizard').querySelectorAll('button:not([hidden]),a[href],[tabindex="0"]')].filter(x => x.offsetParent);
+  if(!f.length) return;
+  if(e.shiftKey && document.activeElement === f[0]){ e.preventDefault(); f.at(-1).focus(); }
+  else if(!e.shiftKey && document.activeElement === f.at(-1)){ e.preventDefault(); f[0].focus(); }
+});
+// kembali ke panduan setelah laci "Sambungkan perangkat" ditutup
+new MutationObserver(() => {
+  if(W.resume && !$('#drawer-pair').classList.contains('open')){ W.resume = false; $('#wizard').hidden = false; showWizStep(); }
+}).observe($('#drawer-pair'), {attributes:true, attributeFilter:['class']});
+$('#btnWizard').onclick = () => { $('#drawer-help').classList.remove('open'); openWizard(); };
+
 function showWelcome(){
   const w = $('#welcome');
   $('#welLink').href = GUIDE_URL; $('#welLink').textContent = GUIDE_URL.replace(/^https?:\/\//, '');
@@ -2251,14 +3071,20 @@ function showWelcome(){
 async function loadState(){
   const r = await api('/api/state');
   Object.assign(st, {tools:r.tools, devices:r.devices, sessions:r.sessions, clips:r.clips, debian:r.debian,
-    discovered:r.discovered, pairings:r.pairings, settings:r.settings, notifs:r.notifs, kvm:r.kvm, networks:r.networks||[]});
+    discovered:r.discovered, pairings:r.pairings, settings:r.settings, notifs:r.notifs, kvm:r.kvm, networks:r.networks||[],
+    companion:r.companion||{}});
   $('#ver').textContent = `LinkDeck ${r.version}`;
   $('#btnAgentPush').hidden = !r.agent_pkg;
   $('#setAuto').checked = r.settings.autoconnect; $('#setSync').checked = r.settings.sync; $('#setNotif').checked = r.settings.notif;
   renderTools(); setMode(st.mode); renderSessions(); renderClips(); renderDebian(); renderFound(); renderPairings(); renderNotifs();
   renderSync({...r.sync, dir:r.sync_dir}); onKvm(r.kvm); renderClipStatus(r.clip_status);
-  if(r.welcome) setTimeout(showWelcome, 500);
+  if(!r.settings.onboarded && !st.wizShown){ st.wizShown = true; setTimeout(() => openWizard(), 400); }
+  else if(r.welcome) setTimeout(showWelcome, 500);
   applySettings(r.settings);
+  const lang = pickLang(r.settings);
+  if(!r.settings.lang) prefs({lang}).catch(() => {});      // bahasa hasil deteksi pertama kali disimpan
+  await startI18n(lang);
+  loadDesktop(); loadMicInfo();
   $('#grpSendTo').hidden = r.tools.platform !== 'win32';
   $('#updStatus').textContent = `Versi ini ${r.version}`;
   pollMedia();
@@ -2274,6 +3100,8 @@ function connectEvents(){
       case 'clip': onClip(m.item); break;
       case 'clipstatus': renderClipStatus(m.status); break;
       case 'update': onUpdate(m.update); break;
+      case 'apt_log': onAptLog(m); break;
+      case 'apt_done': onAptDone(m); break;
       case 'update_progress': $('#updText').textContent = `Mengunduh… ${m.pct}%`; break;
       case 'qrpair': onQrPair(m); break;
       case 'networks': st.networks = m.networks; renderDroidHelp(st.devices.some(d=>d.state==='device')); break;
@@ -2284,6 +3112,14 @@ function connectEvents(){
       case 'discovered': st.discovered = m.items; renderFound(); break;
       case 'pairings': st.pairings = m.pairings; renderPairings(); break;
       case 'notif': onNotif(m.items); break;
+      case 'notif_sync': onNotifSync(m); break;
+      case 'notif_upsert': onNotifUpsert(m); break;
+      case 'notif_gone': onNotifGone(m); break;
+      case 'companion': st.companion = {...(st.companion||{}), [m.serial]: m.status}; renderNotifs(); break;
+      case 'battery': {
+        const sd = st.lastStats?.devices?.[m.serial];
+        if(sd){ Object.assign(sd, {charging:m.charging, plugged:m.plugged, temp:m.temp, via:'companion'}); if(m.level != null && sd.bat?.at(-1) !== m.level) sd.bat = [...(sd.bat||[]), m.level].slice(-30); onStats(st.lastStats); }
+        break; }
       case 'sync': renderSync(m.info); toast(`Folder sinkron: ${m.changed} perubahan.`); break;
       case 'kvm': onKvm(m); break;
       case 'tools': st.tools = m.tools; renderTools(); break;
@@ -2336,7 +3172,8 @@ for(let i=0;i<26;i++) AKEY['Key'+String.fromCharCode(65+i)] = 29+i;
 for(let i=0;i<10;i++){ AKEY['Digit'+i] = 7+i; AKEY['Numpad'+i] = 144+i; }
 for(let i=1;i<=12;i++) AKEY['F'+i] = 130+i;
 const metaOf = e => (e.shiftKey?1:0) | (e.altKey?2:0) | (e.ctrlKey?0x1000:0);
-const keyName = c => !c ? '?' : c.startsWith('Key') ? c.slice(3) : c.startsWith('Digit') ? c.slice(5)
+const PAD_NAMES = ['A','B','X','Y','LB','RB','LT','RT','Back','Start','L3','R3','D-pad ↑','D-pad ↓','D-pad ←','D-pad →','Home'];
+const keyName = c => !c ? '?' : c.startsWith('Pad') ? '🎮 ' + (PAD_NAMES[+c.slice(3)] || c.slice(3)) : c.startsWith('Key') ? c.slice(3) : c.startsWith('Digit') ? c.slice(5)
   : ({Space:'Spasi', ShiftLeft:'Shift', ShiftRight:'Shift', ControlLeft:'Ctrl', ControlRight:'Ctrl', AltLeft:'Alt', AltRight:'Alt',
       ArrowUp:'↑', ArrowDown:'↓', ArrowLeft:'←', ArrowRight:'→', Mouse0:'Klik kiri', Mouse2:'Klik kanan', Backquote:'`',
       Enter:'Enter', Tab:'Tab', Escape:'Esc', CapsLock:'Caps'}[c] || c);
@@ -2414,7 +3251,8 @@ async function startGame(){
   ws.onmessage = ev => onGameData(ev.data);
   ws.onclose = () => { if(G.ws === ws){ gmsg('Sambungan game terputus. Klik Keluar lalu main lagi.'); } };
   toast('Gerakkan mouse ke bagian atas layar untuk membuka menu game (Edit tombol, Keluar).');
-  G.statTimer = setInterval(() => { $('#gStat').textContent = `${G.frames - G.lastFps} fps · ${G.size[0]}×${G.size[1]}`; G.lastFps = G.frames; }, 1000);
+  G.statTimer = setInterval(() => { const fps = G.frames - G.lastFps; $('#gStat').textContent = `${fps} fps · ${G.size[0]}×${G.size[1]}`; G.lastFps = G.frames; renderHud(fps); }, 1000);
+  startPad(); renderHud(0);
   bumpBar();
 }
 function lockEsc(){
@@ -2468,6 +3306,9 @@ function layoutKeys(){
       el.innerHTML = `<span style="top:4px">${esc(keyName(k.up))}</span><span style="left:6px">${esc(keyName(k.left))}</span><span style="bottom:4px">${esc(keyName(k.down))}</span><span style="right:6px">${esc(keyName(k.right))}</span>`;
     } else if(it.type === 'aim'){
       el.innerHTML = `✛ ${esc(keyName(it.key))}`;
+    } else if(it.type === 'swipe'){
+      el.style.setProperty('--rng', (it.r * 2 * r.h) + 'px');      // lingkaran jangkauan (tampil saat edit/ditahan)
+      el.innerHTML = `⤢ ${esc(keyName(it.key))}`;
     } else el.textContent = keyName(it.key);
     box.append(el);
   });
@@ -2478,17 +3319,61 @@ new ResizeObserver(() => { if(!$('#game').hidden) layoutKeys(); }).observe($('#g
 async function loadKeymap(){
   try{ const r = await api('/api/keymap/get', {key:G.key}); G.map = r.keymap?.items || []; }catch{ G.map = []; }
   G.saved = JSON.stringify(G.map); layoutKeys();
-  if(!G.map.length) setTimeout(() => toast('Belum ada tombol untuk game ini. Klik "Edit tombol" lalu "Template dasar" untuk mulai.'), 1500);
+  if(!G.map.length) setTimeout(() => toast('Belum ada tombol untuk game ini. Klik "Edit tombol", pilih template, lalu "Pakai".'), 1500);
 }
-function template(){
-  return [
-    {type:'joy', x:0.17, y:0.72, r:0.12, keys:{up:'KeyW', left:'KeyA', down:'KeyS', right:'KeyD'}},
-    {type:'tap', x:0.88, y:0.78, key:'Space'},
-    {type:'tap', x:0.78, y:0.86, key:'KeyE'},
-    {type:'tap', x:0.92, y:0.58, key:'KeyR'},
-    {type:'aim', x:0.62, y:0.45, key:'Backquote', sens:1.2},
-    {type:'tap', x:0.80, y:0.62, key:'Mouse0'},
-  ];
+const JOY = (x, y) => ({type:'joy', x, y, r:0.12, keys:{up:'KeyW', left:'KeyA', down:'KeyS', right:'KeyD'}});
+const TPL = {
+  basic: () => [JOY(0.17, 0.72), {type:'tap', x:0.88, y:0.78, key:'Space'}, {type:'tap', x:0.78, y:0.86, key:'KeyE'},
+    {type:'tap', x:0.92, y:0.58, key:'KeyR'}, {type:'aim', x:0.62, y:0.45, key:'Backquote', sens:1.2, accel:0, zsens:0.6},
+    {type:'tap', x:0.80, y:0.62, key:'Mouse0'}],
+  moba: () => [JOY(0.15, 0.74), {type:'tap', x:0.88, y:0.82, key:'Space'},
+    {type:'swipe', x:0.74, y:0.86, key:'KeyQ', r:0.1}, {type:'swipe', x:0.77, y:0.68, key:'KeyE', r:0.1},
+    {type:'swipe', x:0.86, y:0.6, key:'KeyR', r:0.1}, {type:'tap', x:0.62, y:0.88, key:'KeyF'},
+    {type:'tap', x:0.52, y:0.88, key:'KeyB'}, {type:'tap', x:0.45, y:0.88, key:'KeyH'}, {type:'tap', x:0.04, y:0.08, key:'Tab'}],
+  br: () => [JOY(0.15, 0.7), {type:'aim', x:0.62, y:0.42, key:'Backquote', sens:1.2, accel:0.3, zsens:0.5},
+    {type:'tap', x:0.82, y:0.55, key:'Mouse0'}, {type:'tap', x:0.92, y:0.42, key:'Mouse2'},
+    {type:'tap', x:0.93, y:0.78, key:'Space'}, {type:'tap', x:0.83, y:0.9, key:'KeyC'}, {type:'tap', x:0.91, y:0.9, key:'KeyZ'},
+    {type:'tap', x:0.74, y:0.9, key:'KeyR'}, {type:'tap', x:0.6, y:0.6, key:'KeyF'}, {type:'tap', x:0.66, y:0.9, key:'KeyG'},
+    {type:'tap', x:0.42, y:0.92, key:'Digit1'}, {type:'tap', x:0.58, y:0.92, key:'Digit2'},
+    {type:'tap', x:0.06, y:0.92, key:'Tab'}, {type:'tap', x:0.9, y:0.08, key:'KeyM'}],
+  rpg: () => [JOY(0.15, 0.72), {type:'aim', x:0.6, y:0.4, key:'Backquote', sens:1, accel:0.2, zsens:0.5},
+    {type:'tap', x:0.88, y:0.8, key:'Mouse0'}, {type:'tap', x:0.79, y:0.87, key:'KeyE'}, {type:'tap', x:0.89, y:0.62, key:'KeyQ'},
+    {type:'tap', x:0.95, y:0.72, key:'Space'}, {type:'tap', x:0.95, y:0.88, key:'ShiftLeft'}, {type:'tap', x:0.66, y:0.55, key:'KeyF'},
+    {type:'tap', x:0.08, y:0.12, key:'KeyM'}, {type:'tap', x:0.92, y:0.08, key:'KeyP'}],
+};
+const template = () => TPL.basic();
+
+/* ---- kode berbagi tombol: "LDK1." + base64url(JSON) ---- */
+const TYPES = new Set(['joy', 'tap', 'swipe', 'aim']);
+const KEY_RE = /^[A-Za-z0-9]{1,24}$/;
+function cleanItems(items){
+  if(!Array.isArray(items) || !items.length || items.length > 60) throw new Error('Kode tidak berisi tombol yang valid.');
+  const num = (v, lo, hi, d) => { v = Number(v); return Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d; };
+  return items.map(it => {
+    if(!it || !TYPES.has(it.type)) throw new Error('Kode berisi jenis tombol yang tidak dikenal.');
+    const o = {type:it.type, x:num(it.x, 0, 1, 0.5), y:num(it.y, 0, 1, 0.5)};
+    if(it.type === 'joy'){
+      const k = it.keys || {};
+      o.r = num(it.r, 0.04, 0.25, 0.12);
+      o.keys = {}; for(const d of ['up','left','down','right']){ if(!KEY_RE.test(k[d] || '')) throw new Error('Tombol joystick tidak valid.'); o.keys[d] = k[d]; }
+      return o;
+    }
+    if(!KEY_RE.test(it.key || '')) throw new Error('Tombol keyboard dalam kode tidak valid.');
+    o.key = it.key;
+    if(it.type === 'swipe') o.r = num(it.r, 0.04, 0.25, 0.1);
+    if(it.type === 'aim'){ o.sens = num(it.sens, 0.2, 4, 1.2); o.accel = num(it.accel, 0, 2, 0); o.zsens = num(it.zsens, 0.1, 4, 0.6); }
+    return o;
+  });
+}
+const b64u = s => btoa(String.fromCharCode(...new TextEncoder().encode(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64u = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)));
+Object.assign(G, {exportCode: () => exportCode(), importCode: c => importCode(c), cleanItems: i => cleanItems(i), aimGain: (a, sp) => aimGain(a, sp)});   // untuk diagnosa
+function exportCode(){ return 'LDK1.' + b64u(JSON.stringify({v:1, items:cleanItems(G.map)})); }
+function importCode(code){
+  code = (code || '').trim();
+  if(!code.startsWith('LDK1.')) throw new Error('Kode harus diawali LDK1.');
+  let data; try{ data = JSON.parse(unb64u(code.slice(5))); }catch{ throw new Error('Kode rusak atau tidak lengkap.'); }
+  return cleanItems(data.items);
 }
 
 /* ---- editor ---- */
@@ -2504,27 +3389,57 @@ function renderSel(){
   const it = G.map[G.sel];
   $('#gSel').hidden = !it;
   if(!it) return;
-  $('#gSelInfo').textContent = it.type === 'joy' ? 'Joystick: tekan W/A/S/D untuk bergerak.' : it.type === 'aim'
-    ? `Bidik mouse. Tombol aktif/nonaktif: ${keyName(it.key)}. Tekan tombol lain untuk mengganti.`
-    : `Tombol: ${keyName(it.key)}. Tekan tombol keyboard lain untuk mengganti.`;
-  $('#gRadWrap').hidden = it.type !== 'joy'; $('#gSensWrap').hidden = it.type !== 'aim';
-  $('#gMouseL').hidden = $('#gMouseR').hidden = it.type !== 'tap'; $('#gArrows').hidden = it.type !== 'joy';
-  if(it.type === 'joy'){ $('#gRad').value = it.r; $('#gArrows').textContent = it.keys.up === 'ArrowUp' ? 'Pakai WASD' : 'Pakai panah'; }
-  if(it.type === 'aim') $('#gSens').value = it.sens;
+  $('#gSelInfo').textContent = it.type === 'joy' ? 'Joystick: W/A/S/D (atau panah) dan stik kiri gamepad.' : it.type === 'aim'
+    ? `Bidik: ${keyName(it.key)} mengunci/melepas mouse; stik kanan gamepad juga membidik. Tekan tombol lain untuk mengganti.`
+    : it.type === 'swipe' ? `Tombol geser: tahan ${keyName(it.key)}, arahkan dengan mouse (dari tengah layar) atau stik kanan, lepas untuk memakai skill.`
+    : `Tombol: ${keyName(it.key)}. Tekan tombol keyboard atau stik lain untuk mengganti.`;
+  $('#gRadWrap').hidden = !['joy', 'swipe'].includes(it.type);
+  $('#gSensWrap').hidden = $('#gAccWrap').hidden = $('#gZsWrap').hidden = it.type !== 'aim';
+  $('#gMouseL').hidden = $('#gMouseR').hidden = !['tap', 'swipe'].includes(it.type); $('#gArrows').hidden = it.type !== 'joy';
+  if(it.type === 'joy' || it.type === 'swipe') $('#gRad').value = it.r;
+  if(it.type === 'joy') $('#gArrows').textContent = it.keys.up === 'ArrowUp' ? 'Pakai WASD' : 'Pakai panah';
+  if(it.type === 'aim'){
+    it.accel ??= 0; it.zsens ??= 0.6;
+    $('#gSens').value = it.sens; $('#gAcc').value = it.accel; $('#gZs').value = it.zsens;
+    $('#gSensV').textContent = (+it.sens).toFixed(1); $('#gAccV').textContent = (+it.accel).toFixed(1); $('#gZsV').textContent = (+it.zsens).toFixed(1);
+  }
 }
 $('#gEditor').addEventListener('click', e => {
   const b = e.target.closest('[data-add]'); if(!b) return;
-  if(b.dataset.add === 'template'){ G.map = template(); }
-  else {
-    const it = b.dataset.add === 'joy' ? {type:'joy', x:0.2, y:0.7, r:0.12, keys:{up:'KeyW', left:'KeyA', down:'KeyS', right:'KeyD'}}
-      : b.dataset.add === 'aim' ? {type:'aim', x:0.6, y:0.45, key:'Backquote', sens:1.2} : {type:'tap', x:0.5, y:0.5, key:'KeyF'};
-    G.map.push(it); G.sel = G.map.length - 1;
-  }
+  const a = b.dataset.add;
+  if(a === 'joy' && G.map.some(m => m.type === 'joy')) return toast('Joystick sudah ada (satu per game).', 'warn');
+  if(a === 'aim' && G.map.some(m => m.type === 'aim')) return toast('Bidik mouse sudah ada (satu per game).', 'warn');
+  if(G.map.length >= 60) return toast('Maksimal 60 tanda.', 'warn');
+  const it = a === 'joy' ? JOY(0.2, 0.7) : a === 'aim' ? {type:'aim', x:0.6, y:0.45, key:'Backquote', sens:1.2, accel:0, zsens:0.6}
+    : a === 'swipe' ? {type:'swipe', x:0.75, y:0.75, key:'KeyQ', r:0.1} : {type:'tap', x:0.5, y:0.5, key:'KeyF'};
+  G.map.push(it); G.sel = G.map.length - 1;
   renderSel(); layoutKeys();
 });
 $('#gRad').oninput = e => { G.map[G.sel].r = +e.target.value; layoutKeys(); };
-$('#gSens').oninput = e => { G.map[G.sel].sens = +e.target.value; };
-$('#gMouseL').onclick = () => { G.map[G.sel].key = 'Mouse0'; renderSel(); layoutKeys(); };
+$('#gSens').oninput = e => { G.map[G.sel].sens = +e.target.value; $('#gSensV').textContent = (+e.target.value).toFixed(1); };
+$('#gAcc').oninput = e => { G.map[G.sel].accel = +e.target.value; $('#gAccV').textContent = (+e.target.value).toFixed(1); };
+$('#gZs').oninput = e => { G.map[G.sel].zsens = +e.target.value; $('#gZsV').textContent = (+e.target.value).toFixed(1); };
+$('#gTplGo').onclick = () => {
+  if(G.map.length && !confirm('Ganti semua tanda dengan template ini?')) return;
+  G.map = TPL[$('#gTpl').value](); G.sel = null; renderSel(); layoutKeys();
+  toast('Template dipakai. Posisinya perkiraan: seret tanda agar pas dengan tombol di game kamu, lalu Simpan.');
+};
+$('#gExport').onclick = () => act(null, async () => {
+  const code = exportCode();
+  try{ await navigator.clipboard.writeText(code); toast('Kode tombol disalin. Bagikan ke teman; mereka cukup klik "Tempel kode".'); }
+  catch{ prompt('Salin kode tombol ini:', code); }
+});
+$('#gImport').onclick = () => act(null, async () => {
+  let code = '';
+  try{ code = await navigator.clipboard.readText(); }catch{}
+  if(!code.trim().startsWith('LDK1.')) code = prompt('Tempel kode tombol (diawali LDK1.):') || '';
+  if(!code.trim()) return;
+  const items = importCode(code);
+  if(G.map.length && !confirm(`Ganti tanda sekarang dengan ${items.length} tanda dari kode?`)) return;
+  G.map = items; G.sel = null; renderSel(); layoutKeys();
+  toast('Kode dipakai. Klik Simpan untuk menyimpannya untuk game ini.');
+});
+$('#gMouseL').onclick = () => { G.map[G.sel].key = 'Mouse0'; renderSel(); layoutKeys(); toast('Klik kiri berlaku saat bidik mouse aktif (mouse terkunci).'); };
 $('#gMouseR').onclick = () => { G.map[G.sel].key = 'Mouse2'; renderSel(); layoutKeys(); };
 $('#gArrows').onclick = () => { const it = G.map[G.sel]; it.keys = it.keys.up === 'ArrowUp' ? {up:'KeyW', left:'KeyA', down:'KeyS', right:'KeyD'} : {up:'ArrowUp', left:'ArrowLeft', down:'ArrowDown', right:'ArrowRight'}; renderSel(); layoutKeys(); };
 $('#gDel').onclick = () => { if(G.sel == null) return; G.map.splice(G.sel, 1); G.sel = null; renderSel(); layoutKeys(); };
@@ -2543,13 +3458,14 @@ $('#gKeys').addEventListener('pointerdown', e => {
 });
 
 /* ---- dari keyboard/mouse menjadi sentuhan ---- */
-const PID = {mouse:1000, joy:1001, aim:1002};
+const PID = {mouse:1000, joy:1001, aim:1002, padAim:1003};
 const tapId = i => 1100 + i;
 function joyUpdate(){
   const j = G.map.find(m => m.type === 'joy'); if(!j) return;
   const k = j.keys, p = G.pressed;
   let dx = (p.has(k.right) ? 1 : 0) - (p.has(k.left) ? 1 : 0), dy = (p.has(k.down) ? 1 : 0) - (p.has(k.up) ? 1 : 0);
   if(dx && dy){ dx *= Math.SQRT1_2; dy *= Math.SQRT1_2; }
+  if(!dx && !dy && G.padVec){ [dx, dy] = G.padVec; }          // keyboard diam: pakai stik kiri gamepad
   const ar = G.size[0] / G.size[1] || 1.78;
   if(!dx && !dy){ if(G.joy){ touch(UP, PID.joy, G.joy.x, G.joy.y); G.joy = null; } return; }
   const nx = j.x + dx * j.r / ar, ny = j.y + dy * j.r;
@@ -2568,11 +3484,40 @@ function pressTap(code, down){
   return hit;
 }
 const mark = (i, on) => $(`#gKeys .gk[data-i="${i}"]`)?.classList.toggle('down', on);
+/* tombol geser (skill berarah): tahan = jari di tombol, arah = mouse dari tengah layar / stik kanan, lepas = pakai */
+G.mpos = [0.5, 0.5];
+function swipeVec(){
+  if(G.swipe?.viaPad && G.padRight) return G.padRight;
+  let [vx, vy] = [(G.mpos[0] - 0.5) * 2, (G.mpos[1] - 0.5) * 2];
+  const len = Math.hypot(vx, vy);
+  if(len > 1){ vx /= len; vy /= len; }
+  return [vx, vy];
+}
+function swipeMove(){
+  const sw = G.swipe; if(!sw) return;
+  const it = G.map[sw.i]; if(!it) return;
+  const [vx, vy] = swipeVec(), ar = G.size[0] / G.size[1] || 1.78;
+  sw.x = it.x + vx * it.r / ar; sw.y = it.y + vy * it.r;
+  touch(MOVE, tapId(sw.i), sw.x, sw.y);
+}
+function pressSwipe(code, down, viaPad = false){
+  let hit = false;
+  G.map.forEach((it, i) => {
+    if(it.type !== 'swipe' || it.key !== code) return;
+    hit = true;
+    if(down && !G.swipe){ G.swipe = {i, x:it.x, y:it.y, viaPad}; touch(DOWN, tapId(i), it.x, it.y); mark(i, true); swipeMove(); }
+    if(!down && G.swipe?.i === i){ touch(UP, tapId(i), G.swipe.x, G.swipe.y); G.swipe = null; mark(i, false); }
+  });
+  return hit;
+}
 function releaseAll(){
   for(const i of G.down.keys()){ const it = G.map[i]; if(it) touch(UP, tapId(i), it.x, it.y); mark(i, false); }
   G.down.clear(); G.pressed.clear();
   if(G.joy){ touch(UP, PID.joy, G.joy.x, G.joy.y); G.joy = null; }
   if(G.aim){ touch(UP, PID.aim, G.aim.x, G.aim.y); G.aim = null; }
+  if(G.swipe){ touch(UP, tapId(G.swipe.i), G.swipe.x, G.swipe.y); mark(G.swipe.i, false); G.swipe = null; }
+  if(G.padAim){ touch(UP, PID.padAim, G.padAim.x, G.padAim.y); G.padAim = null; }
+  G.padVec = null; G.rmb = false;
   if(G.mouseDown){ G.mouseDown = false; }
 }
 function isJoyKey(code){ const j = G.map.find(m => m.type === 'joy'); return j && Object.values(j.keys).includes(code); }
@@ -2583,21 +3528,22 @@ window.addEventListener('keydown', e => {
     if(G.sel == null) return;
     const it = G.map[G.sel];
     if(e.code === 'Delete'){ $('#gDel').click(); e.preventDefault(); return; }
-    if(it.type === 'tap' || it.type === 'aim'){ it.key = e.code; renderSel(); layoutKeys(); e.preventDefault(); }
+    if(it.type === 'tap' || it.type === 'aim' || it.type === 'swipe'){ it.key = e.code; renderSel(); layoutKeys(); e.preventDefault(); }
     return;
   }
   if(e.code === 'Escape' && !G.locked){ e.preventDefault(); gsend(msgKey(DOWN, 4)); gsend(msgKey(UP, 4)); return; }  // tombol Kembali
   const aim = G.map.find(m => m.type === 'aim');
   if(aim && e.code === aim.key && !e.repeat){ e.preventDefault(); G.locked ? document.exitPointerLock() : $('#gStage').requestPointerLock(); return; }
   if(isJoyKey(e.code)){ e.preventDefault(); if(!e.repeat){ G.pressed.add(e.code); joyUpdate(); } return; }
-  if(pressTap(e.code, true)){ e.preventDefault(); return; }
+  if(e.repeat && G.map.some(m => (m.type === 'tap' || m.type === 'swipe') && m.key === e.code)){ e.preventDefault(); return; }
+  if(pressTap(e.code, true) | pressSwipe(e.code, true)){ e.preventDefault(); return; }
   const kc = AKEY[e.code];
   if(kc){ e.preventDefault(); gsend(msgKey(DOWN, kc, metaOf(e))); }
 });
 window.addEventListener('keyup', e => {
   if($('#game').hidden || G.editing) return;
   if(isJoyKey(e.code)){ G.pressed.delete(e.code); joyUpdate(); return; }
-  if(pressTap(e.code, false)) return;
+  if(pressTap(e.code, false) | pressSwipe(e.code, false)) return;
   const kc = AKEY[e.code];
   if(kc) gsend(msgKey(UP, kc, metaOf(e)));
 });
@@ -2611,7 +3557,12 @@ $('#gCanvas').addEventListener('pointerdown', e => {
   if(e.button !== 0) return;
   const [x, y] = norm(e); G.mouseDown = true; touch(DOWN, PID.mouse, x, y);
 });
-$('#gCanvas').addEventListener('pointermove', e => { if(G.mouseDown && !G.locked){ const [x, y] = norm(e); touch(MOVE, PID.mouse, x, y); } });
+$('#gCanvas').addEventListener('pointermove', e => {
+  if(G.locked) return;
+  const [x, y] = norm(e); G.mpos = [x, y];
+  if(G.swipe && !G.swipe.viaPad) swipeMove();
+  if(G.mouseDown) touch(MOVE, PID.mouse, x, y);
+});
 $('#gCanvas').addEventListener('pointerup', e => { if(G.mouseDown && !G.locked){ const [x, y] = norm(e); G.mouseDown = false; touch(UP, PID.mouse, x, y); } });
 $('#gCanvas').addEventListener('contextmenu', e => e.preventDefault());
 $('#gCanvas').addEventListener('wheel', e => { if(G.editing) return; e.preventDefault(); const [x, y] = norm(e); gsend(msgScroll(x * G.size[0], y * G.size[1], -Math.sign(e.deltaY))); }, {passive:false});
@@ -2626,13 +3577,92 @@ document.addEventListener('pointerlockchange', () => {
 document.addEventListener('mousemove', e => {
   if(!G.locked || !G.aim) return;
   const aim = G.map.find(m => m.type === 'aim');
-  G.aim.x += e.movementX * aim.sens / (G.size[0] || 1); G.aim.y += e.movementY * aim.sens / (G.size[1] || 1);
+  if(G.swipe && !G.swipe.viaPad){                     // tombol geser saat mouse terkunci: arah dari gerakan mouse
+    G.mpos = [Math.min(1, Math.max(0, G.mpos[0] + e.movementX / 400)), Math.min(1, Math.max(0, G.mpos[1] + e.movementY / 400))];
+    swipeMove(); return;
+  }
+  const k = aimGain(aim, Math.hypot(e.movementX, e.movementY));
+  G.aim.x += e.movementX * k / (G.size[0] || 1); G.aim.y += e.movementY * k / (G.size[1] || 1);
   if(Math.abs(G.aim.x - aim.x) > 0.22 || Math.abs(G.aim.y - aim.y) > 0.3){        // geser kembali ke tengah area bidik
     touch(UP, PID.aim, G.aim.x, G.aim.y); G.aim = {x:aim.x, y:aim.y}; touch(DOWN, PID.aim, aim.x, aim.y);
   } else touch(MOVE, PID.aim, G.aim.x, G.aim.y);
 });
-document.addEventListener('mousedown', e => { if(G.locked && !$('#game').hidden){ pressTap('Mouse' + e.button, true); e.preventDefault(); } });
-document.addEventListener('mouseup', e => { if(G.locked && !$('#game').hidden) pressTap('Mouse' + e.button, false); });
+document.addEventListener('mousedown', e => { if(G.locked && !$('#game').hidden){ if(e.button === 2) G.rmb = true; pressTap('Mouse' + e.button, true); pressSwipe('Mouse' + e.button, true); e.preventDefault(); } });
+document.addEventListener('mouseup', e => { if(G.locked && !$('#game').hidden){ if(e.button === 2) G.rmb = false; pressTap('Mouse' + e.button, false); pressSwipe('Mouse' + e.button, false); } });
+/* kepekaan bidik: dasar × kurva akselerasi (gerakan cepat = lebih jauh); tahan klik kanan = kepekaan membidik */
+function aimGain(aim, speed){
+  const base = G.rmb ? (aim.zsens ?? aim.sens) : aim.sens;
+  return base * (1 + (aim.accel || 0) * Math.min(speed, 40) / 20);
+}
+
+/* ---- gamepad (Xbox, PlayStation, dan stik "standard" lain) ---- */
+G.padPrev = []; G.padRaf = null; G.padT = 0;
+const DZ = 0.18;
+function stick(x, y){
+  const m = Math.hypot(x, y); if(m < DZ) return null;
+  const k = Math.min(1, (m - DZ) / (1 - DZ)) / m;
+  return [x * k, y * k];
+}
+function padFrame(gp, dt){
+  gp.buttons.forEach((b, i) => {
+    const on = b.pressed || b.value > 0.5;
+    if(on === !!G.padPrev[i]) return;
+    G.padPrev[i] = on;
+    const code = 'Pad' + i;
+    if(G.editing){
+      const it = G.map[G.sel];
+      if(on && it && ['tap', 'swipe', 'aim'].includes(it.type)){ it.key = code; renderSel(); layoutKeys(); }
+      return;
+    }
+    const hit = pressTap(code, on) | pressSwipe(code, on, true);
+    if(!hit && on && i === 8){ gsend(msgKey(DOWN, 4)); gsend(msgKey(UP, 4)); }   // Back = tombol Kembali Android
+  });
+  if(G.editing) return;
+  const left = stick(gp.axes[0] || 0, gp.axes[1] || 0);
+  if(String(left) !== String(G.padVec)){ G.padVec = left; joyUpdate(); }
+  G.padRight = stick(gp.axes[2] || 0, gp.axes[3] || 0);
+  if(G.swipe?.viaPad){ swipeMove(); return; }
+  const aim = G.map.find(m => m.type === 'aim');
+  if(!aim || G.locked) return;
+  if(G.padRight){
+    if(!G.padAim){ G.padAim = {x:aim.x, y:aim.y}; touch(DOWN, PID.padAim, aim.x, aim.y); }
+    const v = 0.55 * aimGain(aim, 0) * dt;                  // layar per detik pada stik penuh
+    G.padAim.x += G.padRight[0] * v; G.padAim.y += G.padRight[1] * v;
+    if(Math.abs(G.padAim.x - aim.x) > 0.22 || Math.abs(G.padAim.y - aim.y) > 0.3){
+      touch(UP, PID.padAim, G.padAim.x, G.padAim.y); G.padAim = {x:aim.x, y:aim.y}; touch(DOWN, PID.padAim, aim.x, aim.y);
+    } else touch(MOVE, PID.padAim, G.padAim.x, G.padAim.y);
+  } else if(G.padAim){ touch(UP, PID.padAim, G.padAim.x, G.padAim.y); G.padAim = null; }
+}
+function padLoop(t){
+  G.padRaf = null;
+  if($('#game').hidden || !G.ws) return;
+  const gp = [...(navigator.getGamepads?.() || [])].find(p => p && p.connected);
+  const dt = G.padT ? Math.min(0.1, (t - G.padT) / 1000) : 0.016; G.padT = t;
+  if(gp) padFrame(gp, dt);
+  G.padName = gp ? gp.id : null;
+  G.padRaf = requestAnimationFrame(padLoop);
+}
+function startPad(){ if(!G.padRaf){ G.padT = 0; G.padPrev = []; G.padRaf = requestAnimationFrame(padLoop); } }
+window.addEventListener('gamepadconnected', e => { if(!$('#game').hidden){ toast(`Stik tersambung: ${e.gamepad.id.replace(/\s*\(.*$/, '')}`); startPad(); } });
+window.addEventListener('gamepaddisconnected', () => { if(!$('#game').hidden){ releaseAll(); toast('Stik terputus.', 'warn'); } });
+
+/* ---- info di layar game: FPS, ping, suhu, baterai ---- */
+try{ if(localStorage.getItem('ld.hud') === '0') $('#gHudBtn').setAttribute('aria-pressed', 'false'); }catch{}
+$('#gHudBtn').onclick = () => {
+  const on = $('#gHudBtn').getAttribute('aria-pressed') !== 'true';
+  $('#gHudBtn').setAttribute('aria-pressed', on); $('#gHud').hidden = !on;
+  try{ localStorage.setItem('ld.hud', on ? '1' : '0'); }catch{}
+};
+function renderHud(fps){
+  const hud = $('#gHud'); hud.hidden = $('#gHudBtn').getAttribute('aria-pressed') !== 'true';
+  const d = st.lastStats?.devices?.[st.serial] || {}, lat = d.lat?.at(-1), bat = d.bat?.at(-1), temp = d.temp;
+  const parts = [`<span>${fps} fps</span>`];
+  if(lat != null) parts.push(`<span class="${lat > 120 ? 'hot' : ''}" title="Waktu respons adb">${lat} ms</span>`);
+  if(temp != null) parts.push(`<span class="${temp >= 42 ? 'hot' : ''}" title="Suhu baterai HP">${temp.toFixed(1)}°C</span>`);
+  if(bat != null) parts.push(`<span class="${bat <= 15 && !d.charging ? 'hot' : ''}">${d.charging ? '⚡' : '🔋'} ${bat}%</span>`);
+  if(G.padName) parts.push('<span title="Gamepad tersambung">🎮</span>');
+  hud.innerHTML = parts.join('');
+}
 
 (function init(){
   try{ const s = JSON.parse(localStorage.getItem('ld.deb')||'{}'); if(s.t) setDebT(s.t); if(s.host) $('#debHost').value=s.host; }catch{}

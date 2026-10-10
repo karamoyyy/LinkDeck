@@ -1,5 +1,62 @@
 # Riwayat perubahan
 
+## 1.11.0 — pembaruan besar tahap 3
+**Ikon tray & jalan otomatis**
+- Menutup jendela tidak lagi mematikan LinkDeck: tetap berjalan di tray (sambungan, clipboard, notifikasi, pintasan tetap aktif). Klik ikon untuk membuka lagi; Windows punya menu **Buka LinkDeck / Tampilkan layar Android / Keluar dari LinkDeck**. Membuka LinkDeck untuk kedua kalinya menampilkan jendela yang sudah ada.
+- **Jalankan saat komputer menyala** (Windows, macOS, Linux): LinkDeck mulai diam-diam di tray (`--tray`; macOS: jendela diperkecil di Dock). Ikon tray tersedia di Windows dan Linux.
+- **Keluar dari LinkDeck** di Pengaturan menutup jendela, ikon tray, dan semua sambungan.
+
+**Panduan awal**
+- Muncul saat pertama kali dibuka: bahasa, tema, pilihan perangkat (Android / Debian / keduanya), dan daftar periksa yang diperbarui sendiri (adb, HP terdeteksi, izin debugging, aplikasi pendamping, Debian ditemukan/tersambung). Bisa dibuka lagi dari **Pengaturan → Aplikasi**.
+
+**HP jadi mikrofon laptop** (Android 11+)
+- Tombol **Mikrofon HP** di kartu Android. Linux: mikrofon virtual **Mikrofon HP (LinkDeck)** dibuat otomatis (PulseAudio/PipeWire). Windows: lewat VB-CABLE; macOS: lewat BlackHole 2ch.
+- Pengaturan tujuan suara (mikrofon virtual / speaker laptop), peredam bising & gema, dan dengarkan juga di speaker.
+
+**Webcam di Windows & macOS** (Android 12+)
+- Kamera HP jadi webcam untuk Zoom/Meet/Teams/Discord lewat OBS Virtual Camera, tanpa jendela tambahan (Linux tetap lewat v4l2loopback).
+
+**Aplikasi pendamping Android "LinkDeck Pendamping"** (opsional)
+- Dipasang dari LinkDeck dengan satu klik; akses notifikasi dinyalakan otomatis lewat adb. Tanpa izin internet.
+- **Balas notifikasi** dari laptop, jalankan tombol aksinya (mis. Tandai dibaca), dan tutup notifikasi di HP. Notifikasi tampil seketika, percakapan menampilkan pesan terakhir, dan notifikasi yang ditutup di HP ikut hilang.
+- Status **baterai & pengisian** langsung (⚡, jenis pengisi daya, suhu) di kartu Pantauan dan info Mode Game.
+- Selama pendamping tersambung, `dumpsys` berkala dihentikan (lebih hemat lewat Bluetooth). Tanpa pendamping semuanya tetap berjalan seperti sebelumnya.
+
+**Baterai HP tanpa adb** (agen Debian 1.11.0)
+- Bila HP hanya tersambung lewat Debian, agen mengirim status baterai dari LinkDeck Pendamping, `termux-battery-status`, atau `/sys/class/power_supply`.
+
+**Bahasa Inggris**
+- Seluruh antarmuka tersedia dalam bahasa Inggris (**Pengaturan → Tampilan → Bahasa**, atau di Panduan awal), termasuk pesan dari server, menu tray, dan aplikasi pendamping. Pemasangan baru mengikuti bahasa sistem; pengguna lama tetap Bahasa Indonesia.
+
+**Perbaikan**
+- Teks notifikasi dan petunjuk di kartu Notifikasi HP kini terbaca jelas di tema terang; huruf inisial aplikasi kini di tengah lingkaran.
+- Kartu baterai menampilkan ⚡ saat HP mengisi daya (juga lewat adb biasa).
+
+## 1.10.0 — pembaruan besar tahap 2
+**Mode Game**
+- **Gamepad (stik)**: stik kiri = joystick (analog), stik kanan = bidik atau arah tombol geser, tombol stik bisa dipetakan ke tanda mana pun lewat **Edit tombol**; Back/View = tombol Kembali Android.
+- **Tombol geser** untuk skill berarah: tahan, arahkan dengan mouse (dari tengah layar) atau stik kanan, lepas untuk memakai.
+- **Kurva bidik**: akselerasi (gerakan cepat menggeser lebih jauh) dan kepekaan terpisah saat klik kanan ditahan (teropong).
+- **Template** MOBA, Battle royale, dan Aksi/RPG, serta **kode berbagi** tombol (`LDK1.…`) yang diperiksa sebelum dipakai.
+- **Info** di layar game: FPS, waktu respons, suhu dan baterai HP, ikon stik.
+
+**Alat Debian** (butuh agen 1.10.0)
+- **Berkas**: jelajahi Debian, pratinjau, unduh, unggah, buat folder, ganti nama, hapus (perubahan hanya di folder rumah).
+- **Aplikasi**: toko aplikasi berbasis apt — cari, pasang, copot, perbarui daftar paket, keluaran apt tampil langsung; mendukung pengguna biasa lewat sandi sudo (tidak disimpan).
+- **Sistem**: CPU, RAM, swap, penyimpanan, lama menyala, dan daftar proses dengan tombol Hentikan/Paksa.
+
+**Clipboard gambar & berkas** (laptop Windows/Linux ↔ Debian, butuh agen 1.10.0)
+- Gambar dan berkas yang disalin di satu sisi bisa langsung ditempel di sisi lain; disamakan juga antar layar X di Debian (desktop LinkDeck dan Termux:X11).
+- Riwayat menampilkan gambar mini; **Salin lagi** dan **Buka folder** untuk gambar/berkas; sakelar **Gambar & berkas**.
+- Aktif hanya bila kedua sisi mendukungnya, sehingga LinkDeck lama dan agen lama tidak dikirimi data yang tidak dikenal.
+
+**Perbaikan**
+- Kartu Clipboard dan label "Terenkripsi" kini terbaca jelas di tema terang.
+- Clipboard yang hanya berisi gambar tidak lagi terbaca sebagai teks rusak.
+
+**Agen Debian 1.10.0**
+- Protokol permintaan–jawaban untuk alat Debian (berjalan terpisah, tidak menahan mouse/keyboard), pemantauan gambar & berkas di clipboard, info pengguna/root.
+
 ## 1.9.0 — pembaruan besar tahap 1
 **Alat Android (tanpa aplikasi tambahan di HP)**
 - **Berkas HP**: jelajahi `/sdcard`, unggah ke folder mana pun, unduh, ganti nama, hapus, buat folder, dan pratinjau foto/video/musik/teks.

@@ -123,24 +123,213 @@ class Api:
         return True
 
 
-def run_webview() -> bool:
-    try:
-        import webview
-    except ImportError:
+class Desktop:
+    """Jendela, ikon tray, dan keluar. Satu objek per proses (server.DESKTOP)."""
+
+    def __init__(self, start_hidden: bool) -> None:
+        self.start_hidden = start_hidden
+        self.quitting = threading.Event()
+        self.mode: str | None = None          # webview | chromium | browser
+        self.window = None                    # jendela pywebview
+        self.proc: subprocess.Popen | None = None
+        self.exe: str | None = None
+        self.tray = None
+        self.notified = False
+        self.lock = threading.Lock()
+        self.detached = threading.Event()      # peluncur Chromium keluar cepat: jendela milik proses lain
+
+    # ---------- dipanggil dari server / tray (thread mana pun)
+    def info(self) -> dict:
+        return {"mode": self.mode, "tray": bool(self.tray and self.tray.visible()),
+                "tray_menu": bool(self.tray and self.tray.has_menu)}
+
+    def keep_in_tray(self) -> bool:
+        return bool(server.S.settings.get("tray", True) and self.tray and self.tray.visible())
+
+    def show(self) -> None:
+        if self.quitting.is_set():
+            return
+        if self.mode == "webview" and self.window is not None:
+            self.window.show()
+            try:
+                self.window.restore()
+            except Exception:
+                pass
+        elif self.mode == "chromium":
+            self.launch_chromium()
+        elif self.mode == "browser":
+            webbrowser.open(URL)
+
+    def quit(self) -> None:
+        self.quitting.set()
+        if self.window is not None:
+            try:
+                self.window.destroy()
+            except Exception:
+                pass
+        with self.lock:
+            if self.proc and self.proc.poll() is None:
+                self.proc.terminate()
+        if self.tray:
+            self.tray.stop()
+
+    def mirror(self) -> None:
+        import features
+        if server.S.loop:
+            asyncio.run_coroutine_threadsafe(features.hotkey_action("mirror"), server.S.loop)
+
+    def told_once(self) -> None:
+        if not self.notified and self.tray:
+            self.notified = True
+            self.tray.notify("LinkDeck tetap berjalan di tray. Klik ikonnya untuk membuka lagi.")
+
+    def make_tray(self) -> bool:
+        if sys.platform == "darwin":
+            return False                       # macOS: buka lagi lewat Dock (pystray bentrok dengan WKWebView)
+        import tray
+        lang = server.S.settings.get("lang") or ""
+        if lang not in ("id", "en"):        # belum memilih: ikuti bahasa sistem untuk pemasangan baru
+            loc = (os.environ.get("LANG") or os.environ.get("LC_ALL") or "").lower()
+            if sys.platform == "win32":
+                import locale
+                loc = (locale.getlocale()[0] or "").lower()      # mis. "Indonesian_Indonesia"
+            lang = "id" if server.S.settings.get("onboarded") or loc.startswith(
+                ("id", "ms", "in_", "indonesian", "malay")) else "en"
+        t = tray.Tray(on_open=self.show, on_quit=self.quit, on_mirror=self.mirror, lang=lang)
+        if t.create():
+            self.tray = t
+            return True
+        print("[tray]", t.error, flush=True)
         return False
-    gui = {"win32": "edgechromium", "darwin": "cocoa"}.get(sys.platform)
-    api = Api()
-    try:
-        api._window = webview.create_window(
-            "LinkDeck", URL, width=1440, height=940, min_size=(900, 640),
-            js_api=api, background_color="#2a1f25", text_select=True)
-        store = server.user_data_dir() / "webview"
-        store.mkdir(parents=True, exist_ok=True)
-        webview.start(gui=gui, private_mode=False, storage_path=str(store))
+
+    # ---------- pywebview (Windows/macOS)
+    def on_closing(self):
+        if self.quitting.is_set() or not self.keep_in_tray():
+            self.quitting.set()
+            return None                        # tutup sungguhan
+        threading.Timer(0.05, self.window.hide).start()
+        self.told_once()
+        return False                           # batalkan tutup: sembunyikan ke tray
+
+    def run_webview(self) -> bool:
+        try:
+            import webview
+        except ImportError:
+            return False
+        gui = {"win32": "edgechromium", "darwin": "cocoa"}.get(sys.platform)
+        has_tray = self.make_tray()
+        api = Api()
+        try:
+            self.window = webview.create_window(
+                "LinkDeck", URL, width=1440, height=940, min_size=(900, 640),
+                js_api=api, background_color="#2a1f25", text_select=True,
+                hidden=self.start_hidden and has_tray, minimized=self.start_hidden and not has_tray)
+            api._window = self.window
+            self.window.events.closing += self.on_closing
+            self.mode = "webview"
+            if has_tray:
+                self.tray.run_in_thread()
+            store = server.user_data_dir() / "webview"
+            store.mkdir(parents=True, exist_ok=True)
+            webview.start(gui=gui, private_mode=False, storage_path=str(store))
+            return True
+        except Exception as e:
+            print("pywebview gagal:", e)
+            self.window, self.mode = None, None
+            if self.tray:
+                self.tray.stop()
+                self.tray = None
+            return False
+        finally:
+            if self.mode == "webview":
+                self.quit()
+
+    # ---------- Chrome/Edge mode aplikasi (Linux; cadangan di Windows/macOS)
+    def chromium_args(self) -> list[str]:
+        profile = server.user_data_dir() / "chromium-profile"
+        profile.mkdir(parents=True, exist_ok=True)
+        args = [self.exe, f"--app={URL}", f"--user-data-dir={profile}", "--window-size=1440,940",
+                "--no-first-run", "--no-default-browser-check", "--class=LinkDeck"]
+        if server.ON_PHONE or (hasattr(os, "geteuid") and os.geteuid() == 0):
+            # Debian di HP (proot) / root: sandbox Chromium tidak tersedia
+            args += ["--no-sandbox", "--test-type", "--disable-dev-shm-usage"]
+        return args
+
+    def launch_chromium(self) -> bool:
+        with self.lock:
+            if self.proc and self.proc.poll() is None:
+                return True                    # jendela sudah terbuka
+            try:
+                self.proc = subprocess.Popen(self.chromium_args())
+            except OSError as e:
+                print("Chromium gagal dibuka:", e)
+                return False
+            proc = self.proc
+        threading.Thread(target=self._watch_chromium, args=(proc, time.time()), daemon=True).start()
         return True
-    except Exception as e:
-        print("pywebview gagal:", e)
-        return False
+
+    def _watch_chromium(self, proc: subprocess.Popen, started: float) -> None:
+        proc.wait()
+        if self.quitting.is_set():
+            return
+        if time.time() - started < 3:
+            self.detached.set()                # peluncur yang langsung keluar: jendela diurus proses lain
+            return
+        if self.keep_in_tray():
+            self.told_once()
+        else:
+            self.quit()                        # tanpa tray: menutup jendela = keluar
+
+    def run_chromium(self) -> bool:
+        self.exe = find_chromium()
+        if not self.exe:
+            return False
+        self.mode = "chromium"
+        has_tray = self.make_tray()
+        if not self.start_hidden or not has_tray:
+            if not self.launch_chromium():
+                self.mode = None
+                return False
+        if has_tray:
+            self.tray.run()                    # blok di thread utama sampai Keluar
+            if self.quitting.is_set():
+                return True
+            print("[tray]", self.tray.error or "ikon tray berhenti", flush=True)
+            self.tray = None                   # ikon tray berhenti sendiri: lanjut tanpa tray
+            self.launch_chromium()
+        while not self.quitting.wait(0.5):     # tanpa tray: tutup jendela = keluar (lihat _watch_chromium)
+            if self.detached.is_set():
+                wait_forever(self.quitting)
+                break
+        return True
+
+    # ---------- browser biasa
+    def run_browser(self) -> None:
+        self.mode = "browser"
+        if not self.start_hidden:
+            webbrowser.open(URL)
+        if self.make_tray():
+            self.tray.run()
+            if self.quitting.is_set():
+                return
+        if self.start_hidden:
+            webbrowser.open(URL)
+        wait_forever(self.quitting)
+
+    def run(self) -> None:
+        choice = os.environ.get("LINKDECK_UI", "").lower()
+        order = [self.run_chromium, self.run_webview] if sys.platform.startswith("linux") \
+            else [self.run_webview, self.run_chromium]
+        if choice == "webview":
+            order = [self.run_webview]
+        elif choice == "chromium":
+            order = [self.run_chromium]
+        elif choice == "browser":
+            order = []
+        for fn in order:
+            if fn():
+                return
+        self.run_browser()
 
 
 def find_chromium() -> str | None:
@@ -163,70 +352,33 @@ def find_chromium() -> str | None:
     return next((str(c) for c in candidates if c.exists()), None)
 
 
-def run_chromium() -> bool:
-    exe = find_chromium()
-    if not exe:
-        return False
-    profile = server.user_data_dir() / "chromium-profile"
-    profile.mkdir(parents=True, exist_ok=True)
-    try:
-        args = [exe, f"--app={URL}", f"--user-data-dir={profile}", "--window-size=1440,940",
-                "--no-first-run", "--no-default-browser-check", "--class=LinkDeck"]
-        if server.ON_PHONE or (hasattr(os, "geteuid") and os.geteuid() == 0):
-            # Debian di HP (proot) / root: sandbox Chromium tidak tersedia
-            args += ["--no-sandbox", "--test-type", "--disable-dev-shm-usage"]
-        proc = subprocess.Popen(args)
-    except OSError:
-        return False
-    started = time.time()
-    proc.wait()
-    # Peluncur yang langsung keluar (mis. snap) berarti jendela diurus proses lain
-    if time.time() - started < 3:
-        wait_forever()
-    return True
-
-
-def wait_forever() -> None:
+def wait_forever(stop: threading.Event | None = None) -> None:
     if SECONDARY:
         return
     print("LinkDeck tetap berjalan. Tekan Ctrl+C untuk berhenti.")
     try:
-        threading.Event().wait()
+        (stop or threading.Event()).wait()
     except KeyboardInterrupt:
         pass
 
 
-def open_ui() -> None:
-    choice = os.environ.get("LINKDECK_UI", "").lower()
-    if sys.platform == "linux":
-        order = [run_chromium, run_webview]
-    else:
-        order = [run_webview, run_chromium]
-    if choice == "webview":
-        order = [run_webview]
-    elif choice == "chromium":
-        order = [run_chromium]
-    elif choice == "browser":
-        order = []
-    for fn in order:
-        if fn():
-            return
-    webbrowser.open(URL)
-    wait_forever()
+def call_running(path: str, payload: dict | None = None, timeout: float = 10) -> dict | None:
+    """Panggil API LinkDeck yang sedang berjalan (instans lain). None bila tidak bisa."""
+    try:
+        info = json.loads((server.user_data_dir() / "session.json").read_text())
+        req = urllib.request.Request(f"http://{server.HOST}:{info['port']}{path}",
+                                     data=json.dumps(payload or {}).encode(), method="POST",
+                                     headers={"Content-Type": "application/json", "X-LinkDeck-Token": info["token"]})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read())
+    except Exception:
+        return None
 
 
 def send_files(paths: list[str]) -> bool:
     """Kirim berkas ke HP lewat LinkDeck yang sedang berjalan. False bila LinkDeck belum berjalan."""
-    sess = server.user_data_dir() / "session.json"
-    try:
-        info = json.loads(sess.read_text())
-        req = urllib.request.Request(f"http://{server.HOST}:{info['port']}/api/sendfiles",
-                                     data=json.dumps({"paths": paths}).encode(), method="POST",
-                                     headers={"Content-Type": "application/json", "X-LinkDeck-Token": info["token"]})
-        with urllib.request.urlopen(req, timeout=600) as r:
-            return json.loads(r.read()).get("ok", False)
-    except Exception:
-        return False
+    r = call_running("/api/sendfiles", {"paths": paths}, timeout=600)
+    return bool(r and r.get("ok"))
 
 
 def main() -> None:
@@ -236,19 +388,27 @@ def main() -> None:
             return
         os.environ["LINKDECK_PENDING"] = json.dumps(paths)   # belum berjalan: buka LinkDeck, kirim saat HP siap
         sys.argv = [sys.argv[0]]
+    start_hidden = "--tray" in sys.argv             # jalan otomatis saat login: diam di tray
     setup_logging()
     server.OPEN_BROWSER = False
     global SECONDARY
-    if linkdeck_running():          # sudah ada yang jalan: cukup buka jendelanya
-        SECONDARY = True
-        open_ui()
+    if linkdeck_running():
+        if start_hidden:
+            return                                  # sudah berjalan; jalan otomatis tidak perlu apa-apa
+        r = call_running("/api/app/show")
+        if r and r.get("ok") and r.get("shown"):
+            return                                  # jendela instans pertama dimunculkan
+        SECONDARY = True                            # instans lama tanpa /api/app/show: buka jendela biasa
+        Desktop(False).run()
         return
     stop = start_server()
     if hasattr(signal, "SIGTERM"):     # ditutup dari luar: tetap bereskan mirror & adb
         signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     print(f"LinkDeck {server.VERSION} siap di {URL}")
+    desk = Desktop(start_hidden)
+    server.DESKTOP = desk
     try:
-        open_ui()
+        desk.run()
     finally:
         stop()
 

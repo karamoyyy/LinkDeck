@@ -25,6 +25,7 @@ import signal
 import socket
 import ssl
 import struct
+import re  # noqa: F401
 import subprocess
 import termios
 import time
@@ -32,7 +33,7 @@ from pathlib import Path
 
 from aiohttp import WSMsgType, web
 
-VERSION = "1.7.0"
+VERSION = "1.11.0"
 LD = Path.home() / ".linkdeck"
 TOKEN = os.environ.get("LINKDECK_TOKEN", "")
 AGENT_ID = os.environ.get("LINKDECK_ID", "")
@@ -49,6 +50,10 @@ SYNC = Path(os.environ.get("LINKDECK_SYNC_DIR", Path.home() / "LinkDeck-Sinkron"
 MAX_FILE = 48 * 1024 * 1024
 ENV = {**os.environ, "DISPLAY": DISPLAY}
 AUDIO_CMD = os.environ.get("LINKDECK_AUDIO_CMD", "")   # untuk pengujian / sistem audio khusus
+# soket aplikasi pendamping Android; awalan "@" = namespace abstrak Linux (seperti LocalServerSocket Android)
+COMPANION_SOCK = os.environ.get("LINKDECK_COMPANION_SOCK", "@linkdeck_companion")
+POWER_DIR = Path(os.environ.get("LINKDECK_POWER_DIR", "/sys/class/power_supply"))
+TERMUX_BATTERY = ("termux-battery-status", "/data/data/com.termux/files/usr/bin/termux-battery-status")
 
 clients: set = set()
 last_clip = None
@@ -116,6 +121,7 @@ disp_clip: dict[str, str | None] = {}     # isi clipboard terakhir per layar X
 async def clip_set_all(text: str, skip: str | None = None) -> None:
     """Isi clipboard di semua layar X (kecuali asal salinan), lalu tunggu sampai benar-benar terpasang."""
     for d in x_displays():
+        disp_rich[d] = None
         if d == skip:
             disp_clip[d] = text
             continue
@@ -156,6 +162,474 @@ def sync_manifest() -> dict:
             st = f.stat()
             out[f.relative_to(SYNC).as_posix()] = [st.st_size, int(st.st_mtime)]
     return out
+
+
+# ------------------------------------------------------------------ tahap 2: berkas, apt, sistem (permintaan ber-rid)
+
+HOME = Path.home().resolve()
+PKG_RE = re.compile(r"^[a-z0-9][a-z0-9+.\-]{0,100}$")
+apt_job: dict = {"proc": None}
+_cpu_prev: dict = {}
+
+
+def within_home(p: Path) -> bool:
+    try:
+        p = p.resolve()
+    except OSError:
+        return False
+    return p == HOME or str(p).startswith(str(HOME) + os.sep)
+
+
+def fs_path(raw: str) -> Path:
+    raw = (raw or "~").strip()
+    p = Path(os.path.expanduser(raw))
+    return p if p.is_absolute() else HOME / p
+
+
+def fs_list(path: str) -> dict:
+    p = fs_path(path).resolve()
+    if not p.is_dir():
+        raise ValueError("Folder tidak ditemukan.")
+    items = []
+    with os.scandir(p) as it:
+        for e in it:
+            try:
+                st = e.stat(follow_symlinks=True)
+                is_dir = e.is_dir(follow_symlinks=True)
+            except OSError:
+                st, is_dir = None, False
+            items.append({"name": e.name, "dir": is_dir, "link": e.is_symlink(), "hidden": e.name.startswith("."),
+                          "size": (st.st_size if st and not is_dir else 0),
+                          "time": time.strftime("%Y-%m-%d %H:%M", time.localtime(st.st_mtime)) if st else ""})
+    items.sort(key=lambda x: (not x["dir"], x["name"].lower()))
+    return {"path": str(p), "home": str(HOME), "writable": within_home(p), "items": items[:3000]}
+
+
+def fs_op(op: str, path: str, name: str = "") -> None:
+    p = fs_path(path)
+    if op == "mkdir":
+        target = p
+    else:
+        target = p
+        if not target.exists() and not target.is_symlink():
+            raise ValueError("Berkas tidak ditemukan.")
+    if not within_home(target.parent if op != "mkdir" else target) or target.resolve() == HOME:
+        raise ValueError("Hanya bisa mengubah isi folder rumah (~).")
+    if op == "mkdir":
+        target.mkdir(parents=True, exist_ok=False)
+    elif op == "rename":
+        new = target.with_name(safe_name(name))
+        if new.exists():
+            raise ValueError("Nama itu sudah dipakai.")
+        target.rename(new)
+    elif op == "delete":
+        if target.is_dir() and not target.is_symlink():
+            shutil.rmtree(target)
+        else:
+            target.unlink()
+    else:
+        raise ValueError("Aksi tidak dikenal.")
+
+
+def fs_get(path: str) -> dict:
+    p = fs_path(path).resolve()
+    if not p.is_file():
+        raise ValueError("Bukan berkas.")
+    if p.stat().st_size > MAX_FILE:
+        raise ValueError(f"Berkas lebih dari {MAX_FILE // 1048576} MB; pakai folder sinkron atau ~/LinkDeck-Kirim.")
+    return {"name": p.name, "data": base64.b64encode(p.read_bytes()).decode()}
+
+
+def fs_put(folder: str, name: str, data: str) -> str:
+    d = fs_path(folder).resolve()
+    if not d.is_dir() or not within_home(d):
+        raise ValueError("Unggah hanya ke folder di dalam folder rumah (~).")
+    dest = unique(d / safe_name(name))
+    tmp = dest.with_name(f".{dest.name}.part")
+    tmp.write_bytes(base64.b64decode(data))
+    tmp.replace(dest)
+    return dest.name
+
+
+def apt_search(q: str) -> list:
+    q = q.strip()[:60]
+    if not q:
+        return []
+    r = subprocess.run(["apt-cache", "search", "--names-only", "--", q], capture_output=True, text=True, timeout=30)
+    rows = []
+    for line in r.stdout.splitlines():
+        if " - " in line:
+            pkg, desc = line.split(" - ", 1)
+            rows.append({"pkg": pkg.strip(), "desc": desc.strip()})
+    ql = q.lower()
+    rows.sort(key=lambda x: (x["pkg"] != ql, not x["pkg"].startswith(ql), len(x["pkg"])))
+    rows = rows[:60]
+    return apt_mark_installed(rows)
+
+
+def apt_mark_installed(rows: list) -> list:
+    if not rows:
+        return rows
+    r = subprocess.run(["dpkg-query", "-W", "-f=${Package}\t${db:Status-Status}\n", *[x["pkg"] for x in rows]],
+                       capture_output=True, text=True, timeout=20)
+    inst = {l.split("\t")[0] for l in r.stdout.splitlines() if l.endswith("\tinstalled")}
+    for x in rows:
+        x["installed"] = x["pkg"] in inst
+    return rows
+
+
+def apt_info(pkgs: list) -> list:
+    pkgs = [p for p in pkgs if PKG_RE.match(p)][:40]
+    if not pkgs:
+        return []
+    r = subprocess.run(["apt-cache", "show", "--no-all-versions", *pkgs], capture_output=True, text=True, timeout=30)
+    desc = {}
+    cur = None
+    for line in r.stdout.splitlines():
+        if line.startswith("Package: "):
+            cur = line[9:].strip()
+        elif line.startswith(("Description: ", "Description-en: ")) and cur and cur not in desc:
+            desc[cur] = line.split(": ", 1)[1].strip()
+    rows = [{"pkg": p, "desc": desc[p]} for p in pkgs if p in desc]
+    return apt_mark_installed(rows)
+
+
+async def apt_run(action: str, pkg: str, password: str) -> None:
+    """Jalankan apt-get, siarkan keluarannya baris demi baris (apt_log) lalu apt_done."""
+    if action == "update":
+        cmd = ["apt-get", "update"]
+    else:
+        cmd = ["apt-get", "install" if action == "install" else "remove", "-y", pkg]
+    root = os.geteuid() == 0
+    if not root:
+        if not shutil.which("sudo"):
+            await send_all({"type": "apt_done", "ok": False, "action": action, "pkg": pkg,
+                            "msg": "sudo belum terpasang. Masuk sebagai root lalu jalankan: apt install sudo"})
+            return
+        cmd = ["sudo", "-S", "-p", "", "--"] + cmd
+    env = {**ENV, "DEBIAN_FRONTEND": "noninteractive", "LC_ALL": "C.UTF-8"}
+    proc = await asyncio.create_subprocess_exec(*cmd, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
+                                                stderr=asyncio.subprocess.STDOUT, env=env)
+    apt_job["proc"] = proc
+    try:
+        if not root:
+            proc.stdin.write((password or "").encode() + b"\n")
+            await proc.stdin.drain()
+        proc.stdin.close()
+        async for raw in proc.stdout:
+            line = raw.decode(errors="replace").rstrip()
+            if line:
+                await send_all({"type": "apt_log", "line": line[:400]})
+        code = await proc.wait()
+    finally:
+        apt_job["proc"] = None
+    msg = None
+    if code != 0 and not root:
+        msg = "Gagal. Bila sandi salah, coba lagi; bila pengguna ini tidak boleh memakai sudo, masuk sebagai root."
+    await send_all({"type": "apt_done", "ok": code == 0, "code": code, "action": action, "pkg": pkg, "msg": msg})
+
+
+def cpu_sample() -> tuple | None:
+    try:
+        f = Path("/proc/stat").read_text().splitlines()[0].split()[1:]
+        v = [int(x) for x in f]
+        return sum(v), v[3] + (v[4] if len(v) > 4 else 0)
+    except Exception:
+        return None
+
+
+def proc_table() -> dict:
+    out = {}
+    tick = os.sysconf("SC_CLK_TCK") if hasattr(os, "sysconf") else 100
+    for e in os.scandir("/proc"):
+        if not e.name.isdigit():
+            continue
+        try:
+            stat = Path(f"/proc/{e.name}/stat").read_text()
+            name = stat[stat.index("(") + 1:stat.rindex(")")]
+            parts = stat[stat.rindex(")") + 2:].split()
+            cpu = (int(parts[11]) + int(parts[12])) / tick
+            rss = int(parts[21]) * os.sysconf("SC_PAGE_SIZE")
+            uid = os.stat(f"/proc/{e.name}").st_uid
+            try:
+                cmd = Path(f"/proc/{e.name}/cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace").strip()
+            except OSError:
+                cmd = ""
+            out[int(e.name)] = {"name": name, "cpu_t": cpu, "rss": rss, "uid": uid, "cmd": cmd[:200]}
+        except Exception:
+            continue
+    return out
+
+
+def mem_info() -> dict:
+    info = {}
+    try:
+        for line in Path("/proc/meminfo").read_text().splitlines():
+            k, v = line.split(":", 1)
+            info[k] = int(v.split()[0]) * 1024
+    except Exception:
+        return {}
+    return {"total": info.get("MemTotal"), "avail": info.get("MemAvailable"),
+            "swap_total": info.get("SwapTotal"), "swap_free": info.get("SwapFree")}
+
+
+async def sys_info() -> dict:
+    import pwd
+    c1, p1, t1 = cpu_sample(), await asyncio.to_thread(proc_table), time.monotonic()
+    await asyncio.sleep(0.6)
+    c2, p2, t2 = cpu_sample(), await asyncio.to_thread(proc_table), time.monotonic()
+    cpu = None
+    if c1 and c2 and c2[0] > c1[0]:
+        cpu = round(100 * (1 - (c2[1] - c1[1]) / (c2[0] - c1[0])), 1)
+    ncpu = os.cpu_count() or 1
+    mem = mem_info()
+    users: dict = {}
+    procs = []
+    for pid, p in p2.items():
+        prev = p1.get(pid)
+        pc = round(100 * (p["cpu_t"] - prev["cpu_t"]) / max(0.01, t2 - t1) / ncpu, 1) if prev else 0.0
+        if p["uid"] not in users:
+            try:
+                users[p["uid"]] = pwd.getpwuid(p["uid"]).pw_name
+            except KeyError:
+                users[p["uid"]] = str(p["uid"])
+        procs.append({"pid": pid, "name": p["name"], "cmd": p["cmd"], "cpu": max(0.0, pc),
+                      "mem": p["rss"], "user": users[p["uid"]], "mine": p["uid"] == os.getuid()})
+    procs.sort(key=lambda x: (-x["cpu"], -x["mem"]))
+    disks = []
+    for label, path in (("Folder rumah", str(HOME)), ("Sistem (/)", "/")):
+        try:
+            du = shutil.disk_usage(path)
+            disks.append({"label": label, "path": path, "total": du.total, "used": du.used, "free": du.free})
+        except OSError:
+            pass
+    try:
+        up = float(Path("/proc/uptime").read_text().split()[0])
+    except Exception:
+        up = None
+    try:
+        load = list(os.getloadavg())
+    except OSError:
+        load = None
+    return {"cpu": cpu, "cores": ncpu, "mem": mem, "disks": disks, "uptime": up, "load": load,
+            "procs": procs[:150], "count": len(procs), "me": users.get(os.getuid()) or str(os.getuid())}
+
+
+def proc_kill(pid: int, force: bool) -> None:
+    if pid in (os.getpid(), os.getppid(), 1) or pid <= 0:
+        raise ValueError("Proses ini tidak boleh dihentikan dari LinkDeck.")
+    try:
+        os.kill(pid, signal.SIGKILL if force else signal.SIGTERM)
+    except ProcessLookupError:
+        raise ValueError("Proses sudah tidak ada.")
+    except PermissionError:
+        raise ValueError("Tidak diizinkan: proses milik pengguna lain.")
+
+
+async def handle_req(ws, d: dict) -> None:
+    """Permintaan ber-rid dari PC; jawabannya {"type": "reply", "rid": ..., "ok": ...}."""
+    rid, t = d.get("rid"), d.get("type")
+    res: dict = {}
+    try:
+        if t == "fs_list":
+            res = await asyncio.to_thread(fs_list, d.get("path", "~"))
+        elif t == "fs_op":
+            await asyncio.to_thread(fs_op, d.get("op", ""), d.get("path", ""), d.get("name", ""))
+        elif t == "fs_get":
+            res = await asyncio.to_thread(fs_get, d.get("path", ""))
+        elif t == "fs_put":
+            res = {"name": await asyncio.to_thread(fs_put, d.get("dir", ""), d.get("name", ""), d.get("data", ""))}
+        elif t == "apt_search":
+            res = {"items": await asyncio.to_thread(apt_search, str(d.get("q", "")))}
+        elif t == "apt_info":
+            res = {"items": await asyncio.to_thread(apt_info, list(d.get("pkgs", [])))}
+        elif t == "apt_run":
+            action, pkg = d.get("action"), str(d.get("pkg", ""))
+            if action not in ("install", "remove", "update") or (action != "update" and not PKG_RE.match(pkg)):
+                raise ValueError("Paket tidak valid.")
+            if apt_job["proc"]:
+                raise ValueError("Masih ada pemasangan lain yang berjalan.")
+            asyncio.create_task(apt_run(action, pkg, str(d.get("password", ""))))
+            res = {"root": os.geteuid() == 0}
+        elif t == "sys_info":
+            res = await sys_info()
+        elif t == "proc_kill":
+            await asyncio.to_thread(proc_kill, int(d.get("pid", 0)), bool(d.get("force")))
+        else:
+            raise ValueError("Permintaan tidak dikenal.")
+        await ws.send_str(json.dumps({"type": "reply", "rid": rid, "ok": True, **res}))
+    except Exception as e:
+        msg = str(e) if isinstance(e, (ValueError, OSError)) else f"{e.__class__.__name__}: {e}"
+        await ws.send_str(json.dumps({"type": "reply", "rid": rid, "ok": False, "error": msg[:300]}))
+
+
+# ------------------------------------------------------------------ tahap 2: clipboard gambar & berkas
+
+RICH_MAX = 20 * 1024 * 1024          # gambar maks. 20 MB
+FILES_MAX = 20                       # berkas per salinan
+CLIP_IN = INBOX / "Clipboard"
+disp_rich: dict[str, str | None] = {}   # sidik terakhir isi gambar/berkas per layar
+rich_recent: dict[str, float] = {}      # sidik yang baru diisikan dari PC
+rich_batches: dict[str, dict] = {}
+
+
+def xclip_targets(display: str) -> list[str]:
+    try:
+        r = subprocess.run(["xclip", "-selection", "clipboard", "-t", "TARGETS", "-o"],
+                           env={**ENV, "DISPLAY": display}, capture_output=True, timeout=2)
+        return r.stdout.decode(errors="replace").split() if r.returncode == 0 else []
+    except Exception:
+        return []
+
+
+def xclip_read(display: str, target: str) -> bytes | None:
+    try:
+        r = subprocess.run(["xclip", "-selection", "clipboard", "-t", target, "-o"],
+                           env={**ENV, "DISPLAY": display}, capture_output=True, timeout=5)
+        return r.stdout if r.returncode == 0 else None
+    except Exception:
+        return None
+
+
+def xclip_write(display: str, target: str, data: bytes) -> None:
+    try:
+        p = subprocess.Popen(["xclip", "-selection", "clipboard", "-t", target, "-i"],
+                             env={**ENV, "DISPLAY": display}, stdin=subprocess.PIPE,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        p.communicate(data, timeout=5)
+    except Exception as e:
+        log("xclip_write:", e)
+
+
+def uris_to_paths(text: str) -> list[Path]:
+    from urllib.parse import unquote, urlparse
+    out = []
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("file://"):
+            p = Path(unquote(urlparse(line).path))
+            if p.is_file():
+                out.append(p)
+    return out[:FILES_MAX]
+
+
+UNKNOWN = "?"                          # pembacaan gagal sesaat: jangan ubah status
+TEXT_TYPES = ("UTF8_STRING", "STRING", "TEXT", "text/plain", "text/plain;charset=utf-8", "COMPOUND_TEXT")
+
+
+def read_rich(display: str):
+    """('image', png) / ('files', [Path]) bila clipboard berisi gambar/berkas, None bila tidak, UNKNOWN bila gagal baca."""
+    targets = xclip_targets(display)
+    if not targets:
+        return UNKNOWN
+    if "x-special/gnome-copied-files" in targets or "text/uri-list" in targets:
+        raw = xclip_read(display, "x-special/gnome-copied-files" if "x-special/gnome-copied-files" in targets
+                         else "text/uri-list")
+        if raw is None:
+            return UNKNOWN
+        paths = uris_to_paths(raw.decode(errors="replace"))
+        if paths:
+            return "files", paths
+    if "image/png" in targets:
+        png = xclip_read(display, "image/png")
+        if png is None:
+            return UNKNOWN
+        if png and len(png) <= RICH_MAX:
+            return "image", png
+    return None
+
+
+def rich_sig(kind: str, val) -> str:
+    """Sidik isi: gambar = hash PNG; berkas = nama + ukuran (jalurnya beda di tiap perangkat)."""
+    if kind == "image":
+        return "img:" + hashlib.sha1(val).hexdigest()
+    keys = sorted(f"{Path(p).name}\t{Path(p).stat().st_size if Path(p).exists() else 0}" for p in val)
+    return "files:" + hashlib.sha1("\n".join(keys).encode()).hexdigest()
+
+
+def set_rich_all(kind: str, val, skip: str | None = None, from_pc: bool = False) -> str:
+    if kind == "image":
+        sig, target, data = rich_sig("image", val), "image/png", val
+    else:
+        sig = rich_sig("files", val)
+        target = "x-special/gnome-copied-files"
+        data = ("copy\n" + "\n".join(Path(p).resolve().as_uri() for p in val)).encode()
+    if from_pc:
+        rich_recent[sig] = time.time()             # isi kiriman PC: pantulannya jangan dikirim balik
+    for disp in x_displays():
+        disp_rich[disp] = sig
+        if disp != skip:
+            xclip_write(disp, target, data)
+            for _ in range(20):                    # tunggu sampai xclip benar-benar memegang clipboard
+                if target in xclip_targets(disp):
+                    break
+                time.sleep(0.05)
+    return sig
+
+
+RICH_TYPES = ("image/png", "x-special/gnome-copied-files", "text/uri-list")
+rich_on = {"v": False}                  # dinyalakan oleh LinkDeck PC 1.10+ (sakelar "Gambar & berkas"); PC lama tidak mengenalnya
+
+
+async def rich_scan(display: str) -> None:
+    """Clipboard layar ini (mungkin) berisi gambar/berkas: kirim ke PC bila baru."""
+    first = display not in disp_rich           # isi yang sudah ada saat mulai: catat, jangan kirim
+    got = await asyncio.to_thread(read_rich, display)
+    if got == UNKNOWN:
+        return
+    if not got:
+        disp_rich[display] = None              # mis. tautan web (text/uri-list) -> diproses sebagai teks
+        return
+    kind, val = got
+    sig = rich_sig(kind, val)
+    if first or sig == disp_rich.get(display):
+        disp_rich[display] = sig
+        return
+    global last_clip
+    disp_rich[display] = sig
+    disp_clip[display] = None                  # teks sama yang disalin berikutnya tetap terdeteksi
+    last_clip = None
+    if time.time() - rich_recent.get(sig, 0) < 3:
+        return                                 # pantulan isi yang baru dikirim PC
+    if kind == "image":
+        await send_all({"type": "clip_image", "png": base64.b64encode(val).decode(), "display": display})
+    else:
+        files = [p for p in val if p.stat().st_size <= MAX_FILE]
+        batch = hashlib.sha1(sig.encode()).hexdigest()[:10]
+        for i, p in enumerate(files):
+            await send_all({"type": "clip_files", "batch": batch, "index": i, "total": len(files), "name": p.name,
+                            "data": base64.b64encode(p.read_bytes()).decode(), "display": display})
+        skipped = len(val) - len(files)
+        if skipped:
+            await send_all({"type": "error",
+                            "msg": f"{skipped} berkas lebih dari {MAX_FILE // 1048576} MB tidak ikut disalin."})
+    await asyncio.to_thread(set_rich_all, kind, val, display)   # samakan ke layar X lain
+
+
+async def rich_from_pc(d: dict) -> None:
+    global last_clip
+    last_clip = None
+    for disp in list(disp_clip):
+        disp_clip[disp] = None
+    if d.get("type") == "clip_image":
+        png = base64.b64decode(d.get("png", ""))
+        if png:
+            await asyncio.to_thread(set_rich_all, "image", png, None, True)
+        return
+    key = str(d.get("batch", "x"))[:16]
+    b = rich_batches.setdefault(key, {"files": [], "t": time.time(),
+                                      "dir": CLIP_IN / (time.strftime("%Y%m%d-%H%M%S-") + safe_name(key))})
+    folder = b["dir"]
+    folder.mkdir(parents=True, exist_ok=True)
+    dest = unique(folder / safe_name(d.get("name", "berkas")))
+    dest.write_bytes(base64.b64decode(d.get("data", "")))
+    b["files"].append(dest)
+    if int(d.get("index", 0)) + 1 >= int(d.get("total", 1)):
+        rich_batches.pop(key, None)
+        await asyncio.to_thread(set_rich_all, "files", b["files"], None, True)
+        await send_all({"type": "saved", "name": f"{len(b['files'])} berkas dari clipboard ({folder})"})
+    for k in [k for k, v in rich_batches.items() if time.time() - v["t"] > 300]:
+        rich_batches.pop(k, None)
 
 
 # ------------------------------------------------------------------ input (mouse & keyboard dari PC)
@@ -310,6 +784,11 @@ async def handle(ws, d: dict) -> None:
             last_clip = text
             recent_set[text] = time.time()
             await clip_set_all(text)
+    elif t in ("clip_image", "clip_files"):
+        if rich_on["v"]:
+            await rich_from_pc(d)
+    elif t == "rich":
+        rich_on["v"] = bool(d.get("on", True))
     elif t == "file":
         INBOX.mkdir(parents=True, exist_ok=True)
         dest = unique(INBOX / safe_name(d.get("name", "berkas")))
@@ -358,13 +837,21 @@ async def ws_handler(req: web.Request):
     await ws.send_str(json.dumps({"type": "hello", "id": AGENT_ID, "host": os.uname().nodename,
                                   "display": DISPLAY, "version": VERSION, "screen": size,
                                   "sync_dir": str(SYNC), "clip_displays": x_displays(),
-                                  "clip_ok": bool(shutil.which("xclip"))}))
+                                  "clip_ok": bool(shutil.which("xclip")),
+                                  "features": ["rid", "fs", "apt", "sys", "rich", "battery"],
+                                  "root": os.geteuid() == 0, "user": Path.home().name}))
+    if battery_last:
+        await ws.send_str(json.dumps({"type": "battery", **battery_last}))
     try:
         async for msg in ws:
             if msg.type != WSMsgType.TEXT:
                 continue
             try:
-                await handle(ws, json.loads(msg.data))
+                d = json.loads(msg.data)
+                if d.get("rid"):
+                    asyncio.create_task(handle_req(ws, d))
+                else:
+                    await handle(ws, d)
             except Exception as e:
                 log("handle:", e)
     finally:
@@ -566,10 +1053,13 @@ def list_ifaces() -> list[tuple[str, str]]:
 # ------------------------------------------------------------------ tugas latar
 
 async def clip_loop() -> None:
-    """Pantau clipboard di SEMUA layar X. Salinan baru di satu layar dikirim ke PC dan disamakan ke layar lain."""
+    """Pantau clipboard di SEMUA layar X. Salinan baru di satu layar dikirim ke PC dan disamakan ke layar lain.
+    Jenis isi diperiksa dulu (TARGETS): gambar/berkas dikirim sebagai gambar/berkas, selain itu sebagai teks."""
     global last_clip
     for d in x_displays():
         disp_clip[d] = await asyncio.to_thread(clip_get, d)
+        got = await asyncio.to_thread(read_rich, d) if shutil.which("xclip") else None
+        disp_rich[d] = rich_sig(*got) if got and got != UNKNOWN else None
     last_clip = disp_clip.get(DISPLAY)
     if not shutil.which("xclip"):
         log("Peringatan: xclip tidak ada; clipboard Debian tidak bisa dipantau. Pasang: sudo apt install xclip")
@@ -578,6 +1068,13 @@ async def clip_loop() -> None:
         if not clients:
             continue
         for d in x_displays():
+            targets = await asyncio.to_thread(xclip_targets, d)
+            if rich_on["v"] and any(x in targets for x in RICH_TYPES):
+                await rich_scan(d)
+                if disp_rich.get(d):
+                    continue                           # berisi gambar/berkas: jangan kirim juga sebagai teks
+            if targets and not any(x in targets for x in TEXT_TYPES):
+                continue                               # bukan teks (mis. hanya gambar): jangan dibaca sebagai teks
             text = await asyncio.to_thread(clip_get, d)
             if d not in disp_clip:                     # layar baru muncul: catat dulu, jangan kirim isi lama
                 disp_clip[d] = text
@@ -585,13 +1082,16 @@ async def clip_loop() -> None:
             if not text or text == disp_clip.get(d):
                 continue
             disp_clip[d] = text
+            disp_rich[d] = None
             if text == last_clip or time.time() - recent_set.get(text, 0) < 6:   # gema dari PC: abaikan
                 continue
             last_clip = text
             await send_all({"type": "clip", "text": text, "display": d})
             await clip_set_all(text, skip=d)           # samakan ke layar X lain di HP
-        for k in [k for k, v in recent_set.items() if time.time() - v > 60]:
-            del recent_set[k]
+        now = time.time()
+        for table in (recent_set, rich_recent):
+            for k in [k for k, v in table.items() if now - v > 60]:
+                del table[k]
 
 
 def mem_used_pct():
@@ -616,6 +1116,119 @@ async def info_loop() -> None:
             load = None
         await send_all({"type": "info", "load": load, "mem": mem_used_pct(), "host": os.uname().nodename,
                         "clip_displays": x_displays()})
+
+
+# ---------------------------------------------------------------- baterai HP (tanpa adb)
+
+battery_last: dict | None = None
+
+
+def _read(p: Path) -> str:
+    try:
+        return p.read_text().strip()
+    except OSError:
+        return ""
+
+
+def battery_sysfs() -> dict | None:
+    """Baca /sys/class/power_supply (jalan di chroot/root; di proot sering ditolak SELinux)."""
+    try:
+        entries = sorted(POWER_DIR.iterdir())
+    except OSError:
+        return None
+    plugged = "none"
+    for e in entries:
+        kind = _read(e / "type").lower()
+        if kind in ("usb", "mains", "wireless", "usb_pd", "usb_c") and _read(e / "online") == "1":
+            plugged = {"mains": "ac", "wireless": "wireless"}.get(kind, "usb")
+    for e in entries:
+        if _read(e / "type") != "Battery":
+            continue
+        cap = _read(e / "capacity")
+        if not cap.isdigit():
+            continue
+        status = _read(e / "status").lower()
+        temp = _read(e / "temp")
+        return {"level": min(100, int(cap)), "plugged": plugged, "source": "sysfs",
+                "charging": status == "charging" or (status == "full" and plugged != "none"),
+                "temp": round(int(temp) / 10, 1) if temp.lstrip("-").isdigit() else None}
+    return None
+
+
+def battery_termux() -> dict | None:
+    """termux-battery-status (paket termux-api + aplikasi Termux:API)."""
+    for exe in TERMUX_BATTERY:
+        if "/" in exe:
+            path = exe if os.access(exe, os.X_OK) else None
+        else:
+            path = shutil.which(exe)
+        if not path:
+            continue
+        try:
+            out = subprocess.run([path], capture_output=True, text=True, timeout=8).stdout
+            j = json.loads(out)
+            level = int(j["percentage"])
+        except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired):
+            continue
+        st = str(j.get("status") or "").upper()
+        plugged = {"PLUGGED_USB": "usb", "PLUGGED_AC": "ac", "PLUGGED_WIRELESS": "wireless"}.get(
+            str(j.get("plugged") or "").upper(), "none")
+        temp = j.get("temperature")
+        return {"level": level, "plugged": plugged, "source": "termux",
+                "charging": st == "CHARGING" or (st == "FULL" and plugged != "none"),
+                "temp": round(float(temp), 1) if isinstance(temp, (int, float)) else None}
+    return None
+
+
+async def publish_battery(b: dict) -> None:
+    global battery_last
+    changed = not battery_last or any(battery_last.get(k) != b.get(k) for k in ("level", "charging", "plugged"))
+    battery_last = b
+    if changed:
+        await send_all({"type": "battery", **b})
+
+
+async def battery_loop() -> None:
+    """Baterai HP untuk PC: dari aplikasi pendamping (langsung, saat berubah), atau dibaca berkala."""
+    termux_retry = 0.0
+    while True:
+        if not clients:
+            await asyncio.sleep(5)
+            continue
+        try:
+            path = "\0" + COMPANION_SOCK[1:] if COMPANION_SOCK.startswith("@") else COMPANION_SOCK
+            r, w = await asyncio.wait_for(asyncio.open_unix_connection(path), 5)
+        except (OSError, asyncio.TimeoutError, ValueError):
+            r = w = None
+        if r:
+            try:
+                while True:
+                    line = await r.readline()
+                    if not line:
+                        break
+                    try:
+                        m = json.loads(line)
+                    except ValueError:
+                        continue
+                    if m.get("type") == "battery" and isinstance(m.get("level"), int) and m["level"] >= 0:
+                        temp = m.get("temp")
+                        await publish_battery({"level": m["level"], "charging": bool(m.get("charging")),
+                                               "plugged": m.get("plugged") or "none", "source": "companion",
+                                               "temp": temp if isinstance(temp, (int, float)) else None})
+            except (OSError, asyncio.IncompleteReadError, ValueError):
+                pass
+            finally:
+                w.close()
+            await asyncio.sleep(5)
+            continue
+        b = await asyncio.to_thread(battery_sysfs)
+        if b is None and time.time() >= termux_retry:
+            b = await asyncio.to_thread(battery_termux)
+            if b is None:
+                termux_retry = time.time() + 600      # tidak tersedia: jangan dicoba terus
+        if b:
+            await publish_battery(b)
+        await asyncio.sleep(30)
 
 
 async def outbox_loop() -> None:
@@ -662,7 +1275,7 @@ async def beacon_loop() -> None:
 
 
 async def on_startup(app):
-    for fn in (clip_loop, info_loop, outbox_loop, beacon_loop):
+    for fn in (clip_loop, info_loop, outbox_loop, beacon_loop, battery_loop):
         asyncio.create_task(fn())
 
 

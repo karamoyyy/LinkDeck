@@ -29,7 +29,6 @@ import ssl
 import subprocess
 import sys
 import tarfile
-import threading
 import time
 import urllib.request
 import webbrowser
@@ -52,6 +51,10 @@ ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 sys.path.insert(0, str(ROOT))
 import notif  # noqa: E402
 import pcclip  # noqa: E402
+import richclip  # noqa: E402
+import debiantools  # noqa: E402
+import mediadev  # noqa: E402
+import companionlink  # noqa: E402
 
 STATIC = ROOT / "static"
 BIN = ROOT / "bin"
@@ -122,10 +125,13 @@ POLL = {"usb": {"lat": 3, "bat": 15, "notif": 6}, "wifi": {"lat": 3, "bat": 30, 
         "bt": {"lat": 15, "bat": 120, "notif": 25}}
 NOTIF_CMD = r"dumpsys notification --noredact | grep -E '^  [^ ]|NotificationRecord\(|android\.(title|text|bigText)='"
 DEVICE_GRACE = 10   # detik: perangkat yang hilang sesaat tetap ditampilkan (cegah UI berkedip)
-DEFAULT_SETTINGS = {"autoconnect": True, "sync": True, "notif": True, "clip_android": True}
+DEFAULT_SETTINGS = {"autoconnect": True, "sync": True, "notif": True, "clip_android": True, "clip_rich": True}
 # pengaturan tahap 1 (diubah lewat /api/prefs di features.py)
 EXTRA_SETTINGS = {"theme": "auto", "zoom": 1, "privacy": False, "auto_privacy": True, "auto_update": True,
-                  "hotkeys": False, "sendto": False, "dock": [], "onboarded": False}
+                  "hotkeys": False, "sendto": False, "dock": [], "onboarded": False, "tray": True, "lang": "",
+                  "mic_target": "virtual", "mic_clean": True, "mic_monitor": False, "companion": True,
+                  "wiz_what": "android"}
+DESKTOP = None          # app.Desktop: jendela & ikon tray (None bila dijalankan lewat python server.py)
 
 
 def load_json(p: Path, default):
@@ -167,7 +173,10 @@ class State:
         self.tasks: list[asyncio.Task] = []
         self.discovered: dict[str, dict] = {}
         self.pairings: dict = load_json(user_data_dir() / "pairings.json", {})
-        self.settings: dict = {**DEFAULT_SETTINGS, **EXTRA_SETTINGS, **load_json(user_data_dir() / "settings.json", {})}
+        saved = load_json(user_data_dir() / "settings.json", {})
+        self.settings: dict = {**DEFAULT_SETTINGS, **EXTRA_SETTINGS, **saved}
+        if saved and not saved.get("lang"):
+            self.settings["lang"] = "id"   # pengguna lama (sebelum 1.11): tetap Bahasa Indonesia
         self.update_info: dict | None = None
         self.waiters: dict[str, asyncio.Future] = {}
         self.notifs: list[dict] = []
@@ -443,19 +452,32 @@ async def clip_watcher() -> None:
     except Exception:
         pass
     failing = False
+    tick = 0
+    try:
+        await richclip.scan()                   # catat isi gambar/berkas yang sudah ada (tidak dikirim)
+    except Exception:
+        pass
     while True:
         await asyncio.sleep(0.5)
+        tick += 1
         try:
             token = await asyncio.to_thread(pc.token)
             if token is not None and token == last_token:
                 continue
-            text = await asyncio.to_thread(pc.get)
             last_token = token
+            # Windows: dicek tiap kali isi berubah; Linux (tanpa penanda): tiap 1 detik
+            if token is not None or tick % 2 == 0:
+                if await richclip.scan():
+                    continue
+            elif richclip.STATE["present"]:
+                continue                        # masih berisi gambar/berkas: jangan kirim teks jalurnya
+            text = await asyncio.to_thread(pc.get)
             if failing:
                 failing, pc.error = False, None
                 await broadcast_clip_status()
             if text and text != S.last_clip and not is_stale_echo(text):
                 mark_current(text)
+                richclip.STATE["own"] = None
                 await add_clip(text, "pc")
                 await send_agent({"type": "clip", "text": text})
                 await android_set_clip(text)
@@ -819,6 +841,8 @@ def clip_status() -> dict:
             "debian_error": (None if S.debian_info.get("clip_ok", True) or not S.agent_ws
                              else "xclip belum terpasang di Debian (sudo apt install xclip)"),
             "enabled": S.settings.get("clip_android", True),
+            "rich": S.settings.get("clip_rich", True), "rich_pc": bool(pc and pc.rich),
+            "rich_debian": "rich" in (S.debian_info.get("features") or []),
             "android": [{"serial": s, "model": device_label(s), "ok": b.ok, "error": b.error}
                         for s, b in S.android_clips.items()]}
 
@@ -1067,7 +1091,9 @@ async def h_keymap_save(req: web.Request) -> web.Response:
     d = await req.json()
     key = str(d.get("key") or "default")[:120]
     items = d.get("items")
-    if not isinstance(items, list) or len(items) > 60:
+    if not isinstance(items, list) or len(items) > 60 or not all(
+            isinstance(it, dict) and it.get("type") in ("joy", "tap", "swipe", "aim")
+            and isinstance(it.get("x"), (int, float)) and isinstance(it.get("y"), (int, float)) for it in items):
         return fail("Data tombol tidak valid.")
     maps = load_json(keymap_file(), {})
     if items:
@@ -1130,7 +1156,11 @@ async def agent_request(obj: dict, key: str, timeout: float = 30) -> dict | None
 
 async def on_agent_msg(d: dict) -> None:
     t = d.get("type")
-    if t in ("sync_list",):
+    if await debiantools.on_agent_event(d):
+        return
+    if t in ("clip_image", "clip_files"):
+        await richclip.from_agent(d)
+    elif t in ("sync_list",):
         fut = S.waiters.get("sync_list")
         if fut and not fut.done():
             fut.set_result(d)
@@ -1168,7 +1198,22 @@ async def on_agent_msg(d: dict) -> None:
         if d.get("clip_displays") and d["clip_displays"] != info.get("clip_displays"):
             info["clip_displays"] = d["clip_displays"]          # mis. Termux:X11 baru dibuka
             await broadcast_clip_status()
+    elif t == "battery":
+        # baterai HP dibaca agen Debian (pendamping / Termux:API / sysfs): berguna saat HP tidak tersambung adb
+        lv = d.get("level")
+        if isinstance(lv, int) and 0 <= lv <= 100:
+            info = S.debian_info
+            info["battery"] = {"level": lv, "charging": bool(d.get("charging")), "plugged": d.get("plugged") or "none",
+                               "temp": d.get("temp") if isinstance(d.get("temp"), (int, float)) else None,
+                               "source": str(d.get("source") or "")[:20]}
+            if not info.get("bat_hist") or info["bat_hist"][-1] != lv:
+                info["bat_hist"] = (info.get("bat_hist", []) + [lv])[-30:]
     elif t == "hello":
+        S.debian_info["version"] = d.get("version")
+        S.debian_info["features"] = d.get("features") or []
+        S.debian_info["root"] = d.get("root")
+        if "rich" in S.debian_info["features"]:
+            await send_agent({"type": "rich", "on": S.settings.get("clip_rich", True)})
         S.debian_info["host"] = d.get("host")
         S.debian_info["screen"] = d.get("screen")
         S.debian_info["clip_displays"] = d.get("clip_displays")
@@ -1477,6 +1522,8 @@ async def notif_loop() -> None:
             if dev["state"] != "device":
                 continue
             serial = dev["serial"]
+            if companionlink.notif_live(serial):
+                continue        # aplikasi pendamping mengirim notifikasi langsung; tidak perlu dumpsys
             if not due("notif:" + serial, POLL.get(dev["transport"], POLL["wifi"])["notif"]):
                 continue
             # disaring di HP supaya yang terkirim hanya beberapa KB (penting untuk Bluetooth)
@@ -1564,6 +1611,15 @@ async def h_kvm(req: web.Request) -> web.Response:
 
 # ================================================================ HTTP: umum
 
+async def h_i18n(req: web.Request) -> web.Response:
+    """Kamus bahasa UI. Tipe MIME ditulis sendiri: di Windows .js kadang terdaftar sebagai text/plain."""
+    f = STATIC / "i18n" / f"{req.match_info['lang']}.js"
+    if not f.is_file():
+        raise web.HTTPNotFound()
+    return web.Response(body=f.read_bytes(), content_type="text/javascript", charset="utf-8",
+                        headers={"Cache-Control": "no-cache"})
+
+
 async def h_index(req: web.Request) -> web.Response:
     html = (STATIC / "index.html").read_text(encoding="utf-8").replace("__LD_TOKEN__", TOKEN)
     return web.Response(text=html, content_type="text/html", headers={"Cache-Control": "no-store"})
@@ -1586,7 +1642,8 @@ async def h_state(req: web.Request) -> web.Response:
               pairings=public_pairings(), notifs=S.notifs[:30],
               discovered=[{k: v for k, v in e.items() if k != "fp"} for e in S.discovered.values()],
               sync=S.sync_info, kvm={"on": S.kvm_on, "captured": bool(S.kvm and S.kvm.captured)},
-              clip_status=clip_status(), networks=await pc_networks(), welcome=welcome)
+              clip_status=clip_status(), networks=await pc_networks(), welcome=welcome,
+              companion={x["serial"]: companionlink.status(x["serial"]) for x in S.devices if x["state"] == "device"})
 
 
 async def h_tools(req: web.Request) -> web.Response:
@@ -1599,6 +1656,9 @@ async def h_settings(req: web.Request) -> web.Response:
         if k in d:
             S.settings[k] = bool(d[k])
     save_json(user_data_dir() / "settings.json", S.settings)
+    if "clip_rich" in d:
+        await send_agent({"type": "rich", "on": S.settings["clip_rich"]})
+        await broadcast_clip_status()
     return ok(settings=S.settings)
 
 
@@ -1975,6 +2035,8 @@ async def start_session(d: dict) -> tuple[str, list[str]]:
     if mode in ("mirror", "camera", "input") and any(x["serial"] == serial and x["mode"] == mode
                                             for x in S.sessions.values()):
         raise ValueError("Mode ini sudah berjalan untuk perangkat ini.")
+    if mode == "camera" and d.get("webcam") and not sys.platform.startswith("linux"):
+        return await mediadev.start_media("webcam", d)      # Windows/macOS: kamera HP -> OBS Virtual Camera
     notes = []
     d = dict(d)
     d["_sdk"] = await get_sdk(serial)
@@ -2435,13 +2497,20 @@ async def stats_loop() -> None:
                     c, _, _ = await run("adb", "-s", dev["serial"], "shell", "echo", "1", timeout=8)
                     if c == 0:
                         s["lat"] = (s["lat"] + [round((time.perf_counter() - t0) * 1000)])[-30:]
-                if due("bat:" + dev["serial"], poll["bat"]):
+                if not companionlink.battery_live(dev["serial"]) and due("bat:" + dev["serial"], poll["bat"]):
                     _, out, _ = await run("adb", "-s", dev["serial"], "shell", "dumpsys", "battery", timeout=6)
                     lv, tp = re.search(r"level:\s*(\d+)", out), re.search(r"temperature:\s*(\d+)", out)
                     if lv:
                         s["bat"] = (s["bat"] + [int(lv.group(1))])[-30:]
                     if tp:
                         s["temp"] = int(tp.group(1)) / 10
+                    st_ = re.search(r"status:\s*(\d+)", out)
+                    if st_:   # 2 = mengisi, 5 = penuh (BatteryManager)
+                        plug = next((n for k, n in (("AC", "ac"), ("USB", "usb"), ("Wireless", "wireless"))
+                                     if re.search(rf"{k} powered:\s*true", out)), "none")
+                        s["charging"] = st_.group(1) == "2" or (st_.group(1) == "5" and plug != "none")
+                        s["plugged"] = plug
+                    s["via"] = "adb"
                 payload[dev["serial"]] = s
             S.vnc_rate = (S.vnc_rate + [round(S.vnc_bytes / 3 / 1024, 1)])[-40:]
             S.vnc_bytes = 0
@@ -2535,10 +2604,14 @@ async def on_shutdown(app: web.Application) -> None:
             await run("adb", "kill-server", timeout=5)
 
 
+# alamat GET yang dipakai langsung oleh <img>/<video>/<a>, sehingga token boleh lewat ?t=
+QUERY_TOKEN_PATHS = {"/api/phone/files/raw", "/api/clip/image", "/api/deb/fs/raw"}
+
+
 @web.middleware
 async def guard(req: web.Request, handler):
     if req.path.startswith("/api/") and req.headers.get("X-LinkDeck-Token") != TOKEN \
-            and not (req.path == "/api/phone/files/raw" and req.query.get("t") == TOKEN):
+            and not (req.path in QUERY_TOKEN_PATHS and req.query.get("t") == TOKEN):
         return fail("Token sesi tidak cocok. Muat ulang halaman.", 403)
     if req.path.startswith("/ws/") and req.query.get("t") != TOKEN:
         return web.Response(status=403)
@@ -2593,12 +2666,17 @@ def build_app() -> web.Application:
     r.add_get("/ws/vnc", ws_vnc)
     r.add_get("/ws/term", ws_term)
     r.add_get("/ws/audio", ws_audio)
+    r.add_get("/i18n/{lang:[a-z]{2}}.js", h_i18n)
     r.add_static("/novnc", NOVNC_DIR)
     r.add_static("/xterm", XTERM_DIR)
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
     import features
     features.register(r, sys.modules[__name__], app)
+    richclip.register(r, sys.modules[__name__], app)
+    mediadev.register(r, sys.modules[__name__], app)
+    companionlink.register(r, sys.modules[__name__], app)
+    debiantools.register(r, sys.modules[__name__], app)
     return app
 
 

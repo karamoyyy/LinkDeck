@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LinkDeck Pendamping</string>
+    <string name="intro">LinkDeck Pendamping membuat LinkDeck di laptop menampilkan notifikasi seketika, membalas pesan, dan menampilkan status baterai serta pengisian. Aplikasi ini hanya berbicara dengan LinkDeck lewat adb (kabel, Wi-Fi, atau Bluetooth) dan tidak memakai internet.</string>
+    <string name="access_on">Akses notifikasi: AKTIF</string>
+    <string name="access_off">Akses notifikasi: MATI. LinkDeck menyalakannya otomatis saat memasang aplikasi ini. Kamu juga bisa menyalakannya sendiri di bawah.</string>
+    <string name="clients">Tersambung ke LinkDeck: %1$d</string>
+    <string name="open_settings">Buka pengaturan akses notifikasi</string>
+    <string name="privacy">Hanya LinkDeck lewat adb yang bisa membaca notifikasi. Aplikasi lain hanya bisa membaca status baterai, yang memang sudah dibagikan Android ke semua aplikasi.</string>
+</resources>

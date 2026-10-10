@@ -19,7 +19,6 @@ import re
 import shutil
 import subprocess
 import sys
-import threading
 import time
 import urllib.request
 import zipfile
@@ -633,14 +632,57 @@ async def h_prefs(req):
                 core.S.settings["hotkeys"] = False
         else:
             stop_hotkeys()
-    for k in ("theme", "zoom", "privacy", "auto_privacy", "auto_update", "dock", "onboarded"):
+    if "autostart" in d:
+        import tray
+        try:
+            await asyncio.to_thread(tray.autostart_set, bool(d["autostart"]), core.FROZEN, core.ROOT)
+            core.S.settings["autostart"] = bool(d["autostart"])
+        except Exception as e:
+            msg = f"Jalan otomatis tidak bisa diubah: {e}"
+    for k in ("theme", "zoom", "privacy", "auto_privacy", "auto_update", "dock", "onboarded", "tray", "lang",
+              "companion", "mic_target", "mic_clean", "mic_monitor", "wiz_what"):
         if k in d:
+            if (k == "lang" and d[k] not in ("", "id", "en")) or (k == "wiz_what" and d[k] not in ("android", "debian", "both")):
+                continue
             core.S.settings[k] = d[k]
     core.save_json(core.user_data_dir() / "settings.json", core.S.settings)
     return fail(msg) if msg else ok(settings=core.S.settings)
 
 
 # ================================================================ pendaftaran
+
+async def h_app_show(req):
+    desk = getattr(core, "DESKTOP", None)
+    if desk is None:
+        return ok(shown=False)
+    await asyncio.to_thread(desk.show)
+    return ok(shown=True)
+
+
+async def h_app_quit(req):
+    desk = getattr(core, "DESKTOP", None)
+    if desk is not None:
+        core.S.loop.call_later(0.3, desk.quit)
+    else:                                            # python server.py: hentikan proses dengan rapi
+        import signal
+        core.S.loop.call_later(0.3, os.kill, os.getpid(), signal.SIGINT)
+    return ok()
+
+
+def desktop_info() -> dict:
+    import tray
+    desk = getattr(core, "DESKTOP", None)
+    info = desk.info() if desk else {"mode": None, "tray": False, "tray_menu": False}
+    try:
+        auto = tray.autostart_status()
+    except Exception:
+        auto = False
+    return {**info, "autostart": auto, "autostart_ok": tray.autostart_supported(), "app": desk is not None}
+
+
+async def h_app_info(req):
+    return ok(**desktop_info())
+
 
 async def on_startup(app):
     if core.S.settings.get("hotkeys"):
@@ -675,5 +717,8 @@ def register(router, core_module, app) -> None:
     r.add_post("/api/report", h_report)
     r.add_post("/api/sendfiles", h_sendfiles)
     r.add_post("/api/prefs", h_prefs)
+    r.add_post("/api/app/show", h_app_show)
+    r.add_post("/api/app/quit", h_app_quit)
+    r.add_post("/api/app/info", h_app_info)
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)

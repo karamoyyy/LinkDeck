@@ -7,11 +7,13 @@ LinkDeck adalah aplikasi desktop (Windows, macOS, Linux) untuk:
 - **Layar baru** — membuat layar Android tambahan di laptop; layar HP tetap bisa dipakai seperti biasa.
 - **Cermin** — menampilkan persis apa yang ada di layar HP.
 - **Kamera** — kamera HP tampil di laptop (senter, zoom, belakang/depan).
-- **Mode Game** — main game Android dengan keyboard & mouse (WASD, tombol, bidik mouse) dalam layar penuh seukuran laptop.
+- **Mode Game** — main game Android dengan keyboard & mouse atau **stik (gamepad)**: WASD, tombol, tombol geser untuk skill, bidik mouse dengan kurva akselerasi, template game populer, dan kode berbagi tombol — dalam layar penuh seukuran laptop.
 
 **Unduh:** [halaman Releases](https://github.com/karamoyyy/LinkDeck/releases/latest) · **Panduan:** halaman ini.
 
-Ditambah fitur bersama: copy-paste dua arah, kirim berkas, notifikasi HP di laptop, dan Mode TV. Bila HP-mu juga menjalankan **Debian 13 XFCE** (mis. lewat Termux), LinkDeck bisa menampilkan desktop, terminal, dan suara Debian — ini opsional dan disambungkan terpisah dari Android.
+> **English:** the LinkDeck app is available in English — choose it in the first-run guide or in **Settings → Appearance → Language**. This guide is written in Indonesian.
+
+Ditambah fitur bersama: copy-paste dua arah (teks, serta gambar & berkas antara laptop dan Debian), kirim berkas, notifikasi HP di laptop (bisa **dibalas dari laptop** dengan aplikasi pendamping opsional), **HP jadi mikrofon** dan **webcam** untuk Zoom/Meet/Discord, status baterai & pengisian, dan Mode TV. LinkDeck bisa berjalan diam-diam di **tray** dan menyala sendiri saat komputer dinyalakan. Bila HP-mu juga menjalankan **Debian 13 XFCE** (mis. lewat Termux), LinkDeck bisa menampilkan desktop, terminal, dan suara Debian, serta **Alat Debian** (pengelola berkas, toko aplikasi, dan pemantau sistem) — ini opsional dan disambungkan terpisah dari Android.
 
 ---
 
@@ -42,6 +44,11 @@ Ditambah fitur bersama: copy-paste dua arah, kirim berkas, notifikasi HP di lapt
 | Kamera | Android 12 ke atas |
 | Sambung lewat Wi-Fi tanpa kabel (kode QR / kode 6 angka) | Android 11 ke atas |
 | Mode Game | Windows: WebView2 (bawaan Windows 11 dan Windows 10 yang diperbarui) · Linux: Chrome, Chromium, atau Edge · macOS: Safari 16.4 ke atas (perbarui macOS/Safari) |
+| Alat Debian, clipboard gambar & berkas | Agen Debian 1.10.0 atau lebih baru. Clipboard gambar & berkas di laptop: Windows atau Linux (macOS: teks saja) |
+| HP jadi mikrofon laptop | Android 11 ke atas. Windows: [VB-CABLE](https://vb-audio.com/Cable/) (gratis) · macOS: [BlackHole 2ch](https://existential.audio/blackhole/) (gratis) · Linux: PulseAudio/PipeWire (`pactl`, sudah ada di kebanyakan desktop) |
+| Kamera HP jadi webcam Zoom/Meet | Android 12 ke atas. Windows/macOS: [OBS Studio](https://obsproject.com/) 30 ke atas (berisi *OBS Virtual Camera*) · Linux: modul `v4l2loopback` |
+| Balas notifikasi & status pengisian baterai | Aplikasi **LinkDeck Pendamping** (opsional, Android 6.0 ke atas), dipasang dari LinkDeck dengan satu klik |
+| Ikon tray | Windows dan Linux (GNOME butuh ekstensi *AppIndicator*). macOS belum didukung: menutup jendela berarti keluar |
 | Kabel | Kabel USB yang bisa transfer data, bukan kabel khusus cas |
 
 adb dan scrcpy sudah ada di dalam LinkDeck — tidak perlu dipasang sendiri.
@@ -59,6 +66,7 @@ Semua berkas ada di halaman **Releases** repo ini (kolom kanan halaman GitHub �
 | `linkdeck_<versi>_amd64.deb` / `LinkDeck-<versi>-x86_64.AppImage` | Laptop/PC **Linux** | Intel/AMD (amd64) saja |
 | `linkdeck-debian_<versi>_all.deb` | Aplikasi LinkDeck di **Debian HP** (atau Debian/Ubuntu ARM lain) | semua |
 | `linkdeck-agent_<versi>_all.deb` | Agen di **Debian HP**, supaya Debian tampil di laptop | semua |
+| `linkdeck-companion.apk` | Aplikasi pendamping **Android** (opsional). Biasanya tidak perlu diunduh: LinkDeck memasangnya sendiri | semua |
 
 > `linkdeck_<versi>_amd64.deb` **tidak bisa** dipasang di Debian HP (galat `libc6:amd64 ... [no choices]`), karena HP memakai prosesor ARM. Untuk HP, pakai `linkdeck-debian_<versi>_all.deb`. Cek arsitektur dengan `dpkg --print-architecture`.
 
@@ -91,6 +99,8 @@ chmod +x LinkDeck-<versi>-x86_64.AppImage
 ./LinkDeck-<versi>-x86_64.AppImage
 ```
 
+**Pertama kali dibuka**, **Panduan awal** muncul: pilih bahasa (Bahasa Indonesia / English) dan tema, pilih yang mau disambungkan (HP Android, Debian di HP, atau keduanya), lalu ikuti daftar periksa yang diperbarui sendiri (adb siap, HP terdeteksi, izin debugging, aplikasi pendamping). Bisa dilewati, dan dibuka lagi kapan saja dari **Pengaturan → Aplikasi → Panduan awal**.
+
 **Memperbarui LinkDeck:** unduh versi terbaru dari Releases lalu pasang seperti biasa — pengaturan, perangkat yang diingat, dan tombol game tetap tersimpan.
 
 **Menghapus LinkDeck:** Windows: **Setelan → Aplikasi → LinkDeck → Copot pemasangan**. macOS: seret **LinkDeck** dari Applications ke Tempat Sampah. Linux: `sudo apt remove linkdeck`.
@@ -111,7 +121,7 @@ chmod +x LinkDeck-<versi>-x86_64.AppImage
 3. Nyalakan **Debugging USB**. Untuk sambungan tanpa kabel, nanti juga dipakai **Debugging nirkabel**.
 4. **Khusus Xiaomi / Redmi / POCO:** nyalakan juga **Debugging USB (Setelan keamanan)**, lalu **restart HP**. Tanpa ini, gambar tampil tetapi klik, ketik, dan Mode Game tidak berfungsi. Di beberapa HP Oppo/Realme, opsi serupa bernama **Nonaktifkan pemantauan izin**.
 
-Tidak perlu memasang aplikasi apa pun di Android.
+Fitur utama tidak butuh aplikasi tambahan di Android. Aplikasi **LinkDeck Pendamping** bersifat opsional (untuk membalas notifikasi dan status pengisian baterai) dan dipasang dari LinkDeck dengan satu klik — lihat [Notifikasi HP & LinkDeck Pendamping](#notifikasi-hp--linkdeck-pendamping).
 
 ### 2.3 Di Debian 13 HP (opsional)
 
@@ -218,24 +228,40 @@ Bentuk jendela Cermin mengikuti bentuk layar HP, jadi bilah hitam di sisi kiri-k
 2. Klik **Mulai tampilkan**.
 3. **Senter** (kamera belakang saja) dan **Zoom** (geser, atau tombol **−**, **1×**, **+**) bisa diubah saat kamera sedang tampil; kamera dibuka ulang ±1 detik untuk menerapkannya. Rentang zoom mengikuti lensa HP-mu.
 
-Di Linux, kamera HP bisa dijadikan webcam untuk Zoom/Meet lewat **Jadikan webcam untuk aplikasi meeting** (butuh modul `v4l2loopback`, lihat [bagian 6](#di-laptop-linux)).
+**Kamera HP jadi webcam** untuk Zoom, Google Meet, Teams, Discord, atau OBS:
+- **Windows / macOS:** pasang [OBS Studio](https://obsproject.com/) 30 ke atas, jalankan sekali lalu tutup. Di LinkDeck pilih **Kamera** → centang **Jadikan webcam untuk Zoom/Meet (lewat OBS Virtual Camera, tanpa jendela)** → **Mulai tampilkan**. Di aplikasi meeting pilih kamera **OBS Virtual Camera**. Tidak ada jendela yang terbuka; hentikan lewat daftar tampilan yang berjalan.
+- **Linux:** centang **Jadikan webcam untuk aplikasi meeting** (butuh modul `v4l2loopback`, lihat [bagian 6](#di-laptop-linux)); di aplikasi meeting pilih kamera **Kamera HP**.
 
 ### 3.8 Memakai Mode Game
 
 1. Pilih **Game**, ketik nama game (mis. *Mobile Legends*), lalu klik **Main**. Kosongkan nama untuk menampilkan layar HP apa adanya.
 2. Game terbuka layar penuh seukuran laptop. Gerakkan mouse ke **bagian atas layar** untuk memunculkan menu.
-3. **Atur tombol:** klik **Edit tombol** → **Template dasar** (atau tambah sendiri) → seret tiap tanda ke tombol di layar game → klik sebuah tanda lalu tekan tombol keyboard penggantinya → **Simpan**. Pengaturan disimpan terpisah untuk setiap game.
+3. **Atur tombol:** klik **Edit tombol** → pilih **Template** lalu **Pakai** (atau tambah tanda sendiri) → seret tiap tanda ke tombol di layar game → klik sebuah tanda lalu tekan tombol keyboard **atau tombol stik** penggantinya → **Simpan**. Pengaturan disimpan terpisah untuk setiap game.
 
 | Jenis tanda | Cara kerja |
 |---|---|
-| **Joystick WASD** | W/A/S/D menggeser jari di lingkaran joystick (bisa diganti **Pakai panah**). **Ukuran** lingkaran bisa diatur |
-| **Tombol** | Tombol keyboard = ketukan di titik itu. Bisa juga **Klik kiri** / **Klik kanan** (aktif saat bidik mouse menyala) |
-| **Bidik mouse** | Tekan tombolnya (bawaan `` ` ``) untuk mengunci mouse: gerakan mouse menggeser kamera/bidikan. **Kepekaan** bisa diatur. Tekan lagi atau `Esc` untuk melepas |
+| **Joystick WASD** | W/A/S/D atau **stik kiri** gamepad menggeser jari di lingkaran joystick (bisa diganti **Pakai panah**). **Ukuran** lingkaran bisa diatur. Satu per game |
+| **Tombol** | Tombol keyboard atau tombol stik = ketukan di titik itu. Bisa juga **Klik kiri** / **Klik kanan** (aktif saat bidik mouse menyala) |
+| **Tombol geser** | Untuk skill berarah (MOBA). **Tahan** tombolnya → jari menempel di tombol skill; arahkan dengan **posisi mouse dari tengah layar** atau **stik kanan**; **lepas** untuk memakai skill. **Ukuran** = jangkauan geser (lingkaran titik-titik tampil saat mengedit/ditahan) |
+| **Bidik mouse** | Tekan tombolnya (bawaan `` ` ``) untuk mengunci mouse: gerakan mouse menggeser kamera/bidikan. **Stik kanan** gamepad juga membidik tanpa mengunci mouse. Tekan lagi atau `Esc` untuk melepas. Satu per game |
+
+**Kepekaan bidik** (klik tanda bidik saat mengedit):
+- **Kepekaan** — kecepatan dasar.
+- **Akselerasi** — 0 = linear; makin besar, gerakan mouse yang cepat menggeser makin jauh (memutar badan dengan cepat, membidik pelan tetap halus).
+- **Saat membidik (tahan klik kanan)** — kepekaan terpisah selama klik kanan ditahan, misalnya saat memakai teropong (scope).
+
+**Template** — **Dasar**, **MOBA** (mis. Mobile Legends), **Battle royale** (mis. PUBG Mobile, Free Fire), dan **Aksi / RPG** (mis. Genshin Impact). Posisi tanda di template adalah **perkiraan**, karena tata letak tiap game (dan pengaturan HUD di dalam game) berbeda — seret tanda agar pas, lalu **Simpan**.
+
+**Berbagi tombol** — **Salin kode** menyalin semua tanda sebagai teks pendek yang diawali `LDK1.`; kirim ke teman. Teman membuka game yang sama → **Edit tombol** → **Tempel kode** → **Simpan**. Kode hanya berisi posisi dan tombol (tanpa data pribadi) dan diperiksa dulu sebelum dipakai.
+
+**Gamepad (stik)** — colok atau pasangkan stik Xbox, PlayStation, atau stik lain yang dikenali Windows/macOS/Linux sebagai gamepad standar, lalu tekan salah satu tombolnya sekali. Stik kiri = joystick, stik kanan = bidik/arah tombol geser, tombol lain dipetakan lewat **Edit tombol** (klik tanda → tekan tombol stik). Tombol **Back/View** yang belum dipetakan = tombol **Kembali** Android.
+
+**Info** (menu atas) — menampilkan FPS, waktu respons (ms), suhu baterai HP, persen baterai, dan 🎮 bila stik tersambung. Angka berwarna merah bila respons > 120 ms, suhu ≥ 42°C, atau baterai ≤ 15%.
 
 - Klik mouse biasa = sentuhan satu jari. Roda mouse = gulir.
 - Tombol yang tidak dipetakan dikirim sebagai ketikan (untuk chat).
 - `Esc` = tombol **Kembali** Android. Untuk keluar dari layar penuh, **tahan** `Esc` (Windows, Chrome/Edge) atau klik **Layar penuh** di menu atas.
-- **Tanda tombol** menyembunyikan/menampilkan tanda; **Keluar** menutup Mode Game.
+- **Tanda tombol** menyembunyikan/menampilkan tanda; **Info** menyembunyikan/menampilkan angka di atas; **Keluar** menutup Mode Game.
 
 Suara game ikut keluar di laptop (Android 11 ke atas, kecuali lewat Bluetooth). Mode Game butuh WebView2 di Windows, Chrome/Chromium/Edge di Linux, atau Safari 16.4 ke atas di macOS.
 
@@ -319,6 +345,17 @@ Tidak muncul? Klik **Tidak muncul? Isi alamat manual** → pilih jalurnya → is
 - **Satu mouse** — gerakkan kursor melewati tepi layar laptop untuk mengendalikan Debian; kembali lewat tepi seberang atau `Ctrl + Alt + Home`.
 - **Layar penuh** — penuh di layar ini atau di monitor/TV pilihan.
 - **Lainnya** — **Resolusi desktop Debian** (pilih 1280×720 untuk Bluetooth), **Layar tujuan untuk layar penuh**, dan **Posisi Debian untuk "Satu mouse"**.
+- **Alat** — membuka laci **Alat Debian** dengan tiga tab (butuh agen 1.10.0 atau lebih baru):
+
+| Tab | Isi |
+|---|---|
+| **Berkas** | Jelajahi seluruh sistem berkas Debian. **~ Rumah** kembali ke folder rumah; centang **Tampilkan berkas tersembunyi** untuk berkas berawalan titik. Klik nama untuk pratinjau foto/video/musik/teks, **Unduh** ke `Downloads/LinkDeck` di laptop, **Unggah ke sini**, **+ Folder**, **Ganti nama**, dan **Hapus**. Demi keamanan, mengubah (unggah, buat, ganti nama, hapus) hanya bisa di dalam folder rumah (`~`); folder lain bertanda *Hanya baca*. Batas per berkas 48 MB |
+| **Aplikasi** | Toko aplikasi Debian: daftar **aplikasi populer**, kolom **Cari** (nama paket), lalu **Pasang** atau **Copot**. Keluaran `apt` tampil langsung. **Perbarui daftar paket** = `apt update` (jalankan dulu bila pencarian kosong). Bila Debian dijalankan sebagai pengguna biasa, isi **Sandi sudo** (dipakai sekali, tidak disimpan, tidak tampil di log) |
+| **Sistem** | Pemakaian CPU, RAM, swap, ruang kosong folder rumah dan sistem, lama menyala, dan daftar proses (CPU, RAM, pengguna). **Hentikan** (SIGTERM) atau **Paksa** (SIGKILL) proses milikmu. Diperbarui tiap 3 detik; daftar berhenti diperbarui selama kursor di atas tabel supaya tombol tidak bergeser |
+
+> Di proot-distro, Android membatasi sebagian data sistem: angka CPU, waktu menyala, atau beban bisa berupa perkiraan, dan proses aplikasi Android lain tidak terlihat (hanya proses di dalam Debian).
+
+**Baterai HP tanpa adb** (agen 1.11.0 atau lebih baru) — bila HP hanya tersambung lewat Debian (tanpa Debugging USB/nirkabel), kartu **Pantauan** tetap menampilkan persen baterai, ⚡ saat mengisi, dan suhu dengan label *Debian*. Agen membacanya dari aplikasi **LinkDeck Pendamping** bila terpasang (langsung, setiap berubah), lalu dari `termux-battery-status` (paket `termux-api` + aplikasi Termux:API), lalu dari `/sys/class/power_supply` (biasanya hanya terbaca di chroot/root). Bila tidak ada yang tersedia, kartu baterai kosong selama adb tidak tersambung.
 
 ---
 
@@ -327,16 +364,55 @@ Tidak muncul? Klik **Tidak muncul? Isi alamat manual** → pilih jalurnya → is
 - **Clipboard bersama** — salin di laptop, HP Android, atau Debian, lalu tempel di perangkat lain; berjalan selama HP tersambung, tanpa perlu membuka jendela.
   - **Android:** salin seperti biasa di aplikasi mana pun.
   - **Debian:** `Ctrl + C` di aplikasi XFCE, atau `Ctrl + Shift + C` di terminal. Berlaku di desktop LinkDeck **dan** di XFCE yang tampil di layar HP (Termux:X11); salinan juga disamakan antar keduanya.
-  - Kartu ini menampilkan riwayat, asal tiap salinan (**PC**, **HP**, **Debian**), dan status tiap perangkat (titik hijau = terpantau). Sakelar **Android** menyalakan/mematikan pemantauan clipboard HP; tombol **Uji** menulis teks uji lalu memeriksa apakah sampai di HP dan Debian.
-- **Notifikasi HP** — notifikasi Android tampil di laptop; klik untuk membuka aplikasinya di jendela sendiri.
+  - **Gambar & berkas** (laptop ↔ Debian): salin gambar (mis. tangkapan layar, gambar dari browser) atau berkas (mis. di File Explorer / Thunar) lalu tempel (`Ctrl + V`) di perangkat lain. Berkas disalin ke `Downloads/LinkDeck/Clipboard` di laptop atau `~/Downloads/LinkDeck/Clipboard` di Debian, lalu clipboard di sana diisi berkas itu sehingga langsung bisa ditempel di pengelola berkas. Batas: 20 berkas per salinan, 48 MB per berkas (folder tidak ikut), gambar 20 MB. Butuh agen 1.10.0 atau lebih baru. Laptop yang didukung: Windows dan Linux (X11/Wayland); di macOS hanya teks. **HP Android hanya menerima teks** (batasan clipboard Android lewat adb).
+  - Kartu ini menampilkan riwayat, asal tiap salinan (**PC**, **HP**, **Debian**), gambar mini untuk gambar, dan status tiap perangkat (titik hijau = terpantau). Untuk gambar/berkas di riwayat: **Salin lagi** mengisi ulang clipboard laptop dan Debian; **Buka folder** membuka lokasi berkas di laptop.
+  - Sakelar **Android** menyalakan/mematikan pemantauan clipboard HP; sakelar **Gambar & berkas** menyalakan/mematikan salinan gambar dan berkas (matikan untuk menghemat kuota lewat Bluetooth); tombol **Uji** menulis teks uji lalu memeriksa apakah sampai di HP dan Debian.
+- **Notifikasi HP** — notifikasi Android tampil di laptop; klik untuk membuka aplikasinya di jendela sendiri. Dengan **LinkDeck Pendamping**, notifikasi muncul seketika dan bisa dibalas — lihat di bawah.
 - **Berkas** — seret berkas ke kotak **Tarik berkas ke sini**: **Ke Android** (masuk `Download/LinkDeck`) atau **Ke Debian** (masuk `~/Downloads/LinkDeck`). Dari Debian ke laptop: taruh berkas di `~/LinkDeck-Kirim`.
 - **Buka tautan** — buka link di Android atau Debian.
 - **Folder sinkron dua arah** — isi `LinkDeck-Sinkron` di laptop dan di Debian selalu disamakan.
 - **Mode TV** — colok TV ke laptop (HDMI) → **Mode TV** → pilih **Android**, **Debian**, atau **Aplikasi HP** → resolusi → **Layar tujuan** → **Mulai Mode TV**.
 
+### Notifikasi HP & LinkDeck Pendamping
+
+Tanpa aplikasi tambahan, LinkDeck membaca notifikasi lewat adb setiap beberapa detik. Pasang **LinkDeck Pendamping** (aplikasi kecil, ±25 KB) untuk:
+
+- **Membalas pesan** (WhatsApp, Telegram, SMS, dll.) langsung dari laptop: klik **Balas** di notifikasi → tulis → `Enter` atau **Kirim**. `Esc` membatalkan.
+- **Tombol aksi** notifikasi (mis. **Tandai dibaca**, **Arsipkan**) dan **×** untuk menutup notifikasi di HP.
+- Notifikasi **seketika** (bukan tiap beberapa detik), percakapan menampilkan beberapa pesan terakhir, dan notifikasi yang ditutup di HP ikut hilang dari laptop.
+- **Status baterai langsung**: persen, ⚡ saat mengisi (USB, pengisi daya, nirkabel), dan suhu di kartu **Pantauan** dan info Mode Game.
+- Lebih hemat: selama pendamping tersambung, LinkDeck berhenti menjalankan `dumpsys` berkala (terasa lewat Bluetooth).
+
+**Memasang:** sambungkan Android (kabel, Wi-Fi, atau Bluetooth) → di kartu **Notifikasi HP** klik **Pasang** (atau **Pengaturan → Aplikasi pendamping Android → Pasang di HP**). LinkDeck memasang APK lewat adb dan menyalakan **akses notifikasi** otomatis — tidak perlu membuka Setelan. Label **● Seketika** menandakan pendamping aktif. LinkDeck juga memperbarui pendamping sendiri saat LinkDeck diperbarui.
+
+**Kalau gagal:**
+- Xiaomi/Redmi/POCO menolak pemasangan lewat USB: di **Opsi pengembang** nyalakan **Pasang lewat USB** (perlu masuk akun Mi), lalu klik **Pasang** lagi. Di beberapa HP, ketuk **Izinkan/Pasang** di layar HP.
+- Tertulis *"akses notifikasinya mati"*: klik **Nyalakan**. Bila HP menolak, buka aplikasi **LinkDeck Pendamping** di HP → **Buka pengaturan akses notifikasi** → nyalakan **LinkDeck Pendamping**. (Android 13+: bila tombolnya terkunci karena *setelan terbatas*, buka **Setelan → Aplikasi → LinkDeck Pendamping → ⋮ → Izinkan setelan terbatas** dulu.)
+- Pasang manual: unduh `linkdeck-companion.apk` dari Releases, pasang di HP, lalu nyalakan akses notifikasinya seperti di atas.
+
+**Privasi:** pendamping tidak punya izin internet. Ia hanya membuka soket lokal di HP yang dijangkau LinkDeck lewat adb; isi notifikasi hanya diberikan ke adb (dan root). Aplikasi lain di HP — termasuk Debian di Termux — hanya bisa membaca status baterai, yang memang sudah dibagikan Android ke semua aplikasi. Matikan pemakaiannya di **Pengaturan → Aplikasi pendamping Android**; copot seperti aplikasi biasa.
+
+### HP jadi mikrofon laptop
+
+Pakai mikrofon HP untuk Zoom, Meet, Teams, Discord, atau rekaman (Android 11 ke atas, lewat kabel atau Wi-Fi).
+
+1. **Sekali saja, siapkan kabel audio virtual** (tempat suara HP masuk sebagai "mikrofon"):
+   - **Windows:** pasang [VB-CABLE](https://vb-audio.com/Cable/) (gratis), lalu restart komputer.
+   - **macOS:** pasang [BlackHole 2ch](https://existential.audio/blackhole/) (gratis).
+   - **Linux:** tidak perlu apa-apa — LinkDeck membuat mikrofon virtual **Mikrofon HP (LinkDeck)** sendiri lewat PulseAudio/PipeWire (butuh perintah `pactl`; di Debian/Ubuntu paket `pulseaudio-utils`).
+2. Di kartu Android klik **Mikrofon HP**. Klik lagi untuk berhenti (atau lewat daftar tampilan yang berjalan).
+3. Di aplikasi meeting pilih mikrofon: **CABLE Output** (Windows), **BlackHole 2ch** (macOS), atau **Mikrofon HP (LinkDeck)** (Linux).
+
+Pilihan di **Pengaturan → Mikrofon HP**:
+- **Tujuan suara** — **Mikrofon virtual** (untuk aplikasi meeting) atau **Speaker laptop** (mendengar langsung, mis. sebagai pengeras suara).
+- **Peredam bising & gema** — memakai pengolahan suara HP untuk panggilan (disarankan untuk meeting).
+- **Dengarkan juga di speaker laptop** — untuk mengecek suara; bisa menimbulkan gema saat meeting.
+
+> Di Android 11, buka kunci layar HP sebelum menyalakan mikrofon. Suara dikirim mentah (±1,5 Mbps), jadi lewat Bluetooth bisa tersendat — pakai kabel atau Wi-Fi untuk meeting.
+
 ### Alat Android
 
-Semua alat ini bekerja lewat adb — tidak perlu memasang aplikasi apa pun di HP.
+Alat-alat ini bekerja lewat adb — tidak perlu memasang aplikasi apa pun di HP.
 
 - **Berkas HP** (ikon folder di bilah kiri) — jelajahi penyimpanan HP (`/sdcard`): buka folder, **Naik**, buat **+ Folder**, **Unggah ke sini**, **Unduh** (ke `Downloads/LinkDeck` di laptop), **Ganti nama**, dan **Hapus**. Klik nama berkas untuk pratinjau foto, video, musik, atau teks.
 - **Aplikasi HP** (ikon kotak-kotak di bilah kiri) — daftar aplikasi dengan pencarian (centang **Aplikasi sistem** untuk ikut menampilkannya). Tiap aplikasi bisa **Buka** (jendela sendiri), **★ Dock**, **Hentikan**, **Cadangkan** (APK disimpan di `Downloads/LinkDeck/APK`), **Hapus data**, dan **Copot** (khusus aplikasi yang kamu pasang). Tarik berkas `.apk` ke kotak **Pasang APK** untuk memasang; kalau HP bertanya, izinkan di layar HP.
@@ -347,7 +423,10 @@ Semua alat ini bekerja lewat adb — tidak perlu memasang aplikasi apa pun di HP
 ### Kenyamanan
 
 - **Mode privasi** — tombol **Privasi** di bilah atas menyamarkan isi clipboard, notifikasi, dan judul lagu, serta menahan munculan notifikasi. Bila **Otomatis saat presentasi** menyala (Pengaturan), mode ini aktif sendiri selama **Mode TV** atau layar penuh Debian.
-- **Tema & ukuran teks** — **Pengaturan → Tampilan**: tema **Otomatis** (ikut sistem), **Gelap**, atau **Terang**; ukuran teks **Normal**, **Besar**, atau **Lebih besar**.
+- **Bahasa, tema & ukuran teks** — **Pengaturan → Tampilan**: bahasa **Indonesia** atau **English**; tema **Otomatis** (ikut sistem), **Gelap**, atau **Terang**; ukuran teks **Normal**, **Besar**, atau **Lebih besar**. Pemasangan baru mengikuti bahasa sistem; pengguna versi lama tetap berbahasa Indonesia.
+- **Ikon tray** — menutup jendela tidak mematikan LinkDeck: ia tetap berjalan di tray (sambungan, clipboard, notifikasi, dan pintasan tetap aktif). Klik ikon LinkDeck di tray untuk membuka lagi. Di Windows, klik kanan ikon untuk menu **Buka LinkDeck**, **Tampilkan layar Android**, dan **Keluar dari LinkDeck** (menu yang sama muncul di Linux bila desktopnya memakai AppIndicator; selain itu cukup klik ikon). Membuka LinkDeck lagi dari menu Start/aplikasi menampilkan jendela yang sudah ada. Atur di **Pengaturan → Aplikasi → Tetap berjalan di tray saat jendela ditutup**; untuk benar-benar menutup pakai **Keluar**. macOS belum punya ikon tray: menutup jendela berarti keluar dari LinkDeck.
+- **Jalankan saat komputer menyala** — **Pengaturan → Aplikasi**. LinkDeck mulai diam-diam di tray saat kamu masuk ke komputer, siap menyambung HP dan Debian (macOS: jendelanya terbuka dalam keadaan diperkecil di Dock).
+- **Panduan awal** — **Pengaturan → Aplikasi → Panduan awal → Buka panduan** mengulang langkah-langkah pertama kali pakai.
 - **Pembaruan otomatis** — saat dibuka, LinkDeck mengecek rilis terbaru di GitHub dan menampilkan bilah **Perbarui** bila ada versi baru. Windows: pemasang diunduh lalu dijalankan otomatis; LinkDeck ditutup selama pemasangan dan biasanya terbuka lagi sendiri (bila tidak, buka dari menu Start). macOS: berkas `.dmg` dibuka — seret LinkDeck ke Applications. Linux/Debian: LinkDeck menampilkan perintah `sudo apt install …` untuk ditempel di terminal; AppImage diganti otomatis. Bisa dimatikan atau dicek manual di **Pengaturan → Pembaruan**.
 - **Pintasan global** — **Pengaturan → Pintasan global → Aktifkan**. `Ctrl + Alt + M` menampilkan/menutup layar Android (memakai pengaturan **Mulai tampilkan** terakhir), `Ctrl + Alt + K` menyalakan/mematikan **Keyboard & mouse saja**. Berfungsi walau jendela LinkDeck tidak aktif (Linux: butuh sesi X11).
 - **Kirim ke HP dari Explorer** (Windows) — **Pengaturan → Windows Explorer** → nyalakan. Lalu klik kanan berkas → **Kirim ke** → **LinkDeck (HP Android)**; berkas masuk ke `Download/LinkDeck` di HP. Kalau HP belum tersambung, berkas dikirim begitu HP tersambung. Di Linux dan macOS pakai perintah `--send` (lihat [Daftar perintah](#6-daftar-perintah)).
@@ -389,6 +468,7 @@ Semua alat ini bekerja lewat adb — tidak perlu memasang aplikasi apa pun di HP
 | `sudo apt remove linkdeck-agent` | Menghapus agen |
 | `rm -rf ~/.linkdeck` | Menghapus semua pengaturan agen (PIN, sandi, sertifikat) |
 | `apt install xclip` | Memasang ulang pemantau clipboard Debian bila kartu Clipboard menulis *"xclip belum terpasang"* |
+| `apt install sudo` lalu `echo "NAMAMU ALL=(ALL) ALL" > /etc/sudoers.d/NAMAMU` | (sebagai root) Mengizinkan pengguna biasa memasang aplikasi lewat **Alat → Aplikasi** |
 | `linkdeck` | Menjalankan aplikasi LinkDeck di Debian HP (paket `linkdeck-debian`) |
 | `linkdeck-scrcpy-build` | Membangun scrcpy versi yang sesuai di Debian HP (untuk Layar baru, Cermin, Kamera) |
 | `dpkg --print-architecture` | Melihat arsitektur Debian (`arm64` di HP) |
@@ -407,6 +487,7 @@ export PULSE_SERVER=127.0.0.1
 
 | Perintah | Fungsi |
 |---|---|
+| `linkdeck --tray` | Menjalankan LinkDeck diam-diam di tray tanpa membuka jendela (dipakai **Jalankan saat komputer menyala**). Windows: `LinkDeck.exe --tray` |
 | `linkdeck --send FOTO.jpg DOKUMEN.pdf` | (Linux) Kirim berkas ke `Download/LinkDeck` di HP lewat LinkDeck yang sedang berjalan |
 | `/Applications/LinkDeck.app/Contents/MacOS/LinkDeck --send BERKAS` | (macOS) Sama seperti di atas |
 | `"C:\Program Files\LinkDeck\LinkDeck.exe" --send BERKAS` | (Windows) Sama seperti di atas; menu **Kirim ke** memakai perintah ini. Bila dipasang untuk pengguna saja, lokasinya `%LOCALAPPDATA%\Programs\LinkDeck` |
@@ -428,6 +509,9 @@ export PULSE_SERVER=127.0.0.1
 | `sudo apt install xclip` | Diperlukan untuk copy-paste (atau `wl-clipboard` di Wayland) |
 | `sudo apt install v4l2loopback-dkms` | Supaya kamera HP bisa jadi webcam |
 | `sudo modprobe v4l2loopback exclusive_caps=1 card_label="Kamera HP"` | Menyalakan webcam virtual (ulangi setelah restart) |
+| `sudo apt install pulseaudio-utils` | Diperlukan untuk **Mikrofon HP** (perintah `pactl`/`pacat`) |
+| `pactl list short sources \| grep linkdeck` | Mengecek mikrofon virtual **Mikrofon HP (LinkDeck)** sedang aktif |
+| `ls ~/.config/autostart/linkdeck.desktop` | Mengecek **Jalankan saat komputer menyala** sudah terpasang |
 | `ip addr` | Melihat IP laptop |
 | `sudo apt remove linkdeck` | Menghapus LinkDeck |
 
@@ -501,6 +585,11 @@ Lainnya:
 | Jendela LinkDeck kosong/putih di Windows 10 | Pasang **Microsoft Edge WebView2 Runtime** (*Evergreen*) dari [situs Microsoft](https://developer.microsoft.com/microsoft-edge/webview2/), lalu buka ulang LinkDeck |
 | Salinan tidak muncul di Clipboard bersama | Klik **Uji** di kartu Clipboard: hasilnya menunjukkan bagian yang bermasalah dan pesan galatnya tampil di kartu. Pastikan sakelar **Android** menyala dan Debian tersambung (titik hijau). Yang disalin harus teks |
 | Salinan dari XFCE di layar HP (Termux:X11) tidak muncul | Masuk ke Debian dengan `proot-distro login debian --shared-tmp`, lalu jalankan ulang `linkdeck-start`. Perbarui agen ke 1.7.0 atau lebih baru |
+| Gambar/berkas yang disalin tidak ikut | Pastikan sakelar **Gambar & berkas** menyala dan agen Debian 1.10.0 atau lebih baru (arahkan kursor ke sakelar untuk melihat alasannya). Berkas lebih dari 48 MB dan folder tidak ikut. Ke/dari HP Android hanya teks |
+| **Alat** menulis *"Agen Debian … belum mendukung fitur ini"* | Perbarui agen di Debian ke 1.10.0 atau lebih baru ([bagian 4.1](#41-pasang-agen-sekali)), lalu jalankan ulang `linkdeck-start` |
+| Pasang aplikasi gagal: *"Bila sandi salah…"* | Periksa **Sandi sudo**. Bila pengguna Debian belum boleh memakai sudo, masuk sebagai root lalu jalankan perintah `sudo` di [Daftar perintah](#6-daftar-perintah), atau pasang lewat terminal sebagai root |
+| Pencarian di **Alat → Aplikasi** kosong | Klik **Perbarui daftar paket** dulu (Debian baru biasanya belum punya daftar paket) |
+| Stik (gamepad) tidak terdeteksi di Mode Game | Tekan salah satu tombol stik sekali setelah Mode Game terbuka (browser baru mengenali stik setelah ada tombol ditekan). Stik harus terdeteksi sebagai gamepad oleh sistem operasi |
 | Copy-paste tidak jalan (laptop Linux) | `sudo apt install xclip` |
 | Debian tidak muncul | Pastikan `linkdeck-start` sudah jalan dan HP satu jaringan dengan laptop; atau isi alamat manual |
 | Alamat HP diawali `10.` atau `100.` | Itu alamat data seluler. Pakai alamat Wi-Fi atau Bluetooth dari daftar `linkdeck-start` |
@@ -519,6 +608,15 @@ Lainnya:
 | "Satu mouse" tidak jalan di macOS | **System Settings → Privacy & Security** → izinkan LinkDeck di **Accessibility** dan **Input Monitoring** |
 | "Satu mouse" tidak jalan di Linux | Butuh sesi **X11**; Wayland belum didukung |
 | Windows SmartScreen menghalangi | **More info → Run anyway** (aplikasi belum ditandatangani sertifikat berbayar) |
+| **Mikrofon HP**: *"Kabel audio virtual tidak ditemukan"* | Pasang VB-CABLE (Windows, lalu restart) atau BlackHole 2ch (macOS), lalu coba lagi. Atau pilih **Speaker laptop** di **Pengaturan → Mikrofon HP** |
+| Mikrofon HP tidak terdengar di Zoom/Meet | Di aplikasi meeting pilih mikrofon **CABLE Output** (Windows), **BlackHole 2ch** (macOS), atau **Mikrofon HP (LinkDeck)** (Linux) — bukan *CABLE Input*. Android 11: buka kunci layar HP dulu |
+| *"Mikrofon virtual tidak bisa dibuat"* (Linux) | `sudo apt install pulseaudio-utils`, pastikan PulseAudio/PipeWire berjalan (`pactl info`) |
+| Webcam: *"Kamera virtual tidak bisa dibuka"* (Windows/macOS) | Pasang OBS Studio 30 ke atas, buka sekali lalu tutup, coba lagi. Jangan nyalakan *Start Virtual Camera* di OBS bersamaan |
+| Notifikasi tidak bisa dibalas / tidak ada tombol **Balas** | Pasang **LinkDeck Pendamping** (kartu **Notifikasi HP** → **Pasang**). Tombol **Balas** hanya muncul bila aplikasi pengirim menyediakan balasan langsung di notifikasinya |
+| Pemasangan pendamping gagal (*INSTALL_FAILED_USER_RESTRICTED*) | Xiaomi/POCO: **Opsi pengembang → Pasang lewat USB** (masuk akun Mi); HP lain: ketuk **Izinkan** di layar HP. Lihat [Notifikasi HP & LinkDeck Pendamping](#notifikasi-hp--linkdeck-pendamping) |
+| Ikon tray tidak muncul (Linux) | GNOME tidak punya area tray bawaan: pasang ekstensi *AppIndicator and KStatusNotifierItem Support* (`sudo apt install gnome-shell-extension-appindicator`), lalu log out dan masuk lagi. Tanpa area tray, menutup jendela akan keluar dari LinkDeck (Pengaturan memberi tahu bila ini terjadi) |
+| LinkDeck tidak menyala sendiri saat login | Matikan lalu nyalakan lagi **Pengaturan → Aplikasi → Jalankan saat komputer menyala** (perlu bila LinkDeck dipindah/diinstal ulang). Windows: cek **Task Manager → Startup apps** |
+| Baterai di Pantauan kosong saat hanya Debian yang tersambung | Pasang LinkDeck Pendamping di HP, atau `termux-api` di Termux + aplikasi Termux:API. Agen harus 1.11.0 atau lebih baru |
 
 Masih bermasalah? Buka **Issues** di repo ini dan lampirkan log LinkDeck (lihat *Lokasi berkas*) — serta `~/.linkdeck/agent.log` bila masalahnya di Debian.
 
@@ -530,13 +628,21 @@ Masih bermasalah? Buka **Issues** di repo ini dan lampirkan log LinkDeck (lihat 
 ```
 app.py                 aplikasi desktop: server di latar + jendela (WebView2 / WKWebView / Chrome)
 server.py              backend: adb, scrcpy, Mode Game, penemuan otomatis, terowongan TLS, sinkron, notifikasi
-pcclip.py              clipboard laptop (Win32 / NSPasteboard / xclip)
+pcclip.py              clipboard laptop: teks, gambar, dan berkas (Win32 / NSPasteboard / xclip / wl-clipboard)
+features.py            berkas & aplikasi HP, media, pembaruan otomatis, pintasan global, laporan masalah
+richclip.py            clipboard gambar & berkas laptop ↔ Debian
+debiantools.py         Alat Debian: berkas, toko aplikasi (apt), pemantau sistem
 kvm.py                 "Satu mouse" lintas laptop dan Debian
 notif.py               pembaca notifikasi Android dan daftar aplikasi
+tray.py                ikon tray dan jalan otomatis saat login (Windows/macOS/Linux)
+mediadev.py            HP jadi mikrofon (kabel audio virtual / PulseAudio) dan webcam Windows/macOS (OBS Virtual Camera)
+companionlink.py       sambungan ke aplikasi pendamping Android: notifikasi seketika, balas, baterai
+companion/             kode aplikasi pendamping Android (Java, tanpa Gradle)
 static/index.html      antarmuka
+static/i18n/en.js      kamus bahasa Inggris untuk antarmuka
 phone/agent.py         agen di Debian HP
 phone/bin/             linkdeck-start, linkdeck-stop, linkdeck-setup, linkdeck-cert
-build/                 unduh dependensi, spec PyInstaller, pengemasan, ikon, installer Windows
+build/                 unduh dependensi, spec PyInstaller, pengemasan, ikon, installer Windows, APK pendamping
 .github/workflows/     build otomatis semua OS
 ```
 
@@ -549,7 +655,7 @@ python server.py                      # server saja, buka http://127.0.0.1:8740
 ```
 
 ### Membuat installer lewat GitHub Actions
-Workflow `.github/workflows/build.yml` membangun installer Windows, macOS (Apple Silicon), Linux, dan paket agen Debian.
+Workflow `.github/workflows/build.yml` membangun APK pendamping Android, installer Windows, macOS (Apple Silicon), Linux, dan paket agen Debian. APK ditandatangani kunci sementara kecuali secret `COMPANION_KEYSTORE_B64` (keystore dalam base64) dan `COMPANION_KEYSTORE_PASS` diisi di **Settings → Secrets and variables → Actions**; dengan kunci tetap, pembaruan pendamping terpasang di atas versi lama tanpa dicopot dulu.
 ```bash
 git tag v<versi>
 git push origin v<versi>
@@ -569,9 +675,13 @@ Skrip membuka browser untuk login GitHub, membuat (atau memperbarui) repo, mengu
 pip install -r requirements.txt -r build/requirements-build.txt
 python build/fetch_deps.py linux
 python build/build_agent_deb.py
+python build/build_companion.py       # opsional: APK pendamping (butuh: sudo apt install aapt apksigner zipalign dalvik-exchange android-sdk-platform-23 default-jdk-headless)
 pyinstaller build/linkdeck.spec --noconfirm
 python build/package.py linux         # hasil di folder out/
 ```
+
+### Menambah atau mengubah teks antarmuka
+Teks asli antarmuka berbahasa Indonesia. Terjemahan Inggris ada di `static/i18n/en.js` (teks utuh, kalimat berformat, dan pola untuk pesan yang memuat nilai). Setelah menambah teks, jalankan `python build/check_i18n.py` (butuh `pip install playwright` dan `python -m playwright install chromium`) untuk melihat teks yang belum diterjemahkan.
 
 ### Port yang dipakai
 | Port | Di mana | Fungsi |
@@ -589,6 +699,7 @@ python build/package.py linux         # hasil di folder out/
 - Antarmuka LinkDeck hanya bisa diakses dari laptop itu sendiri dan dilindungi token sesi.
 - Semua lalu lintas ke Debian **terenkripsi TLS**; sertifikat HP dikunci saat pertama tersambung, dan LinkDeck menolak menyambung bila sertifikatnya berubah. Agen dilindungi **PIN**, desktop dilindungi **sandi VNC**, dan server VNC hanya bisa diakses dari HP itu sendiri.
 - adb lewat jaringan (port 5555) tidak terenkripsi dan tetap aktif sampai HP di-restart. Pakai hanya di jaringan yang kamu percayai.
+- Aplikasi **LinkDeck Pendamping** tidak punya izin internet dan hanya membuka soket lokal (`linkdeck_companion`) di HP. Isi notifikasi dan perintah balas hanya dilayani untuk adb (pengguna *shell*) dan root; penyambung lain hanya menerima status baterai.
 
 LinkDeck memakai komponen pihak ketiga berikut, masing-masing dengan lisensinya sendiri:
 [scrcpy](https://github.com/Genymobile/scrcpy) (Apache-2.0),
@@ -596,7 +707,7 @@ LinkDeck memakai komponen pihak ketiga berikut, masing-masing dengan lisensinya 
 [noVNC](https://github.com/novnc/noVNC) (MPL-2.0),
 [xterm.js](https://github.com/xtermjs/xterm.js) (MIT),
 [TigerVNC](https://tigervnc.org/) (GPL-2.0, di HP),
-[aiohttp](https://github.com/aio-libs/aiohttp), [pywebview](https://github.com/r0x0r/pywebview), [pynput](https://github.com/moses-palmer/pynput), [pyperclip](https://github.com/asweigart/pyperclip), dan [python-qrcode](https://github.com/lincolnloop/python-qrcode).
+[aiohttp](https://github.com/aio-libs/aiohttp), [pywebview](https://github.com/r0x0r/pywebview), [pynput](https://github.com/moses-palmer/pynput), [pyperclip](https://github.com/asweigart/pyperclip), [python-qrcode](https://github.com/lincolnloop/python-qrcode), [pystray](https://github.com/moses-palmer/pystray) dan [Pillow](https://python-pillow.org/) (ikon tray), serta di Windows/macOS [python-sounddevice](https://github.com/spatialaudio/python-sounddevice), [PyAV](https://github.com/PyAV-Org/PyAV), [pyvirtualcam](https://github.com/letmaik/pyvirtualcam), dan [NumPy](https://numpy.org/) (mikrofon & webcam). VB-CABLE, BlackHole, dan OBS Studio dipasang sendiri oleh pengguna bila dibutuhkan dan tidak ikut dalam LinkDeck.
 
 ---
 
@@ -651,6 +762,7 @@ Port 5555 tertutup lagi setiap HP di-restart; ulangi Cara A atau B setelah resta
 
 - Lewat jalur **HP ini**, kualitas video otomatis diturunkan (4 Mbps, 30 fps, maks. 1280 px) karena merekam dan menampilkan dikerjakan prosesor yang sama.
 - Panel **Debian** di aplikasi ini tidak diperlukan — kamu sudah berada di Debian.
+- **LinkDeck Pendamping** juga bisa dipasang dari sini (kartu **Notifikasi HP** → **Pasang**) untuk membalas notifikasi Android dari desktop XFCE.
 - Kalau jendela LinkDeck tidak terbuka: pastikan Chromium terpasang (`sudo apt install chromium`). LinkDeck menjalankannya dengan opsi `--no-sandbox` karena sandbox Chromium tidak tersedia di proot.
 
 Riwayat perubahan ada di [CHANGELOG.md](CHANGELOG.md).

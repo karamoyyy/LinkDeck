@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LinkDeck Companion</string>
+    <string name="intro">LinkDeck Companion lets LinkDeck on your laptop show notifications in real time, reply to messages, and show battery and charging status. It talks to LinkDeck only through adb (USB, Wi-Fi, or Bluetooth) and never uses the internet.</string>
+    <string name="access_on">Notification access: ON</string>
+    <string name="access_off">Notification access: OFF. LinkDeck turns it on automatically when it installs this app. You can also turn it on yourself below.</string>
+    <string name="clients">Connected to LinkDeck: %1$d</string>
+    <string name="open_settings">Open notification access settings</string>
+    <string name="privacy">Only LinkDeck through adb can read notifications. Other apps can only read the battery status, which Android already shares with every app.</string>
+</resources>

@@ -42,8 +42,12 @@ def main() -> Path:
         if not need.exists():
             raise SystemExit(f"Tidak ada {need}. Jalankan dulu: python build/fetch_deps.py linux")
     files = []
-    for name in ("app.py", "server.py", "features.py", "kvm.py", "notif.py", "pcclip.py"):
+    for name in ("app.py", "server.py", "features.py", "richclip.py", "debiantools.py", "tray.py", "mediadev.py",
+                 "companionlink.py", "kvm.py", "notif.py", "pcclip.py"):
         files.append((f"{LIB}/{name}", (ROOT / name).read_bytes(), 0o644, None))
+    apk = ROOT / "companion" / "linkdeck-companion.apk"
+    if apk.exists():
+        files.append((f"{LIB}/companion/{apk.name}", apk.read_bytes(), 0o644, None))
     files.append((f"{LIB}/VERSION", VERSION.encode() + b"\n", 0o644, None))
     files += list(walk(ROOT / "static", f"{LIB}/static"))
     files += [(f"{LIB}/bin/scrcpy-server", jar.read_bytes(), 0o644, None),
@@ -65,7 +69,7 @@ def main() -> Path:
         "Installed-Size": "auto",
         "Depends": "python3 (>= 3.11), python3-aiohttp, python3-pyperclip, python3-qrcode, "
                    "adb | android-tools-adb, xclip | xsel | wl-clipboard",
-        "Recommends": "scrcpy, chromium, python3-xlib, python3-pynput",
+        "Recommends": "scrcpy, chromium, python3-xlib, python3-pynput, python3-pystray, python3-pil, pulseaudio-utils",
         "Conflicts": "linkdeck",
         "Description": "LinkDeck untuk Debian (semua arsitektur, termasuk HP arm64)\n"
                        " Tampilkan Android (layar baru, cermin, kamera, Mode Game) dan sinkronkan\n"

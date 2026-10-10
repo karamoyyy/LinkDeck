@@ -16,6 +16,8 @@ datas = [
 ]
 
 datas += [(str(p), "phone") for p in (ROOT / "phone").glob("linkdeck-agent*.deb")]
+# APK aplikasi pendamping Android (python build/build_companion.py); bila tidak ada, LinkDeck mengunduhnya dari Releases
+datas += [(str(p), "companion") for p in (ROOT / "companion").glob("linkdeck-companion.apk")]
 
 binaries = []
 if VENDOR.is_dir():
@@ -23,16 +25,22 @@ if VENDOR.is_dir():
         is_bin = f.suffix.lower() in (".exe", ".dll") or (not IS_WIN and os.access(f, os.X_OK))
         (binaries if is_bin else datas).append((str(f), "bin"))
 
-hidden = ["pyperclip", "pcclip", "features", "qrcode", "qrcode.image.svg", "notif", "kvm", "pynput.keyboard", "pynput.mouse"]
+hidden = ["pyperclip", "pcclip", "features", "richclip", "debiantools", "tray", "mediadev", "companionlink", "pystray",
+          "PIL.Image", "PIL.PngImagePlugin", "PIL.BmpImagePlugin", "qrcode", "qrcode.image.svg", "notif", "kvm", "pynput.keyboard", "pynput.mouse"]
 # backend pynput disebut eksplisit: hook bawaannya butuh layar aktif saat build (tidak ada di CI)
 _pyn = {"win32": "win32", "darwin": "darwin"}.get(sys.platform, "xorg")
 hidden += [f"pynput.keyboard._{_pyn}", f"pynput.mouse._{_pyn}", f"pynput._util.{_pyn}"]
+# backend pystray dipilih saat jalan (importlib), jadi disebut eksplisit
+hidden += {"win32": ["pystray._win32"], "darwin": []}.get(sys.platform, ["pystray._xorg", "pystray._appindicator", "pystray._gtk"])
 if _pyn == "xorg":
     hidden += ["pynput._util.xorg_keysyms", "Xlib", "Xlib.display", "Xlib.ext.xtest", "Xlib.ext.record", "Xlib.XK", "Xlib.keysymdef.xkb"]
 if _pyn == "win32":
     hidden += ["pynput._util.win32_vks"]
 if _pyn == "darwin":
     hidden += ["pynput._util.darwin_vks", "Quartz"]
+# HP jadi mikrofon & webcam di Windows/macOS: ikut hanya bila terpasang saat build
+import importlib.util as _iu
+hidden += [m for m in ("sounddevice", "numpy", "av", "pyvirtualcam") if _iu.find_spec(m)]
 excludes = ["tkinter", "unittest", "pydoc_data", "test"]
 if sys.platform.startswith("linux"):
     excludes.append("webview")      # Linux memakai Chrome/Chromium mode aplikasi

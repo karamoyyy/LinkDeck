@@ -2,4 +2,11 @@ aiohttp>=3.9
 pyperclip>=1.8
 pynput>=1.7.7
 qrcode>=7.4
+Pillow>=10.0
+pystray>=0.19
 pywebview>=5.0; sys_platform != "linux"
+# HP jadi mikrofon & webcam (Windows/macOS; Linux memakai PulseAudio dan v4l2loopback)
+sounddevice>=0.4.6; sys_platform != "linux"
+numpy>=1.24; sys_platform != "linux"
+av>=12.0; sys_platform != "linux"
+pyvirtualcam>=0.11; sys_platform != "linux"
