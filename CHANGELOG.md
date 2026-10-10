@@ -1,5 +1,21 @@
 # Riwayat perubahan
 
+## 1.12.0 — perbaikan Mode Game, editor tombol bebas, deteksi game
+**Perbaikan: layar game tidak muncul**
+- Galat *"Dekoder video bermasalah: Unsupported configuration"* diperbaiki. Penyebabnya: dekoder selalu dipaksa memakai akselerasi perangkat keras tanpa dicek dulu, sehingga di laptop yang dekoder perangkat kerasnya tidak tersedia gambar tidak pernah tampil.
+- Kini LinkDeck memeriksa dekoder yang didukung (perangkat keras → otomatis → perangkat lunak, dengan beberapa kode codec cadangan), berganti sendiri bila dekoder gagal atau tidak menghasilkan gambar, dan meminta HP mengirim frame kunci baru (tidak perlu menunggu ±10 detik).
+- Pemutar cadangan: bila peramban tidak bisa memutar H.264 sama sekali, video didekode di laptop (PyAV) dan dikirim sebagai gambar JPEG. Dekoder yang dipakai tampil di bilah atas (HW / auto / SW / JPEG).
+- Video Mode Game kini memenuhi layar (diperbesar maupun diperkecil) tanpa berubah bentuk.
+
+**Editor tombol: geser ke mana saja**
+- Tanda bisa diseret ke seluruh layar game, termasuk di bawah bilah menu atas dan panel **Edit tombol**; panel dan bilah memudar serta tembus klik selama menyeret, dan panel tembus pandang saat kursor berada di atas tanda yang tertutupnya.
+- Penyeretan tetap mulus walau kursor keluar jendela (pointer capture), mendukung layar sentuh, dan tanda tidak lagi "melompat" ke posisi kursor.
+- Tanda langsung bisa diatur walau video belum tampil (sebelumnya tertumpuk di kotak kecil di tengah layar).
+- Panel **Edit tombol** bisa dipindah dan diperkecil, posisinya diingat. `Ctrl` + panah menggeser tanda sedikit; `Shift`/`Ctrl`/`Alt` bisa dijadikan tombol (tekan sendirian lalu lepas). Tombol panah tidak lagi tertangkap sebagai tombol game saat menggeser slider ukuran.
+
+**Deteksi otomatis game di HP**
+- Daftar **Game di HP** di panel Game: hanya game, dari tanda Android (`appCategory="game"` / `isGame`), tanda mesin game di APK (Unity, Unreal, Cocos, Godot), dan nama penerbit game terkenal. Klik untuk langsung main; **Pindai ulang** untuk game yang baru dipasang. Tidak memasang aplikasi apa pun di HP.
+
 ## 1.11.0 — pembaruan besar tahap 3
 **Ikon tray & jalan otomatis**
 - Menutup jendela tidak lagi mematikan LinkDeck: tetap berjalan di tray (sambungan, clipboard, notifikasi, pintasan tetap aktif). Klik ikon untuk membuka lagi; Windows punya menu **Buka LinkDeck / Tampilkan layar Android / Keluar dari LinkDeck**. Membuka LinkDeck untuk kedua kalinya menampilkan jendela yang sudah ada.

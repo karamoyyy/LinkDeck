@@ -33,7 +33,7 @@ from pathlib import Path
 
 from aiohttp import WSMsgType, web
 
-VERSION = "1.11.0"
+VERSION = "1.12.0"
 LD = Path.home() / ".linkdeck"
 TOKEN = os.environ.get("LINKDECK_TOKEN", "")
 AGENT_ID = os.environ.get("LINKDECK_ID", "")

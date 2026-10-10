@@ -20,6 +20,7 @@ import io
 import json
 import mimetypes
 import os
+import queue
 import re
 import secrets
 import shlex
@@ -29,6 +30,7 @@ import ssl
 import subprocess
 import sys
 import tarfile
+import threading
 import time
 import urllib.request
 import webbrowser
@@ -896,6 +898,14 @@ class GameSession:
         self.size = None
         self.tail: list[str] = []
         self.app_sent = False
+        # cadangan bila peramban tidak bisa memutar H.264: dekode di laptop (PyAV) lalu kirim JPEG
+        self.jpeg = False
+        self.jq: queue.Queue | None = None
+        self.jthread: threading.Thread | None = None
+        self.jws: web.WebSocketResponse | None = None
+        self.jloop: asyncio.AbstractEventLoop | None = None
+        self.jsending = False
+        self.jneed_key = True
 
     async def start(self) -> None:
         jar, version = server_jar()
@@ -1001,8 +1011,73 @@ class GameSession:
             n = int.from_bytes(head[8:12], "big")
             data = await r.readexactly(n)
             kind = 2 if flags & (1 << 62) else (3 if flags & (1 << 61) else 4)
+            if self.jpeg:
+                self._jpeg_feed(kind, data)
+                continue
             pts = (flags & ((1 << 61) - 1)).to_bytes(8, "big")
             await ws.send_bytes(bytes([kind]) + pts + data)
+
+    # ---------- cadangan JPEG (dekode di laptop)
+    async def enable_jpeg(self, ws: web.WebSocketResponse) -> str | None:
+        """Mulai mode JPEG. Mengembalikan pesan galat bila komponennya tidak ada."""
+        if self.jpeg:
+            return None
+        try:
+            import av  # noqa: F401
+            from PIL import Image  # noqa: F401
+        except Exception as e:
+            return ("Peramban di laptop ini tidak bisa memutar video game, dan komponen cadangan (PyAV) tidak tersedia "
+                    f"({e}). Buka LinkDeck lewat Chrome atau Edge, atau pasang PyAV: pip install av")
+        self.jws, self.jloop = ws, asyncio.get_running_loop()
+        self.jq, self.jneed_key, self.jsending = queue.Queue(), True, False
+        self.jthread = threading.Thread(target=self._jpeg_worker, name="linkdeck-game-jpeg", daemon=True)
+        self.jthread.start()
+        self.jpeg = True
+        await self.send_control(bytes([17]))                 # RESET_VIDEO: minta frame kunci baru
+        return None
+
+    def _jpeg_feed(self, kind: int, data: bytes) -> None:
+        q = self.jq
+        if kind in (2, 3):
+            self.jneed_key = False
+        elif self.jneed_key:
+            return                                           # tunggu frame kunci
+        if q.qsize() > 24:                                   # laptop tertinggal: buang antrean, minta frame kunci
+            with q.mutex:
+                q.queue.clear()
+            self.jneed_key = True
+            asyncio.ensure_future(self.send_control(bytes([17])))
+            return
+        q.put(data)
+
+    def _jpeg_worker(self) -> None:
+        import av
+        codec = av.CodecContext.create("h264", "r")
+        while True:
+            data = self.jq.get()
+            if data is None:
+                break
+            try:
+                frames = codec.decode(av.Packet(data))
+            except Exception:
+                continue                                     # paket rusak: tunggu frame kunci berikutnya
+            if not frames or self.jsending or self.jq.qsize() > 2:
+                continue                                     # frame tetap didekode, tapi hanya yang terbaru dikirim
+            fr = frames[-1]
+            k = min(1.0, 1600 / max(fr.width, fr.height))
+            img = fr.to_image(width=int(fr.width * k) // 2 * 2, height=int(fr.height * k) // 2 * 2) if k < 1 else fr.to_image()
+            buf = io.BytesIO()
+            img.save(buf, "JPEG", quality=72)
+            self.jsending = True
+            asyncio.run_coroutine_threadsafe(self._jpeg_send(buf.getvalue()), self.jloop)
+
+    async def _jpeg_send(self, data: bytes) -> None:
+        try:
+            await self.jws.send_bytes(b"\x05" + data)
+        except Exception:
+            pass
+        finally:
+            self.jsending = False
 
     async def send_control(self, data: bytes) -> None:
         if self.ctrl_w:
@@ -1014,6 +1089,8 @@ class GameSession:
         await self.send_control(bytes([16, len(raw)]) + raw)
 
     async def stop(self) -> None:
+        if self.jq:
+            self.jq.put(None)
         for w in (self.ctrl_w, getattr(self, "_video_w", None)):
             if w:
                 w.close()
@@ -1066,6 +1143,9 @@ async def ws_game(req: web.Request) -> web.StreamResponse:
                 d = json.loads(m.data)
                 if d.get("type") == "app" and d.get("name"):
                     await g.start_app(d["name"])
+                elif d.get("type") == "jpeg":
+                    err = await g.enable_jpeg(ws)
+                    await ws.send_str(json.dumps({"type": "jpeg", "ok": err is None, "error": err}))
             else:
                 break
     except Exception:

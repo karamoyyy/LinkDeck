@@ -43,7 +43,7 @@ Ditambah fitur bersama: copy-paste dua arah (teks, serta gambar & berkas antara 
 | Audio ke PC | Android 11 ke atas (HP otomatis senyap mulai Android 13) |
 | Kamera | Android 12 ke atas |
 | Sambung lewat Wi-Fi tanpa kabel (kode QR / kode 6 angka) | Android 11 ke atas |
-| Mode Game | Windows: WebView2 (bawaan Windows 11 dan Windows 10 yang diperbarui) · Linux: Chrome, Chromium, atau Edge · macOS: Safari 16.4 ke atas (perbarui macOS/Safari) |
+| Mode Game | Windows: WebView2 (bawaan Windows 11 dan Windows 10 yang diperbarui) · Linux: Chrome, Chromium, atau Edge · macOS: Safari 16.4 ke atas. Bila peramban tidak bisa memutar videonya, LinkDeck otomatis memakai pemutar cadangan (lebih berat untuk CPU) |
 | Alat Debian, clipboard gambar & berkas | Agen Debian 1.10.0 atau lebih baru. Clipboard gambar & berkas di laptop: Windows atau Linux (macOS: teks saja) |
 | HP jadi mikrofon laptop | Android 11 ke atas. Windows: [VB-CABLE](https://vb-audio.com/Cable/) (gratis) · macOS: [BlackHole 2ch](https://existential.audio/blackhole/) (gratis) · Linux: PulseAudio/PipeWire (`pactl`, sudah ada di kebanyakan desktop) |
 | Kamera HP jadi webcam Zoom/Meet | Android 12 ke atas. Windows/macOS: [OBS Studio](https://obsproject.com/) 30 ke atas (berisi *OBS Virtual Camera*) · Linux: modul `v4l2loopback` |
@@ -234,9 +234,20 @@ Bentuk jendela Cermin mengikuti bentuk layar HP, jadi bilah hitam di sisi kiri-k
 
 ### 3.8 Memakai Mode Game
 
-1. Pilih **Game**, ketik nama game (mis. *Mobile Legends*), lalu klik **Main**. Kosongkan nama untuk menampilkan layar HP apa adanya.
+1. Pilih **Game**. Daftar **Game di HP** muncul otomatis — berisi game saja (bukan WhatsApp, kamera, dll.). Klik salah satu untuk langsung main, atau ketik nama game (mis. *Mobile Legends*) lalu klik **Main**. Kosongkan nama untuk menampilkan layar HP apa adanya. Baru memasang game? Klik **Pindai ulang**.
 2. Game terbuka layar penuh seukuran laptop. Gerakkan mouse ke **bagian atas layar** untuk memunculkan menu.
 3. **Atur tombol:** klik **Edit tombol** → pilih **Template** lalu **Pakai** (atau tambah tanda sendiri) → seret tiap tanda ke tombol di layar game → klik sebuah tanda lalu tekan tombol keyboard **atau tombol stik** penggantinya → **Simpan**. Pengaturan disimpan terpisah untuk setiap game.
+
+**Deteksi game** — LinkDeck menanyakan ke Android aplikasi mana yang menyatakan dirinya game (`appCategory="game"` atau `isGame`), lalu memeriksa tanda mesin game di dalam APK (Unity, Unreal, Cocos, Godot), dan sebagai cadangan mengenali nama penerbit game terkenal. Untuk itu LinkDeck mengirim berkas kecil ke `/data/local/tmp` di HP dan menjalankannya lewat adb — tidak ada aplikasi yang dipasang. Peluncur/penguat game bawaan HP (Game Launcher, Game Turbo, dll.) tidak ikut ditampilkan.
+
+**Mengatur tanda dengan bebas** — tanda bisa diseret ke mana saja di layar game, termasuk di bawah bilah menu atas dan di bawah panel **Edit tombol**:
+- Selama menyeret, panel dan bilah atas memudar dan tembus klik.
+- Arahkan kursor ke tanda yang tertutup panel: panel menjadi tembus pandang sehingga tanda itu bisa langsung dipegang.
+- Panel bisa **dipindah** (seret judulnya, ⠿) dan **diperkecil** (tombol **–**); posisinya diingat.
+- `Ctrl` + panah menggeser tanda terpilih sedikit demi sedikit (`Ctrl + Shift` + panah = lebih jauh); `Delete` menghapusnya.
+- `Shift`, `Ctrl`, atau `Alt` bisa dijadikan tombol: tekan sendirian lalu lepas.
+
+**Pemutar video otomatis** — LinkDeck memilih dekoder video yang benar-benar didukung laptop: perangkat keras (**HW**), otomatis (**auto**), lalu perangkat lunak (**SW**). Bila dekoder gagal di tengah permainan, dekoder berikutnya langsung dipakai dan HP diminta mengirim gambar baru. Bila peramban tidak bisa memutar videonya sama sekali, video didekode oleh LinkDeck di laptop (**JPEG**): gambar tetap tampil, tetapi lebih berat untuk CPU. Dekoder yang dipakai tampil di bilah atas, mis. `60 fps · 1368×768 · HW`.
 
 | Jenis tanda | Cara kerja |
 |---|---|
@@ -554,6 +565,8 @@ Di **Mode Game**:
 | `Esc` | Tombol Kembali Android (atau melepas bidik mouse) |
 | Tahan `Esc` | Keluar dari layar penuh (Windows, Chrome/Edge) |
 | `` ` `` (bisa diganti) | Mengunci/melepas mouse untuk bidik |
+| `Ctrl` + panah (saat **Edit tombol**) | Menggeser tanda terpilih sedikit (`Ctrl + Shift` + panah = lebih jauh) |
+| `Delete` (saat **Edit tombol**) | Menghapus tanda terpilih |
 
 Lainnya:
 
@@ -581,7 +594,9 @@ Lainnya:
 | Senter tidak menyala | Senter hanya ada di kamera **belakang** |
 | Gambar Android tampil, tetapi klik/ketik/Mode Game tidak berfungsi | Nyalakan **Debugging USB (Setelan keamanan)** (Xiaomi/Redmi/POCO) atau **Nonaktifkan pemantauan izin** (sebagian Oppo/Realme) di Opsi pengembang, lalu restart HP |
 | Audio ke PC tidak keluar (Android 11) | Buka kunci layar HP, lalu mulai ulang tampilan |
-| Mode Game layar hitam | Buka LinkDeck dari aplikasinya (Windows memakai WebView2) atau Chrome/Edge. Klik **Keluar**, lalu **Main** lagi |
+| Mode Game layar hitam / *"Dekoder video bermasalah"* | Mulai 1.12.0 LinkDeck berganti dekoder sendiri dan memakai pemutar cadangan bila perlu. Bila tetap hitam: klik **Keluar**, lalu **Main** lagi; pastikan HP tidak terkunci. Game yang memblokir rekaman layar (mis. aplikasi bank) memang tampil hitam |
+| Bilah atas Mode Game menulis **JPEG** dan terasa berat | Peramban tidak bisa memutar video H.264. Windows: perbarui *Microsoft Edge WebView2 Runtime*; Windows edisi N: pasang *Media Feature Pack*. Linux: buka LinkDeck lewat Google Chrome |
+| Game tidak ada di daftar **Game di HP** | Klik **Pindai ulang**. Game yang tidak menandai dirinya sebagai game tetap bisa dibuka dengan mengetik namanya lalu **Main** |
 | Jendela LinkDeck kosong/putih di Windows 10 | Pasang **Microsoft Edge WebView2 Runtime** (*Evergreen*) dari [situs Microsoft](https://developer.microsoft.com/microsoft-edge/webview2/), lalu buka ulang LinkDeck |
 | Salinan tidak muncul di Clipboard bersama | Klik **Uji** di kartu Clipboard: hasilnya menunjukkan bagian yang bermasalah dan pesan galatnya tampil di kartu. Pastikan sakelar **Android** menyala dan Debian tersambung (titik hijau). Yang disalin harus teks |
 | Salinan dari XFCE di layar HP (Termux:X11) tidak muncul | Masuk ke Debian dengan `proot-distro login debian --shared-tmp`, lalu jalankan ulang `linkdeck-start`. Perbarui agen ke 1.7.0 atau lebih baru |
@@ -637,7 +652,7 @@ notif.py               pembaca notifikasi Android dan daftar aplikasi
 tray.py                ikon tray dan jalan otomatis saat login (Windows/macOS/Linux)
 mediadev.py            HP jadi mikrofon (kabel audio virtual / PulseAudio) dan webcam Windows/macOS (OBS Virtual Camera)
 companionlink.py       sambungan ke aplikasi pendamping Android: notifikasi seketika, balas, baterai
-companion/             kode aplikasi pendamping Android (Java, tanpa Gradle)
+companion/             kode aplikasi pendamping Android (Java, tanpa Gradle); juga berisi GameList, pembaca daftar game lewat adb
 static/index.html      antarmuka
 static/i18n/en.js      kamus bahasa Inggris untuk antarmuka
 phone/agent.py         agen di Debian HP
@@ -707,7 +722,7 @@ LinkDeck memakai komponen pihak ketiga berikut, masing-masing dengan lisensinya 
 [noVNC](https://github.com/novnc/noVNC) (MPL-2.0),
 [xterm.js](https://github.com/xtermjs/xterm.js) (MIT),
 [TigerVNC](https://tigervnc.org/) (GPL-2.0, di HP),
-[aiohttp](https://github.com/aio-libs/aiohttp), [pywebview](https://github.com/r0x0r/pywebview), [pynput](https://github.com/moses-palmer/pynput), [pyperclip](https://github.com/asweigart/pyperclip), [python-qrcode](https://github.com/lincolnloop/python-qrcode), [pystray](https://github.com/moses-palmer/pystray) dan [Pillow](https://python-pillow.org/) (ikon tray), serta di Windows/macOS [python-sounddevice](https://github.com/spatialaudio/python-sounddevice), [PyAV](https://github.com/PyAV-Org/PyAV), [pyvirtualcam](https://github.com/letmaik/pyvirtualcam), dan [NumPy](https://numpy.org/) (mikrofon & webcam). VB-CABLE, BlackHole, dan OBS Studio dipasang sendiri oleh pengguna bila dibutuhkan dan tidak ikut dalam LinkDeck.
+[aiohttp](https://github.com/aio-libs/aiohttp), [pywebview](https://github.com/r0x0r/pywebview), [pynput](https://github.com/moses-palmer/pynput), [pyperclip](https://github.com/asweigart/pyperclip), [python-qrcode](https://github.com/lincolnloop/python-qrcode), [pystray](https://github.com/moses-palmer/pystray) dan [Pillow](https://python-pillow.org/) (ikon tray), [PyAV](https://github.com/PyAV-Org/PyAV) (pemutar cadangan Mode Game dan webcam), serta di Windows/macOS [python-sounddevice](https://github.com/spatialaudio/python-sounddevice), [pyvirtualcam](https://github.com/letmaik/pyvirtualcam), dan [NumPy](https://numpy.org/) (mikrofon & webcam). VB-CABLE, BlackHole, dan OBS Studio dipasang sendiri oleh pengguna bila dibutuhkan dan tidak ikut dalam LinkDeck.
 
 ---
 

@@ -69,7 +69,7 @@ def main() -> Path:
         "Installed-Size": "auto",
         "Depends": "python3 (>= 3.11), python3-aiohttp, python3-pyperclip, python3-qrcode, "
                    "adb | android-tools-adb, xclip | xsel | wl-clipboard",
-        "Recommends": "scrcpy, chromium, python3-xlib, python3-pynput, python3-pystray, python3-pil, pulseaudio-utils",
+        "Recommends": "scrcpy, chromium, python3-xlib, python3-pynput, python3-pystray, python3-pil, pulseaudio-utils, python3-av",
         "Conflicts": "linkdeck",
         "Description": "LinkDeck untuk Debian (semua arsitektur, termasuk HP arm64)\n"
                        " Tampilkan Android (layar baru, cermin, kamera, Mode Game) dan sinkronkan\n"

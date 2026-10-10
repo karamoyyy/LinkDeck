@@ -262,6 +262,17 @@ body.kiosk #kioskExit{display:inline-flex;position:fixed;top:14px;right:14px;z-i
 .sess button{border:0;background:rgba(255,255,255,.16);color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;display:grid;place-items:center;padding:0}
 .sess button .ico{width:13px;height:13px}
 .applaunch{display:flex;gap:8px}
+.gamesbox{margin-top:12px;display:grid;gap:8px}
+.gamesbox[hidden]{display:none}
+.gamesbox .ghd{display:flex;align-items:center;gap:6px;font-size:13.5px}
+.gamesbox .ghd small{color:var(--muted,#7b7590);font-weight:500}
+.gamesbox .ghd .pill{margin-left:auto;padding:5px 11px;font-size:12px}
+.gamegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;max-height:206px;overflow:auto;padding:1px}
+.gtile{display:flex;align-items:center;gap:8px;min-width:0;border:0;border-radius:12px;padding:7px 9px;background:rgba(80,50,90,.07);
+  color:var(--text);font:inherit;font-size:13px;cursor:pointer;text-align:left;transition:background .15s}
+.gtile:hover,.gtile:focus-visible{background:rgba(80,50,90,.14)}
+.gtile i{flex:none;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-style:normal;font-weight:700;font-size:12px;color:#fff;background:hsl(var(--h) 52% 42%)}
+.gtile span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .applaunch input{flex:1;min-width:0;border:1px solid #dcd8e3;background:#fff;border-radius:999px;padding:9px 14px;color:var(--text)}
 .found{display:grid;gap:8px}
 .found button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid var(--glass-line);background:rgba(255,255,255,.1);border-radius:14px;padding:11px 14px;cursor:pointer;color:var(--on-glass)}
@@ -441,7 +452,7 @@ details.more > *:not(summary){margin-top:10px}
 .gstage{position:relative;flex:1;display:grid;place-items:center;overflow:hidden}
 #gCanvas{display:block;max-width:100%;max-height:100%;background:#000;touch-action:none;cursor:crosshair}
 .gkeys{position:absolute;pointer-events:none}
-.gkeys.editing{pointer-events:auto}
+.gkeys.editing{pointer-events:auto;z-index:4;touch-action:none}
 .gkeys.hidden .gk{opacity:0}
 .gk{position:absolute;transform:translate(-50%,-50%);display:grid;place-items:center;border-radius:50%;
   border:2px solid rgba(255,255,255,.75);background:rgba(20,16,28,.35);color:#fff;font:600 13px var(--font);
@@ -450,10 +461,21 @@ details.more > *:not(summary){margin-top:10px}
 .gk.joy span{position:absolute;font-size:12px}
 .gk.aim{border-radius:8px;border-color:#ffc46b}
 .gk.down{background:rgba(236,198,245,.55)}
-.editing .gk{cursor:grab;pointer-events:auto}
+.editing .gk{cursor:grab;pointer-events:auto;touch-action:none}
+.editing .gk.drag{cursor:grabbing;z-index:2;transition:none}
+.game.dragging .gedit,.game.dragging .gbar{opacity:.12;pointer-events:none}
 .editing .gk.sel{border-color:var(--lilac);box-shadow:0 0 0 3px rgba(236,198,245,.5)}
 .gmsg{position:absolute;inset:auto 20px 24px;margin:auto;max-width:560px;padding:14px 18px;border-radius:14px;background:rgba(20,16,28,.85);color:#fff;font-size:14px;text-align:center}
-.gedit{position:absolute;right:16px;top:64px;z-index:4;width:min(340px,calc(100% - 32px));padding:16px;display:grid;gap:10px;border-radius:var(--r-lg);background:rgba(36,26,36,.9);color:#fff}
+.gedit{position:absolute;right:16px;top:64px;z-index:5;width:min(340px,calc(100% - 32px));max-height:calc(100% - 80px);overflow:auto;padding:12px 16px 16px;display:grid;gap:10px;border-radius:var(--r-lg);background:rgba(36,26,36,.9);color:#fff;transition:opacity .15s}
+.ghead{display:flex;align-items:center;gap:8px;margin:0 -4px;padding:4px;border-radius:10px;cursor:move;touch-action:none;user-select:none}
+.ghead:hover{background:rgba(255,255,255,.06)}
+.ghead b{flex:1}
+.ghead .grip{opacity:.6;font-size:15px;letter-spacing:-1px}
+.gmin{width:28px;height:28px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:transparent;color:#fff;font:600 16px/1 var(--font);cursor:pointer;display:grid;place-items:center}
+.gmin:hover{background:rgba(255,255,255,.12)}
+.gedit.min{gap:0}
+.gedit.peek{opacity:.22;pointer-events:none}
+.gedit.min > :not(.ghead){display:none}
 .gedit p{margin:0;font-size:13px;color:rgba(255,255,255,.75)}
 .gadd{display:flex;flex-wrap:wrap;gap:6px}
 .gsel{display:grid;gap:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.15);font-size:13px}
@@ -823,8 +845,15 @@ html[data-theme="light"] .status i{box-shadow:0 0 0 1px rgba(0,0,0,.12)}
             <p class="sub" style="margin:8px 0 10px">Main game Android di laptop dengan WASD, tombol, dan mouse. Layar game otomatis memenuhi layar laptop.</p>
             <div class="applaunch">
               <label class="sr" for="gameApp">Nama game</label>
-              <input id="gameApp" list="appList" placeholder="mis. Mobile Legends" autocomplete="off">
+              <input id="gameApp" list="gameDl" placeholder="mis. Mobile Legends" autocomplete="off">
               <button class="pill primary sm" id="btnGame">Main</button>
+              <datalist id="gameDl"></datalist>
+            </div>
+            <div class="gamesbox" id="gamesBox" hidden>
+              <div class="ghd"><b>Game di HP</b><small id="gamesCount"></small>
+                <button class="pill ghost sm" id="btnGamesScan" type="button" title="Pindai ulang game di HP">Pindai ulang</button></div>
+              <div class="gamegrid" id="gameGrid" role="list" aria-live="polite"></div>
+              <p class="hint" id="gamesNote" hidden style="margin:0"></p>
             </div>
             <p class="hint" style="margin-top:8px">Kosongkan nama untuk menampilkan layar HP apa adanya. Tombol bisa diatur lewat <b>Edit tombol</b> setelah game terbuka.</p>
           </div>
@@ -1375,8 +1404,9 @@ html[data-theme="light"] .status i{box-shadow:0 0 0 1px rgba(0,0,0,.12)}
     <div class="ghud" id="gHud" aria-live="off"></div>
   </div>
   <div class="gedit glass" id="gEditor" hidden>
-    <b>Edit tombol</b>
-    <p>Seret tanda ke posisinya. Klik sebuah tanda lalu tekan tombol keyboard <b>atau tombol stik</b> untuk menggantinya.</p>
+    <div class="ghead" id="gEditHead" title="Seret untuk memindahkan panel ini"><span class="grip" aria-hidden="true">⠿</span><b>Edit tombol</b>
+      <button class="gmin" id="gEditMin" type="button" aria-expanded="true" title="Perkecil panel" aria-label="Perkecil panel">–</button></div>
+    <p>Seret tanda ke mana saja; panel ini dan bilah atas memudar selama menyeret. Klik sebuah tanda lalu tekan tombol keyboard <b>atau tombol stik</b> untuk menggantinya. <kbd>Ctrl</kbd> + panah menggeser sedikit.</p>
     <div class="gadd">
       <button class="pill white sm" data-add="joy">+ Joystick WASD</button>
       <button class="pill white sm" data-add="tap">+ Tombol</button>
@@ -1681,6 +1711,7 @@ function renderDevices(){
     $('#lane'+{usb:'Usb',wifi:'Wifi',bt:'Bt'}[k]).classList.toggle('on', !!on);
   });
   renderDevRows();
+  if(st.mode === 'game') loadGames();   // daftar game HP terpilih (tersimpan, jadi murah)
 }
 function btNet(){ return (st.networks || []).find(n => n.bt && n.gateway); }
 function renderDroidHelp(connected){
@@ -1870,6 +1901,42 @@ function resolveApp(name){
   const hit = apps.find(a=>a.label.toLowerCase()===n || a.pkg===name.trim()) || apps.find(a=>a.label.toLowerCase().startsWith(n));
   return hit ? {pkg:hit.pkg, label:hit.label} : {pkg:'?'+name.trim(), label:name.trim()};
 }
+/* ---------- game di HP (deteksi otomatis, hanya game) ---------- */
+async function loadGames(force){
+  const serial = st.serial, box = $('#gamesBox');
+  const dev = st.devices.find(d => d.serial === serial && d.state === 'device');
+  box.hidden = !dev;
+  if(!dev) return;
+  st.games ||= {};
+  if(st.games[serial] && !force){ renderGames(); return; }
+  if(st.gamesBusy === serial) return;
+  st.gamesBusy = serial; renderGames(true);
+  try{ st.games[serial] = await api('/api/phone/games', {serial, refresh:!!force}); }
+  catch(e){ st.games[serial] = {games:[], note:e.message, error:true}; }
+  finally{ st.gamesBusy = null; }
+  if(st.serial === serial) renderGames();
+}
+function renderGames(loading){
+  const r = st.games?.[st.serial], grid = $('#gameGrid');
+  $('#btnGamesScan').disabled = !!loading;
+  if(loading){ grid.innerHTML = '<p class="hint" style="margin:0">Mencari game di HP…</p>'; $('#gamesCount').textContent = ''; $('#gamesNote').hidden = true; return; }
+  const games = r?.games || [];
+  $('#gamesCount').textContent = games.length ? `(${games.length})` : '';
+  grid.innerHTML = games.length ? '' : `<p class="hint" style="margin:0">${r?.error ? esc(r.note) : 'Belum ada game terdeteksi. Ketik nama game di atas.'}</p>`;
+  for(const g of games){
+    const b = document.createElement('button');
+    let h = 0; for(const c of g.pkg) h = (h * 31 + c.charCodeAt(0)) % 360;
+    b.type = 'button'; b.className = 'gtile'; b.setAttribute('role', 'listitem'); b.style.setProperty('--h', h);
+    b.title = `${g.label} · ${g.pkg}`;
+    b.innerHTML = `<i aria-hidden="true">${esc((g.label || '?')[0].toUpperCase())}</i><span translate="no">${esc(g.label)}</span>`;
+    b.onclick = () => { $('#gameApp').value = g.label; $('#btnGame').click(); };
+    grid.append(b);
+  }
+  $('#gamesNote').hidden = !(r?.note && !r.error); $('#gamesNote').textContent = r?.note || '';
+  $('#gameDl').innerHTML = games.map(g => `<option value="${esc(g.label)}"></option>`).join('');
+}
+$('#btnGamesScan').onclick = () => loadGames(true);
+
 async function openApp(name, extra={}){
   if(!name.trim()) throw new Error('Ketik nama aplikasinya dulu.');
   await loadApps().catch(()=>{});
@@ -3178,7 +3245,10 @@ const keyName = c => !c ? '?' : c.startsWith('Pad') ? '🎮 ' + (PAD_NAMES[+c.sl
       ArrowUp:'↑', ArrowDown:'↓', ArrowLeft:'←', ArrowRight:'→', Mouse0:'Klik kiri', Mouse2:'Klik kanan', Backquote:'`',
       Enter:'Enter', Tab:'Tab', Escape:'Esc', CapsLock:'Caps'}[c] || c);
 
-/* ---- pemutar video ---- */
+/* ---- pemutar video ----
+   WebCodecs dengan dekoder yang dipilih otomatis (perangkat keras -> otomatis -> perangkat lunak, lalu kode codec
+   cadangan). Bila dekoder gagal saat berjalan, pilihan berikutnya dipakai dan HP diminta mengirim frame kunci baru.
+   Bila tidak ada yang bisa, server mendekode di laptop dan mengirim JPEG (lebih berat, tapi gambar tetap tampil). */
 function codecFromConfig(cfg){
   for(let i=0;i+4<cfg.length;i++){
     if(cfg[i]===0 && cfg[i+1]===0 && cfg[i+2]===1 && (cfg[i+3] & 0x1f)===7){
@@ -3188,34 +3258,136 @@ function codecFromConfig(cfg){
   }
   return 'avc1.42E01F';
 }
-function newDecoder(){
+const DEC_ACCEL = ['prefer-hardware', 'no-preference', 'prefer-software'];
+const DEC_CODECS = ['avc1.640033', 'avc1.4D4033', 'avc1.42E033', 'avc1.42E01F'];
+const DEC_LABEL = {'prefer-hardware':'HW', 'no-preference':'auto', 'prefer-software':'SW'};
+async function decoderCandidates(codec){
+  if(G.cands && G.candFor === codec) return G.cands;
+  const list = [];
+  if('VideoDecoder' in window){
+    for(const c of [codec, ...DEC_CODECS.filter(x => x.toLowerCase() !== codec.toLowerCase())])
+      for(const acc of DEC_ACCEL){
+        const cfg = {codec:c, optimizeForLatency:true, hardwareAcceleration:acc};
+        try{ if((await VideoDecoder.isConfigSupported(cfg)).supported) list.push(cfg); }catch{}
+      }
+  }
+  G.cands = list; G.candFor = codec; G.candIdx = 0;
+  return list;
+}
+function closeDecoder(){ const d = G.dec; G.dec = null; try{ if(d && d.state !== 'closed') d.close(); }catch{} }
+function sizeCanvas(w, h){
+  const cv = $('#gCanvas');
+  if(!w || !h || (cv.width === w && cv.height === h)) return;
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d'); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
+  fitCanvas();
+}
+function fitCanvas(){                                    // video memenuhi layar (diperbesar/diperkecil) tanpa berubah bentuk
+  const cv = $('#gCanvas'), st2 = $('#gStage').getBoundingClientRect();
+  if(!cv.width || !cv.height || !st2.width || !st2.height) return;
+  const k = Math.min(st2.width / cv.width, st2.height / cv.height);
+  cv.style.width = Math.floor(cv.width * k) + 'px'; cv.style.height = Math.floor(cv.height * k) + 'px';
+  layoutKeys();
+}
+function configureDecoder(){
+  const cfg = G.cands?.[G.candIdx];
+  if(!cfg){ useJpeg(G.decErr || 'tidak ada dekoder'); return; }
+  closeDecoder();
+  G.gotKey = false; G.decOut = 0; G.keyAt = 0;
   const cv = $('#gCanvas'), ctx = cv.getContext('2d');
-  G.dec?.state !== 'closed' && G.dec?.close();
-  G.gotKey = false;
-  G.dec = new VideoDecoder({
+  const dec = new VideoDecoder({
     output: frame => {
-      if(cv.width !== frame.displayWidth || cv.height !== frame.displayHeight){ cv.width = frame.displayWidth; cv.height = frame.displayHeight; layoutKeys(); }
-      ctx.drawImage(frame, 0, 0); frame.close(); G.frames++;
-      $('#gMsg').hidden = true;
+      if(G.dec !== dec){ frame.close(); return; }
+      sizeCanvas(frame.displayWidth, frame.displayHeight);
+      ctx.drawImage(frame, 0, 0); frame.close(); G.frames++; G.decOut++;
+      if(G.decOut === 1) $('#gMsg').hidden = true;
     },
-    error: e => { gmsg('Dekoder video bermasalah: ' + e.message + '. Coba keluar lalu main lagi.'); }
+    error: e => { if(G.dec === dec) decoderFailed(e.message); }
   });
-  G.dec.configure({codec:G.codec, optimizeForLatency:true, hardwareAcceleration:'prefer-hardware'});
+  G.dec = dec; G.decLabel = DEC_LABEL[cfg.hardwareAcceleration] || '';
+  try{ dec.configure(cfg); }catch(e){ decoderFailed(e.message); }
+}
+function decoderFailed(msg){
+  G.decErr = msg;
+  console.warn('Mode Game: dekoder', G.cands?.[G.candIdx], 'gagal:', msg);
+  closeDecoder();
+  G.candIdx++;
+  if(G.cands && G.candIdx < G.cands.length){ configureDecoder(); requestKey(); }
+  else useJpeg(msg);
+}
+function requestKey(){                                   // RESET_VIDEO (17): HP mengirim konfigurasi + frame kunci baru
+  const now = performance.now();
+  if(now - (G.keyReq || 0) < 1500) return;
+  G.keyReq = now; gsend(new Uint8Array([17]).buffer);
+}
+function useJpeg(reason){
+  if(G.jpeg) return;
+  console.warn('Mode Game: pemutar cadangan JPEG dipakai.', reason || '');
+  G.jpeg = true; closeDecoder(); G.decLabel = 'JPEG';
+  gmsg('Memakai pemutar cadangan (dekode di laptop)…');
+  if(G.ws?.readyState === 1) G.ws.send(JSON.stringify({type:'jpeg'}));
+  else G.jpegWanted = true;
+}
+async function drawJpeg(bytes){
+  if(G.jpegBusy){ G.jpegNext = bytes; return; }           // hanya gambar terbaru yang digambar
+  G.jpegBusy = true;
+  try{
+    const bmp = await createImageBitmap(new Blob([bytes], {type:'image/jpeg'}));
+    sizeCanvas(bmp.width, bmp.height);
+    $('#gCanvas').getContext('2d').drawImage(bmp, 0, 0); bmp.close(); G.frames++;
+    if(!$('#gMsg').hidden && !G.jpegErr) $('#gMsg').hidden = true;
+  }catch{}
+  G.jpegBusy = false;
+  if(G.jpegNext){ const n = G.jpegNext; G.jpegNext = null; drawJpeg(n); }
+}
+function onGameText(t){
+  let m; try{ m = JSON.parse(t); }catch{ return; }
+  if(m.type === 'jpeg'){
+    if(m.ok) toast('Pemutar cadangan aktif: gambar didekode di laptop. Lebih berat untuk CPU, tetapi tetap bisa dimainkan.', 'warn');
+    else { G.jpegErr = true; gmsg(m.error || 'Pemutar cadangan tidak tersedia.'); }
+  }
+}
+async function setupDecoder(codec){
+  G.codec = codec;
+  if(G.cands && G.candFor === codec){ configureDecoder(); return; }
+  G.picking = true;
+  const list = await decoderCandidates(codec);
+  G.picking = false;
+  if(!list.length){ G.pending = []; useJpeg('peramban tidak punya dekoder H.264 yang cocok'); return; }
+  configureDecoder();
+  const pend = G.pending || []; G.pending = [];
+  pend.forEach(feedVideo);
+}
+function feedVideo(buf){
+  if(!G.dec || G.dec.state !== 'configured') return;
+  const u = new Uint8Array(buf), key = u[0] === 3;
+  if(!key && !G.gotKey) return;                           // tunggu frame kunci pertama
+  let data = u.subarray(9);
+  if(key){
+    G.gotKey = true; if(!G.keyAt) G.keyAt = performance.now();
+    const m = new Uint8Array(G.config.length + data.length); m.set(G.config); m.set(data, G.config.length); data = m;
+  }
+  const ts = Number(new DataView(buf).getBigUint64(1));
+  try{ G.dec.decode(new EncodedVideoChunk({type: key ? 'key' : 'delta', timestamp: ts, data})); }catch{ G.gotKey = false; requestKey(); }
 }
 function onGameData(buf){
+  if(typeof buf === 'string'){ onGameText(buf); return; }
   const u = new Uint8Array(buf), kind = u[0];
   if(kind === 1){
     const v = new DataView(buf); G.size = [v.getUint32(1), v.getUint32(5)];
+    if(!G.frames) sizeCanvas(G.size[0], G.size[1]);
     layoutKeys(); return;
   }
-  if(kind === 2){ G.config = u.slice(9); G.codec = codecFromConfig(G.config); newDecoder(); return; }
-  if(!G.dec || G.dec.state !== 'configured') return;
-  const key = kind === 3;
-  if(!key && !G.gotKey) return;                       // tunggu frame kunci pertama
-  let data = u.subarray(9);
-  if(key){ G.gotKey = true; const m = new Uint8Array(G.config.length + data.length); m.set(G.config); m.set(data, G.config.length); data = m; }
-  const ts = Number(new DataView(buf).getBigUint64(1));
-  try{ G.dec.decode(new EncodedVideoChunk({type: key ? 'key' : 'delta', timestamp: ts, data})); }catch(e){ G.gotKey = false; }
+  if(kind === 5){ drawJpeg(u.subarray(1)); return; }
+  if(G.jpeg) return;
+  if(kind === 2){ G.config = u.slice(9); G.pending = []; setupDecoder(codecFromConfig(G.config)); return; }
+  if(G.picking){ if(G.pending.length < 300) G.pending.push(buf); return; }
+  feedVideo(buf);
+}
+function decoderWatchdog(){
+  // frame kunci sudah masuk tapi dekoder tidak menghasilkan gambar sama sekali: anggap gagal
+  if(!G.jpeg && G.dec && G.keyAt && !G.decOut && performance.now() - G.keyAt > 4000) decoderFailed('dekoder tidak menghasilkan gambar');
+  else if(!G.jpeg && G.dec && G.dec.decodeQueueSize > 90 && !G.decOut) decoderFailed('antrean dekoder macet');
 }
 function gmsg(t){ $('#gMsg').textContent = t; $('#gMsg').hidden = !t; }
 
@@ -3232,26 +3404,36 @@ function gameDisplaySize(){
 }
 
 async function startGame(){
-  if(!('VideoDecoder' in window)) throw new Error('Mode Game butuh WebView2 (Windows), Chrome/Edge, atau macOS 13+.');
-  const ok = await VideoDecoder.isConfigSupported({codec:'avc1.42E01F'}).then(r=>r.supported).catch(()=>false);
-  if(!ok) throw new Error('Peramban ini tidak bisa memutar video H.264. Buka LinkDeck lewat aplikasi (WebView2) atau Chrome/Edge.');
   const name = $('#gameApp').value.trim();
   let app = '';
-  if(name){ await loadApps().catch(()=>{}); app = resolveApp(name).pkg; }
-  G.app = name; G.key = (name || 'layar-hp').toLowerCase();
+  if(name){
+    const g = (st.games?.[st.serial]?.games || []).find(x => x.label === name || x.pkg === name);
+    if(g) app = g.pkg;
+    else { await loadApps().catch(()=>{}); app = resolveApp(name).pkg; }
+  }
+  Object.assign(G, {app:name, key:(name || 'layar-hp').toLowerCase(), frames:0, lastFps:0, jpeg:false, jpegWanted:false,
+    jpegErr:false, jpegBusy:false, jpegNext:null, cands:null, candFor:null, candIdx:0, picking:false, pending:[],
+    decErr:'', decLabel:'', keyReq:0, config:null});
   $('#game').hidden = false; $('#gTitle').textContent = name || 'Layar HP';
   gmsg('Membuka game… layar dibuat seukuran laptop.');
   try{ await $('#game').requestFullscreen(); await new Promise(r=>setTimeout(r, 250)); }catch{}
   lockEsc();
   const size = gameDisplaySize();
+  G.size = [size.width, size.height]; sizeCanvas(size.width, size.height);   // tanda tombol langsung bisa diatur
   await loadKeymap();
+  if(!('VideoDecoder' in window)) useJpeg('WebCodecs tidak tersedia');
   const r = await api('/api/game/start', {serial:st.serial, mode: name ? 'virtual' : 'mirror', app, ...size, audio:$('#optAudio').checked});
   G.id = r.id;
   const ws = new WebSocket(WS('/ws/game?id=' + r.id)); ws.binaryType = 'arraybuffer'; G.ws = ws;
+  ws.onopen = () => { if(G.jpegWanted){ G.jpegWanted = false; ws.send(JSON.stringify({type:'jpeg'})); } };
   ws.onmessage = ev => onGameData(ev.data);
   ws.onclose = () => { if(G.ws === ws){ gmsg('Sambungan game terputus. Klik Keluar lalu main lagi.'); } };
   toast('Gerakkan mouse ke bagian atas layar untuk membuka menu game (Edit tombol, Keluar).');
-  G.statTimer = setInterval(() => { const fps = G.frames - G.lastFps; $('#gStat').textContent = `${fps} fps · ${G.size[0]}×${G.size[1]}`; G.lastFps = G.frames; renderHud(fps); }, 1000);
+  G.statTimer = setInterval(() => {
+    const fps = G.frames - G.lastFps;
+    $('#gStat').textContent = `${fps} fps · ${G.size[0]}×${G.size[1]}${G.decLabel ? ' · ' + G.decLabel : ''}`;
+    G.lastFps = G.frames; renderHud(fps); decoderWatchdog();
+  }, 1000);
   startPad(); renderHud(0);
   bumpBar();
 }
@@ -3265,8 +3447,7 @@ async function stopGame(){
   const ws = G.ws; G.ws = null; ws?.close();
   if(G.id) api('/api/game/stop', {id:G.id}).catch(()=>{});
   G.id = null; clearInterval(G.statTimer);
-  try{ G.dec?.state !== 'closed' && G.dec?.close(); }catch{}
-  G.dec = null; G.config = null;
+  closeDecoder(); G.config = null; G.jpeg = false; G.pending = []; G.jpegNext = null;
   if(document.pointerLockElement) document.exitPointerLock();
   if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
   setEditing(false);
@@ -3313,7 +3494,7 @@ function layoutKeys(){
     box.append(el);
   });
 }
-new ResizeObserver(() => { if(!$('#game').hidden) layoutKeys(); }).observe($('#gStage'));
+new ResizeObserver(() => { if(!$('#game').hidden) fitCanvas(); }).observe($('#gStage'));
 
 /* ---- penyimpanan tombol per game ---- */
 async function loadKeymap(){
@@ -3381,9 +3562,55 @@ function setEditing(on){
   G.editing = on; G.sel = null;
   $('#gEditor').hidden = !on; $('#gKeys').classList.toggle('editing', on);
   $('#gEdit').setAttribute('aria-pressed', on);
-  if(on){ releaseAll(); $('#gKeys').classList.remove('hidden'); $('#gShow').setAttribute('aria-pressed', true); }
+  if(on){ releaseAll(); $('#gKeys').classList.remove('hidden'); $('#gShow').setAttribute('aria-pressed', true); restorePanel(); }
+  else { $('#game').classList.remove('dragging'); $('#gEditor').classList.remove('peek'); }
   renderSel(); layoutKeys(); bumpBar();
 }
+/* panel editor bisa digeser (pegang judulnya) dan diperkecil, supaya tidak menutupi tombol game */
+function placePanel(x, y){
+  const pan = $('#gEditor'), g = $('#game').getBoundingClientRect();
+  const w = pan.offsetWidth || 340, h = pan.offsetHeight || 120;
+  x = Math.max(8, Math.min(g.width - w - 8, x)); y = Math.max(8, Math.min(g.height - Math.min(h, 48) - 8, y));
+  Object.assign(pan.style, {left:x + 'px', top:y + 'px', right:'auto'});
+  return [x, y];
+}
+function restorePanel(){
+  let p = null; try{ p = JSON.parse(localStorage.getItem('ld.gedit') || 'null'); }catch{}
+  const pan = $('#gEditor');
+  pan.classList.toggle('min', !!p?.min); syncMin();
+  if(p && Number.isFinite(p.x)) placePanel(p.x, p.y); else Object.assign(pan.style, {left:'', top:'', right:''});
+}
+function savePanel(){
+  const pan = $('#gEditor'), r = pan.getBoundingClientRect(), g = $('#game').getBoundingClientRect();
+  try{ localStorage.setItem('ld.gedit', JSON.stringify({x:r.left - g.left, y:r.top - g.top, min:pan.classList.contains('min')})); }catch{}
+}
+function syncMin(){
+  const min = $('#gEditor').classList.contains('min'), b = $('#gEditMin');
+  b.textContent = min ? '+' : '–'; b.setAttribute('aria-expanded', !min);
+  b.title = min ? 'Perbesar panel' : 'Perkecil panel'; b.setAttribute('aria-label', b.title);
+}
+$('#gEditMin').onclick = () => { $('#gEditor').classList.toggle('min'); syncMin(); savePanel(); };
+$('#gEditHead').addEventListener('pointerdown', e => {
+  if(e.button !== 0 || e.target.closest('button')) return;
+  e.preventDefault();
+  const head = $('#gEditHead'), r = $('#gEditor').getBoundingClientRect(), g = $('#game').getBoundingClientRect();
+  const ox = e.clientX - r.left, oy = e.clientY - r.top;
+  try{ head.setPointerCapture(e.pointerId); }catch{}
+  const move = ev => placePanel(ev.clientX - g.left - ox, ev.clientY - g.top - oy);
+  const end = () => { head.removeEventListener('pointermove', move); head.removeEventListener('pointerup', end); head.removeEventListener('pointercancel', end); savePanel(); };
+  head.addEventListener('pointermove', move); head.addEventListener('pointerup', end); head.addEventListener('pointercancel', end);
+});
+/* tanda yang tertutup panel tetap bisa dipegang: panel tembus pandang & tembus klik selama kursor di atas tanda itu */
+$('#game').addEventListener('pointermove', e => {
+  const pan = $('#gEditor');
+  if(!G.editing || pan.hidden || $('#game').classList.contains('dragging')){ pan.classList.remove('peek'); return; }
+  const pr = pan.getBoundingClientRect(), x = e.clientX, y = e.clientY;
+  let over = false;
+  if(x >= pr.left && x <= pr.right && y >= pr.top && y <= pr.bottom)
+    over = $$('#gKeys .gk').some(k => { const r = k.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; });
+  pan.classList.toggle('peek', over);
+});
+addEventListener('resize', () => { if(G.editing && $('#gEditor').style.left){ const r = $('#gEditor').getBoundingClientRect(), g = $('#game').getBoundingClientRect(); placePanel(r.left - g.left, r.top - g.top); } });
 $('#gEdit').onclick = () => setEditing(!G.editing);
 function renderSel(){
   const it = G.map[G.sel];
@@ -3445,16 +3672,35 @@ $('#gArrows').onclick = () => { const it = G.map[G.sel]; it.keys = it.keys.up ==
 $('#gDel').onclick = () => { if(G.sel == null) return; G.map.splice(G.sel, 1); G.sel = null; renderSel(); layoutKeys(); };
 $('#gSave').onclick = () => act(null, async () => { await api('/api/keymap/save', {key:G.key, items:G.map}); G.saved = JSON.stringify(G.map); setEditing(false); toast('Tombol game disimpan.'); });
 $('#gCancel').onclick = () => { G.map = JSON.parse(G.saved); setEditing(false); };
-/* seret tanda */
+/* seret tanda: ke mana saja di layar game, tetap mulus walau kursor lewat di atas panel/bilah atau keluar jendela */
+const clamp01 = v => Math.min(1, Math.max(0, v));
+function markSel(){ $$('#gKeys .gk').forEach(k => k.classList.toggle('sel', +k.dataset.i === G.sel)); }
 $('#gKeys').addEventListener('pointerdown', e => {
-  if(!G.editing) return;
-  const el = e.target.closest('.gk'); if(!el) return;
-  e.preventDefault(); G.sel = +el.dataset.i; renderSel(); layoutKeys();
-  const r = videoRect().abs, it = G.map[G.sel];
-  const move = ev => { it.x = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)); it.y = Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height));
-    const k = $(`#gKeys .gk[data-i="${G.sel}"]`); if(k){ k.style.left = it.x*100+'%'; k.style.top = it.y*100+'%'; } };
-  const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); };
-  addEventListener('pointermove', move); addEventListener('pointerup', up);
+  if(!G.editing || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  const box = $('#gKeys'), el = e.target.closest('.gk');
+  if(!el){ if(G.sel != null){ G.sel = null; renderSel(); markSel(); } return; }
+  e.preventDefault();
+  G.sel = +el.dataset.i; renderSel(); markSel();
+  const it = G.map[G.sel], r0 = videoRect().abs;
+  const ox = e.clientX - (r0.left + it.x * r0.width), oy = e.clientY - (r0.top + it.y * r0.height);   // titik pegang
+  try{ box.setPointerCapture(e.pointerId); }catch{}
+  $('#game').classList.add('dragging'); el.classList.add('drag');
+  let done = false;
+  const move = ev => {
+    if(ev.pointerId !== e.pointerId) return;
+    const r = videoRect().abs; if(!r.width || !r.height) return;
+    it.x = clamp01((ev.clientX - ox - r.left) / r.width); it.y = clamp01((ev.clientY - oy - r.top) / r.height);
+    const k = box.querySelector(`.gk[data-i="${G.sel}"]`);
+    if(k){ k.style.left = it.x * 100 + '%'; k.style.top = it.y * 100 + '%'; k.classList.add('drag'); }
+  };
+  const end = ev => {
+    if(done || (ev.pointerId != null && ev.pointerId !== e.pointerId)) return;
+    done = true;
+    for(const t of ['pointermove', 'pointerup', 'pointercancel', 'lostpointercapture']) box.removeEventListener(t, t === 'pointermove' ? move : end);
+    $('#game').classList.remove('dragging'); box.querySelectorAll('.gk.drag').forEach(k => k.classList.remove('drag'));
+  };
+  box.addEventListener('pointermove', move); box.addEventListener('pointerup', end);
+  box.addEventListener('pointercancel', end); box.addEventListener('lostpointercapture', end);
 });
 
 /* ---- dari keyboard/mouse menjadi sentuhan ---- */
@@ -3525,9 +3771,17 @@ function isJoyKey(code){ const j = G.map.find(m => m.type === 'joy'); return j &
 window.addEventListener('keydown', e => {
   if($('#game').hidden) return;
   if(G.editing){
-    if(G.sel == null) return;
+    if(G.sel == null || e.target.closest?.('input,select,textarea')) return;
     const it = G.map[G.sel];
     if(e.code === 'Delete'){ $('#gDel').click(); e.preventDefault(); return; }
+    if(e.ctrlKey && e.code.startsWith('Arrow')){             // geser halus; Shift = lebih jauh
+      const d = e.shiftKey ? 0.02 : 0.004;
+      if(e.code === 'ArrowLeft') it.x = clamp01(it.x - d); if(e.code === 'ArrowRight') it.x = clamp01(it.x + d);
+      if(e.code === 'ArrowUp') it.y = clamp01(it.y - d); if(e.code === 'ArrowDown') it.y = clamp01(it.y + d);
+      G.modKey = null; layoutKeys(); e.preventDefault(); return;
+    }
+    if(/^(Shift|Control|Alt|Meta)(Left|Right)$/.test(e.code)){ G.modKey = e.code; e.preventDefault(); return; }   // tunggu keyup
+    G.modKey = null;
     if(it.type === 'tap' || it.type === 'aim' || it.type === 'swipe'){ it.key = e.code; renderSel(); layoutKeys(); e.preventDefault(); }
     return;
   }
@@ -3541,6 +3795,11 @@ window.addEventListener('keydown', e => {
   if(kc){ e.preventDefault(); gsend(msgKey(DOWN, kc, metaOf(e))); }
 });
 window.addEventListener('keyup', e => {
+  if(!$('#game').hidden && G.editing){                      // Shift/Ctrl/Alt ditekan sendirian = dipetakan
+    const it = G.map[G.sel];
+    if(it && G.modKey === e.code && ['tap', 'aim', 'swipe'].includes(it.type)){ it.key = e.code; renderSel(); layoutKeys(); }
+    G.modKey = null; return;
+  }
   if($('#game').hidden || G.editing) return;
   if(isJoyKey(e.code)){ G.pressed.delete(e.code); joyUpdate(); return; }
   if(pressTap(e.code, false) | pressSwipe(e.code, false)) return;

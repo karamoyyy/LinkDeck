@@ -208,6 +208,86 @@ async def list_apps(serial: str, refresh: bool = False) -> list[dict]:
     return apps
 
 
+# ---------------------------------------------------------------- deteksi game di HP
+
+GAME_HELPER = "/data/local/tmp/linkdeck-companion.apk"     # APK pendamping memuat kelas GameList (tidak perlu dipasang)
+GAMES: dict[str, dict] = {}                                  # serial -> hasil deteksi terakhir
+# bukan game walau kadang bertanda game: peluncur/penguat game bawaan HP dan toko
+NOT_GAMES = ("com.google.android.play.games", "com.google.android.", "com.android.", "com.samsung.android.game.",
+             "com.miui.", "com.xiaomi.gamecenter", "com.xiaomi.glgm", "com.coloros.", "com.oplus.", "com.heytap.",
+             "com.vivo.", "com.iqoo.", "com.transsion.", "com.huawei.gameassistant", "com.hihonor.", "com.asus.",
+             "id.linkdeck.")
+# penerbit game terkenal (cadangan bila game tidak menandai dirinya sebagai game)
+GAME_PREFIXES = (
+    "com.mobile.legends", "com.moonton.", "com.tencent.ig", "com.tencent.tmgp.", "com.tencent.lolm", "com.pubg.",
+    "com.vng.pubgmobile", "com.krafton.", "com.dts.freefire", "com.garena.game.", "com.miHoYo.", "com.mihoyo.",
+    "com.HoYoverse.", "com.hoyoverse.", "com.supercell.", "com.roblox.", "com.mojang.", "com.activision.",
+    "com.ea.game", "com.ea.games", "com.gameloft.", "com.king.", "com.netease.", "com.levelinfinite.",
+    "com.proximabeta.", "com.riotgames.", "com.innersloth.", "com.kiloo.", "com.imangi.", "com.outfit7.",
+    "com.playrix.", "com.rovio.", "com.miniclip.", "com.ubisoft.", "com.zynga.", "com.nexon.", "com.netmarble.",
+    "com.ncsoft.", "com.square_enix.", "com.bandainamcoent.", "jp.konami.", "com.sega.", "com.YoStar", "com.yostar.",
+    "com.playtika.", "com.halfbrick.", "com.lilithgame", "com.farlightgames.", "com.igg.", "com.nianticlabs.",
+    "com.epicgames.", "com.blizzard.", "com.ngame.", "com.gravity.", "com.fingersoft.", "com.ketchapp",
+    "com.voodoo.", "com.habby.", "com.tap4fun.", "com.funplus.", "com.moonactive.", "com.scopely.", "com.cygames.",
+    "com.kakaogames.", "com.com2us.", "com.gamevil.", "com.devsisters.", "com.agaming.", "com.yoozoo.", "com.wb.goog.")
+
+
+def game_by_name(pkg: str) -> bool:
+    if pkg.startswith(GAME_PREFIXES):
+        return True
+    parts = pkg.lower().split(".")
+    return any(p in ("game", "games") or p.endswith("game") and len(p) > 6 for p in parts[1:])
+
+
+async def list_games(serial: str, refresh: bool = False) -> dict:
+    """Game yang terpasang dan bisa dibuka, dengan label. Utamanya memakai tanda dari Android sendiri
+    (appCategory="game" / isGame) dan tanda mesin game di APK (Unity, Unreal, Cocos, Godot)."""
+    if serial in GAMES and not refresh:
+        return GAMES[serial]
+    apps = await list_apps(serial, refresh)
+    found: dict[str, str] = {}
+    note, method = "", "android"
+    try:
+        import companionlink
+        apk = await companionlink.get_apk()
+    except Exception as e:
+        apk, method = None, "nama"
+        note = f"Deteksi lengkap butuh APK pendamping ({e}). Sementara memakai nama paket."
+    if apk:
+        c, _, err = await adb(serial, "push", str(apk), GAME_HELPER, timeout=90)
+        if c:
+            method, note = "nama", f"APK pembantu tidak bisa dikirim ke HP: {err.strip()[:120]}"
+        else:
+            _, out, err = await adb(serial, "shell", f"CLASSPATH={GAME_HELPER} app_process / id.linkdeck.companion.GameList",
+                                    timeout=90)
+            for line in out.splitlines():
+                parts = line.split()
+                if len(parts) >= 2 and parts[0] == "GAME":
+                    found[parts[1]] = parts[2] if len(parts) > 2 else "flag"
+            if "DONE" not in out:
+                bad = next((l for l in (out + "\n" + err).splitlines() if l.strip()), "tidak ada jawaban")
+                method, note = "nama", f"Pembaca daftar game di HP gagal ({bad.strip()[:120]}). Sementara memakai nama paket."
+    games = []
+    for a in apps:
+        pkg = a["pkg"]
+        if pkg.startswith(NOT_GAMES):
+            continue
+        why = found.get(pkg) or ("nama" if game_by_name(pkg) else None)
+        if why:
+            games.append({"pkg": pkg, "label": a["label"], "why": why, "system": bool(a.get("system"))})
+    games.sort(key=lambda g: (g["system"], g["label"].lower()))
+    res = {"games": games, "method": method, "note": note, "t": time.time()}
+    GAMES[serial] = res
+    return res
+
+
+async def h_games_list(req):
+    d = await req.json()
+    if not d.get("serial"):
+        return fail("Sambungkan HP Android dulu.")
+    return ok(**await list_games(d["serial"], bool(d.get("refresh"))))
+
+
 async def h_apps_list(req):
     d = await req.json()
     if not d.get("serial"):
@@ -231,6 +311,7 @@ async def h_apps_action(req):
         if "Success" not in out:
             return fail(f"Gagal menghapus: {(out + err).strip()[:160]}")
         core.S.apps.pop(serial, None)
+        GAMES.pop(serial, None)
         return ok(msg="Aplikasi dihapus dari HP.")
     if action == "backup":
         _, out, _ = await adb(serial, "shell", "pm", "path", pkg, timeout=20)
@@ -283,6 +364,7 @@ async def h_apps_install(req):
         results.append({"name": name, "ok": "Success" in msg, "msg": "terpasang" if "Success" in msg else msg[-200:]})
         f.unlink(missing_ok=True)
     core.S.apps.pop(serial, None)
+    GAMES.pop(serial, None)
     if not results:
         return fail("Tidak ada berkas APK.")
     return ok(results=results)
@@ -709,6 +791,7 @@ def register(router, core_module, app) -> None:
     r.add_post("/api/phone/files/pull", h_files_pull)
     r.add_get("/api/phone/files/raw", h_files_raw)
     r.add_post("/api/phone/apps", h_apps_list)
+    r.add_post("/api/phone/games", h_games_list)
     r.add_post("/api/phone/apps/action", h_apps_action)
     r.add_post("/api/phone/apps/install", h_apps_install)
     r.add_post("/api/media", h_media)
